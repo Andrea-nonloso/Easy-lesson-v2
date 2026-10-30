@@ -11,6 +11,18 @@ import 'widgets.dart';
 /// Larghezza oltre la quale si mostra la griglia settimanale (tablet / desktop).
 const kGridBreakpoint = 720.0;
 
+/// Altezza uniforme di un'ora nella vista giorno.
+const double kHourH = 60;
+
+/// Spazio tra una riga e l'altra nella vista giorno (come DayList: padding bottom 10).
+const double kRowGap = 10;
+
+/// Altezza uniforme di un'ora nella griglia settimanale.
+const double kGridHourH = 56;
+
+/// Spazio tra una riga e l'altra nella griglia settimanale.
+const double kGridGap = 6;
+
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key, required this.ref, this.isHome = false});
 
@@ -452,24 +464,33 @@ class _DayPagerState extends State<DayPager> with TickerProviderStateMixin {
 }
 
 class LessonGroup {
-  LessonGroup(this.lesson, this.from, this.to);
+  LessonGroup(this.lesson, this.from, this.to) : items = [lesson];
   final Lesson lesson;
   final int from;
   int to;
+
+  /// Tutte le ore del gruppo: il sostegno si legge qui, ora per ora.
+  final List<Lesson> items;
   int get hours => to - from + 1;
 }
 
-/// Unisce le ore consecutive uguali, ma non attraverso una ricreazione.
+/// Unisce le ore consecutive con stessa materia, docente e laboratorio,
+/// ma non attraverso una ricreazione. Il sostegno NON impedisce l'unione:
+/// se c'è solo in alcune ore, viene evidenziato ora per ora.
 List<LessonGroup> groupLessons(List<Lesson> lessons, [List<BreakSlot> breaks = const []]) {
   final out = <LessonGroup>[];
   for (final l in lessons) {
-    if (out.isNotEmpty &&
-        out.last.lesson.signature == l.signature &&
-        breakAfter(breaks, out.last.to) == null) {
-      out.last.to = l.index;
-    } else {
-      out.add(LessonGroup(l, l.index, l.index));
+    if (out.isNotEmpty) {
+      final prev = out.last;
+      if (prev.lesson.lines.join('|') == l.lines.join('|') &&
+          prev.lesson.lab == l.lab &&
+          breakAfter(breaks, prev.to) == null) {
+        prev.to = l.index;
+        prev.items.add(l);
+        continue;
+      }
     }
+    out.add(LessonGroup(l, l.index, l.index));
   }
   return out;
 }
@@ -694,7 +715,10 @@ class LessonTile extends StatelessWidget {
     final l = group.lesson;
     final from = _slot(group.from);
     final to = _slot(group.to);
-    final hoursLabel = group.hours > 1 ? '${group.from + 1}ª–${group.to + 1}ª ora' : '${group.from + 1}ª ora';
+    final n = group.hours;
+    // Altezza uniforme: un'ora = kHourH, due ore unite = esattamente doppia.
+    final cardH = n * kHourH + (n - 1) * kRowGap;
+    final hoursLabel = n > 1 ? '${group.from + 1}ª–${group.to + 1}ª ora' : '${group.from + 1}ª ora';
 
     final time = SizedBox(
       width: 52,
@@ -720,7 +744,7 @@ class LessonTile extends StatelessWidget {
     Widget card;
     if (l.isEmpty) {
       card = Container(
-        constraints: const BoxConstraints(minHeight: 52),
+        constraints: BoxConstraints(minHeight: cardH),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         alignment: Alignment.centerLeft,
         decoration: BoxDecoration(
@@ -728,79 +752,62 @@ class LessonTile extends StatelessWidget {
           border: Border.all(color: scheme.outlineVariant),
         ),
         child: Text(
-          group.hours > 1 ? 'Libero · ${group.hours} ore' : 'Ora libera',
+          n > 1 ? 'Libero · $n ore' : 'Ora libera',
           style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
         ),
       );
     } else {
       final c = SubjectColors.of(l.title, theme.brightness);
       card = Container(
+        constraints: BoxConstraints(minHeight: cardH),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: c.bg,
+          color: cardColor(context),
           borderRadius: BorderRadius.circular(18),
-          border: active ? Border.all(color: scheme.primary, width: 2) : null,
-          boxShadow: active
-              ? [BoxShadow(color: scheme.primary.withAlpha(50), blurRadius: 16, offset: const Offset(0, 6))]
-              : null,
+          border: Border.all(
+            color: active ? scheme.primary : scheme.outlineVariant.withAlpha(140),
+            width: active ? 2 : 1,
+          ),
         ),
-        clipBehavior: Clip.antiAlias,
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(width: 5, color: c.accent),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            hoursLabel,
-                            style: theme.textTheme.labelMedium?.copyWith(color: c.fg.withAlpha(170)),
-                          ),
-                          const Spacer(),
-                          if (active)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: scheme.primary,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'ADESSO',
-                                style: TextStyle(
-                                  color: scheme.onPrimary,
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.6,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      Text(
-                        l.title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: c.fg,
-                          height: 1.2,
-                        ),
-                      ),
-                      for (final d in l.details)
-                        Text(d, style: theme.textTheme.bodyMedium?.copyWith(color: c.fg.withAlpha(200))),
-                      if (l.lab.isNotEmpty || l.sostegno.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 6, runSpacing: 6, children: lessonTags(l, c.fg)),
-                      ],
-                    ],
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(width: 8, height: 8, decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle)),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    l.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, height: 1.2),
                   ),
                 ),
+                if (l.lab.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  _MiniChip(label: 'LAB', color: scheme.tertiary),
+                ],
+                const SizedBox(width: 6),
+                if (active)
+                  const _NowBadge()
+                else
+                  Text(hoursLabel, style: theme.textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant)),
+              ],
+            ),
+            if (l.details.isNotEmpty || l.lab.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 1, left: 15),
+                child: Text(
+                  [...l.details, if (l.lab.isNotEmpty) l.lab].join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+                ),
               ),
-            ],
-          ),
+            ...sostegnoSplit(context, group),
+          ],
         ),
       );
     }
@@ -810,6 +817,130 @@ class LessonTile extends StatelessWidget {
       children: [time, const SizedBox(width: 12), Expanded(child: card)],
     );
   }
+}
+
+/// Badge verde "ADESSO" sulla lezione in corso.
+class _NowBadge extends StatelessWidget {
+  const _NowBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(8)),
+      child: Text(
+        'ADESSO',
+        style: TextStyle(color: scheme.onPrimary, fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: 0.6),
+      ),
+    );
+  }
+}
+
+/// Etichetta piccola con bordo (es. LAB).
+class _MiniChip extends StatelessWidget {
+  const _MiniChip({required this.label, required this.color, this.dense = false});
+
+  final String label;
+  final Color color;
+  final bool dense;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: dense ? 5 : 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withAlpha(22),
+        border: Border.all(color: color.withAlpha(90)),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        style: TextStyle(color: color, fontSize: dense ? 8.5 : 9.5, fontWeight: FontWeight.w700, letterSpacing: 0.3),
+      ),
+    );
+  }
+}
+
+/// Badge rosso del sostegno: risalta quando c'è solo in alcune ore.
+class _SostegnoBadge extends StatelessWidget {
+  const _SostegnoBadge(this.label, {this.dense = false});
+
+  final String label;
+  final bool dense;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: dense ? 5 : 7, vertical: 1),
+      decoration: BoxDecoration(
+        color: scheme.error.withAlpha(22),
+        border: Border.all(color: scheme.error.withAlpha(90)),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: scheme.error, fontSize: dense ? 9 : 10.5, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+/// Sostegno mostrato ora per ora dentro una lezione: se cambia tra un'ora e
+/// l'altra si vede subito (badge rosso quando c'è, grigio quando manca).
+List<Widget> sostegnoSplit(BuildContext context, LessonGroup group, {bool dense = false}) {
+  final theme = Theme.of(context);
+  final scheme = theme.colorScheme;
+  if (!group.items.any((l) => l.sostegno.isNotEmpty)) return const [];
+  if (group.hours == 1) {
+    return [
+      Padding(
+        padding: EdgeInsets.only(top: dense ? 4 : 6),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: _SostegnoBadge('Sostegno: ${group.lesson.sostegno.join(', ')}', dense: dense),
+        ),
+      ),
+    ];
+  }
+  return [
+    Padding(
+      padding: EdgeInsets.only(top: dense ? 4 : 6, bottom: dense ? 3 : 5),
+      child: Divider(height: 1, color: scheme.outlineVariant.withAlpha(160)),
+    ),
+    for (final it in group.items)
+      Padding(
+        padding: EdgeInsets.only(bottom: dense ? 2 : 4),
+        child: Row(
+          children: [
+            Text(
+              '${it.index + 1}ª ora',
+              style: (dense ? theme.textTheme.labelSmall : theme.textTheme.bodySmall)
+                  ?.copyWith(fontWeight: FontWeight.w700, color: scheme.onSurface),
+            ),
+            SizedBox(width: dense ? 5 : 7),
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: it.sostegno.isNotEmpty
+                    ? _SostegnoBadge(
+                        dense ? 'Sost.: ${it.sostegno.join(', ')}' : 'Sostegno: ${it.sostegno.join(', ')}',
+                        dense: dense,
+                      )
+                    : Text(
+                        'senza sostegno',
+                        style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant.withAlpha(170)),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+  ];
 }
 
 // ---------------------------------------------------------------- griglia tablet
@@ -876,103 +1007,145 @@ class WeekGrid extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 10),
-              for (var r = 0; r < rows; r++) ...[
-                if (r > 0 && breakAfter(breaks, r - 1) != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Container(
-                      margin: const EdgeInsets.only(left: timeW + 3, right: 3),
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHighest.withAlpha(110),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.local_cafe_outlined, size: 14, color: scheme.onSurfaceVariant),
-                          const SizedBox(width: 6),
-                          Text(
-                            breakAfter(breaks, r - 1)!.label,
-                            style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(
-                          width: timeW,
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 8, top: 8),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  '${r + 1}ª',
-                                  style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
-                                ),
-                                if (r < slots.length && slots[r].start != null) ...[
-                                  Text(
-                                    slots[r].startText,
-                                    style: theme.textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      color: nowIdx == r ? scheme.primary : scheme.onSurface,
-                                    ),
-                                  ),
-                                  Text(
-                                    slots[r].endText,
-                                    style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                        for (var i = 0; i < n; i++)
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 3),
-                              child: r < week.days[i].lessons.length
-                                  ? _GridCell(
-                                      lesson: week.days[i].lessons[r],
-                                      active: i == today && nowIdx == r,
-                                    )
-                                  : const SizedBox(),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+              const SizedBox(height: 8),
+              ..._sections(context, rows, breaks, today, nowIdx, timeW),
             ],
           ),
         ),
       ),
     );
   }
+
+  /// La griglia è fatta a colonne (una per giorno): le ore consecutive uguali
+  /// diventano una cella sola alta esattamente N righe, e tutte le righe
+  /// hanno la stessa altezza. I segmenti sono divisi dalle ricreazioni.
+  List<Widget> _sections(BuildContext context, int rows, List<BreakSlot> breaks, int today, int? nowIdx, double timeW) {
+    final out = <Widget>[];
+    var segStart = 0;
+    for (var r = 0; r < rows; r++) {
+      final br = breakAfter(breaks, r);
+      if (br != null || r == rows - 1) {
+        out.add(_segment(context, segStart, r, today, nowIdx, breaks, timeW));
+        if (br != null) out.add(_breakBand(context, br, timeW));
+        segStart = r + 1;
+      }
+    }
+    return out;
+  }
+
+  Widget _breakBand(BuildContext context, BreakSlot br, double timeW) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Container(
+      height: 22,
+      margin: EdgeInsets.only(left: timeW + 3, right: 3, bottom: kGridGap),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withAlpha(110),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.local_cafe_outlined, size: 14, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 6),
+          Text(br.label, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
+        ],
+      ),
+    );
+  }
+
+  Widget _segment(BuildContext context, int from, int to, int today, int? nowIdx, List<BreakSlot> breaks, double timeW) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final n = week.days.length;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: timeW,
+          child: Column(
+            children: [
+              for (var r = from; r <= to; r++)
+                Container(
+                  height: kGridHourH,
+                  margin: EdgeInsets.only(bottom: r < to ? kGridGap : 0),
+                  padding: const EdgeInsets.only(right: 8, top: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text('${r + 1}ª', style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
+                      if (r < slots.length && slots[r].start != null) ...[
+                        Text(
+                          slots[r].startText,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: nowIdx == r ? scheme.primary : scheme.onSurface,
+                          ),
+                        ),
+                        Text(slots[r].endText, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
+                      ],
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+        for (var i = 0; i < n; i++)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: _dayColumn(i, from, to, today, nowIdx, breaks),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _dayColumn(int dayIdx, int from, int to, int today, int? nowIdx, List<BreakSlot> breaks) {
+    final day = week.days[dayIdx];
+    final groups = groupLessons(day.lessons, breaks);
+    final startAt = {for (final g in groups) g.from: g};
+    final covered = <int>{for (final g in groups) for (var k = g.from; k <= g.to; k++) k};
+    final children = <Widget>[];
+    for (var r = from; r <= to; r++) {
+      final g = startAt[r];
+      final bottom = r < to ? kGridGap : 0.0;
+      if (g != null) {
+        final h = g.hours * kGridHourH + (g.hours - 1) * kGridGap;
+        children.add(Padding(
+          padding: EdgeInsets.only(bottom: bottom),
+          child: SizedBox(
+            height: h,
+            child: _GridCell(
+              group: g,
+              active: dayIdx == today && nowIdx != null && nowIdx >= g.from && nowIdx <= g.to,
+            ),
+          ),
+        ));
+      } else if (covered.contains(r)) {
+        continue; // questa ora sta dentro una cella unita
+      } else {
+        // Giornata più corta delle altre: spazio trasparente per tenere il ritmo.
+        children.add(SizedBox(height: kGridHourH + bottom));
+      }
+    }
+    return Column(children: children);
+  }
 }
 
 class _GridCell extends StatelessWidget {
-  const _GridCell({required this.lesson, required this.active});
+  const _GridCell({required this.group, required this.active});
 
-  final Lesson lesson;
+  final LessonGroup group;
   final bool active;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final lesson = group.lesson;
     if (lesson.isEmpty) {
       return Container(
-        constraints: const BoxConstraints(minHeight: 72),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: scheme.outlineVariant.withAlpha(140)),
@@ -981,33 +1154,45 @@ class _GridCell extends StatelessWidget {
     }
     final c = SubjectColors.of(lesson.title, theme.brightness);
     return Container(
-      constraints: const BoxConstraints(minHeight: 72),
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
-        color: c.bg,
+        color: cardColor(context),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: active ? scheme.primary : c.accent.withAlpha(60), width: active ? 2 : 1),
+        border: Border.all(
+          color: active ? scheme.primary : scheme.outlineVariant.withAlpha(140),
+          width: active ? 2 : 1,
+        ),
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            lesson.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: c.fg, height: 1.2),
+          Row(
+            children: [
+              Container(width: 7, height: 7, decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle)),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  lesson.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, height: 1.2),
+                ),
+              ),
+              if (lesson.lab.isNotEmpty) _MiniChip(label: 'LAB', color: scheme.tertiary, dense: true),
+            ],
           ),
-          for (final d in lesson.details.take(2))
-            Text(
-              d,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(color: c.fg.withAlpha(200)),
+          if (lesson.details.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 1, left: 12),
+              child: Text(
+                lesson.details.join(' · '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
             ),
-          if (lesson.lab.isNotEmpty || lesson.sostegno.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Wrap(spacing: 4, runSpacing: 4, children: lessonTags(lesson, c.fg, dense: true)),
-          ],
+          ...sostegnoSplit(context, group, dense: true),
         ],
       ),
     );

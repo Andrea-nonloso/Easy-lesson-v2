@@ -1,28 +1,20 @@
-## Cosa c'è di nuovo in Easy Lesson 2.0.2
+## Cosa c'è di nuovo in Easy Lesson 2.1.0
 
-### 🪻 Nuova sezione "Lavanda" nei Temi
-Cinque temi nuovi costruiti su una palette viola/lavanda:
+### ✨ Nuova grafica dell'orario
 
-- **Lavanda** e **Lavanda Tenue** — chiari, riposanti;
-- **Notte Lavanda** — scuro, con sfondo viola profondo;
-- **Lavanda OLED** — nero puro per schermi OLED/AMOLED;
-- **Lavanda in movimento** — sfondo animato con sfumatura viola, magenta e indaco.
+- **Celle tutte uguali:** ogni ora ha la stessa altezza, una lezione da due ore occupa esattamente il doppio. L'orario è ordinato e si legge al volo.
+- **Meno colori, più calma:** niente più card colorate diverse per ogni materia. Le card sono neutre e la materia si riconosce da un piccolo puntino colorato.
+- **Ore consecutive unite:** le lezioni attaccate della stessa materia diventano una sola card, anche quando il sostegno cambia da un'ora all'altra.
 
-### 🎨 "Il tuo tema": crea un tema personalizzato
-In cima alla pagina **Temi** c'è la scheda **"Crea il tuo tema"**:
+### ♿ Sostegno ben visibile, ora per ora
 
-- scegli il **colore** da una griglia di 27 tinte;
-- scegli la **modalità**: automatica, chiara o scura;
-- opzione **nero assoluto (OLED)** per lo scuro.
-
-Il tema si salva sul dispositivo e resta attivo al riavvio. Per modificarlo basta tenere premuta la sua scheda.
+Dentro una lezione unita ogni ora ha la sua riga: se in quell'ora c'è il docente di sostegno compare un **badge rosso** con il suo nome, se non c'è la riga resta grigia. Se il sostegno c'è solo la prima ora e non la seconda (o viceversa), la differenza salta subito all'occhio — sia sul telefono sia nella griglia del tablet.
 
 ### 📦 Download
 
-- **EasyLesson-Setup-2.0.2.exe** — installer per Windows;
+- **EasyLesson-Setup-2.1.0.exe** — installer per Windows;
 - **EasyLesson-Windows.zip** — Windows senza installazione;
 - **EasyLesson.apk** — Android;
 - **EasyLesson-Web.zip** — versione web.
 
 ---
-
