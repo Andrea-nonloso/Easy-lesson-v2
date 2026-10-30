@@ -1,92 +1,84 @@
 # Easy Lesson 2
 
-**L'orario delle lezioni sempre in tasca, anche offline.**
-App per telefono, tablet, web e Windows con un'unica codebase Flutter.
+**L'orario delle lezioni sempre in tasca, anche senza internet.**
 
-> Fork di [Easy Lesson Web](https://github.com/dalonzoo/Easy-Lesson-Web) di Daniele D'Alonzo:
-> interfaccia rifatta da zero, orari salvati sul dispositivo e lettura diretta del file Excel della scuola.
+Easy Lesson 2 mostra l'orario della tua classe (o di un docente) dell'IIS Rosselli di Aprilia:
+la lezione in corso, la prossima, le ricreazioni, i laboratori e il sostegno.
+Funziona su **Android, Windows e web** e legge direttamente il file Excel dell'orario pubblicato dalla scuola.
 
-## Download
+### Crediti
 
-Dalla pagina [Releases](../../releases):
+Questo progetto è un fork di **[Easy Lesson Web](https://github.com/dalonzoo/Easy-Lesson-Web)**
+di [Daniele D'Alonzo](https://github.com/dalonzoo), da cui nasce l'idea e il servizio originale.
+Easy Lesson 2 ne riscrive l'interfaccia e aggiunge il funzionamento offline e la lettura del file Excel.
+Font: Hind Siliguri (SIL Open Font License).
 
-| Piattaforma | File |
-|---|---|
-| Windows | `EasyLesson-Setup-x.y.z.exe` (installer) oppure `EasyLesson-Windows.zip` (portatile) |
-| Android | `EasyLesson.apk` |
-| Web | la versione online su GitHub Pages; dal telefono "Aggiungi a schermata Home" la installa come app |
+---
 
-## Cosa fa
+## Installazione
 
-- **Il mio orario**: scegli la tua classe (o il tuo nome se sei docente) e l'app si apre direttamente lì.
-- **Offline**: gli orari salvati restano sul dispositivo; all'apertura si vede subito la copia salvata e intanto si aggiorna.
-- **Card "Adesso"**: la lezione in corso con barra di avanzamento, la prossima, la ricreazione e quando finisci.
-- **Telefono**: giorni a schede con swipe; ore consecutive della stessa materia unite.
-- **Tablet / PC**: barra laterale e griglia settimanale completa.
-- **File Excel della scuola**: si importa dal dispositivo o da un link e tutto viene calcolato in locale.
-- **Materie per codice**: A026 = Matematica, AS12 = Italiano e storia… modificabili dalle impostazioni,
-  anche per singolo docente.
-- Laboratori e sostegno come etichette, colori stabili per materia, tema chiaro / scuro / automatico.
+Tutti i file si trovano nella pagina **[Releases](../../releases)**.
 
-## Orario da file Excel
+| Dispositivo | Cosa scaricare | Come installare |
+|---|---|---|
+| **Windows** | `EasyLesson-Setup-x.y.z.exe` | Apri il file e segui l'installazione. Se Windows mostra "PC protetto", clicca *Ulteriori informazioni → Esegui comunque*. |
+| **Windows (senza installare)** | `EasyLesson-Windows.zip` | Estrai la cartella e apri `easy_lesson.exe`. |
+| **Android** | `EasyLesson.apk` | Apri il file dal telefono e consenti l'installazione da "origini sconosciute". |
+| **iPhone / iPad** | — | Usa la versione web (sotto) e aggiungila alla schermata Home. |
 
-Formato atteso (vedi l'esempio anonimo in `test/fixtures/orario_esempio.xlsx`):
+**Primo avvio:** cerca la tua classe, aprila e tocca *"È il tuo orario?"*: da quel momento l'app si apre
+direttamente sul tuo orario, anche offline.
 
-- una riga con i giorni (Lunedì … Venerdì) e sotto le ore in numeri romani (I … VII);
-- una riga per docente: `A026 Cognome` in colonna A, la classe nelle celle giorno/ora;
-- una riga titolo con "sostegno" apre i docenti di sostegno, una con "laboratori" i laboratori.
+---
 
-Il numero di ore di ogni giorno viene dall'orario stesso; le fasce orarie predefinite
-(7:50 – 14:00 con ricreazioni 10:20 e 12:10) sono in `lib/models.dart`.
+## Versione web
 
-## Compilare dal sorgente
+La versione web è online su **https://andrea-nonloso.github.io/Easy-lesson-v2/**: si apre dal browser,
+senza installare nulla.
 
-Serve [Flutter](https://docs.flutter.dev/get-started/install) stabile; per Windows anche Visual Studio 2022
-con "Sviluppo di applicazioni desktop con C++".
+- **Come un'app:** dal telefono apri il link e scegli *Aggiungi a schermata Home*
+  (Safari: tasto Condividi → *Aggiungi alla schermata Home*).
+- **Offline:** gli orari che apri vengono salvati nel browser; restano disponibili anche senza connessione
+  finché non cancelli i dati del sito.
+- **File Excel:** da *Impostazioni → Importa file Excel* puoi caricare il file dell'orario scaricato dal sito della scuola.
+  Il download diretto da link, dal browser, può essere bloccato dal sito della scuola: in quel caso scarica il file e importalo.
+- **Privacy:** nessun account, nessun dato raccolto. Tutto resta sul tuo dispositivo.
+
+---
+
+## Prossime aggiunte
+
+Idee su cui sto lavorando o che vorrei aggiungere:
+
+- **Assenze e sostituzioni**: vedere quali docenti sono assenti oggi e quali ore della tua classe
+  cambiano (supplenza, ora libera, ingresso posticipato o uscita anticipata), evidenziate direttamente nell'orario.
+- **Notifiche**: avviso la sera prima o la mattina se il tuo orario cambia per un'assenza,
+  e promemoria qualche minuto prima della lezione successiva.
+- **Aggiornamento automatico** dell'orario quando la scuola pubblica un nuovo file Excel.
+- **Condivisione dell'orario come immagine**, da mandare nel gruppo della classe.
+- **Bot per Microsoft Teams**: un servizio (Docker) che ogni mattina pubblica l'orario del giorno,
+  con le eventuali sostituzioni, nel canale della classe.
+- **Widget** per la schermata Home con la lezione in corso e la prossima.
+- **Esportazione nel calendario** (Google Calendar, Outlook) in formato `.ics`.
+- **Agenda della classe**: verifiche e compiti segnati direttamente sulle ore di lezione.
+
+Hai un'idea o hai trovato un errore? Apri una [issue](../../issues).
+
+---
+
+<details>
+<summary><b>Per sviluppatori: compilare dal sorgente</b></summary>
+
+Serve [Flutter](https://docs.flutter.dev/get-started/install) (canale stabile); per Windows anche
+Visual Studio 2022 con "Sviluppo di applicazioni desktop con C++".
 
 ```bash
 flutter pub get
 flutter test
-flutter run -d windows      # oppure: -d chrome, oppure un telefono collegato
+flutter run -d windows      # oppure -d chrome, oppure un telefono collegato
 ```
 
-Build:
+Release automatiche con GitHub Actions: `git tag v2.0.1 && git push origin v2.0.1`
+crea installer Windows, APK e zip web nella pagina Releases.
 
-```bash
-flutter build web --release
-flutter build apk --release
-flutter build windows --release   # su Windows: .\build_windows.ps1 crea zip + installer in dist\
-```
-
-Le release si generano da sole con GitHub Actions creando un tag:
-
-```bash
-git tag v2.0.0
-git push origin v2.0.0
-```
-
-## Struttura
-
-```
-lib/
-  main.dart               avvio app e tema
-  api.dart                cloud function di Easy Lesson (Dart puro)
-  xlsx.dart               lettore .xlsx (Dart puro)
-  timetable.dart          dal file Excel all'orario di classe / docente (Dart puro)
-  models.dart             modelli, fasce orarie, codici materia
-  store.dart              stato e salvataggio locale
-  ui/                     schermate (orario, ricerca, salvati, impostazioni, materie)
-test/                     test di parsing e interfaccia
-installer/                script Inno Setup per l'installer Windows
-.github/workflows/        CI, GitHub Pages e release automatiche
-```
-
-## Privacy
-
-Gli orari e il file Excel importato restano sul dispositivo (SharedPreferences / localStorage).
-L'app non raccoglie dati e non richiede login.
-
-## Crediti
-
-Progetto originale [Easy Lesson Web](https://github.com/dalonzoo/Easy-Lesson-Web) di
-[Daniele D'Alonzo](https://github.com/dalonzoo). Font Hind Siliguri (SIL Open Font License).
+</details>
