@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../store.dart';
 import 'app_menu.dart';
+import 'export_calendar.dart';
+import 'fun.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -18,7 +20,7 @@ const double kHourH = 60;
 const double kRowGap = 10;
 
 /// Altezza uniforme di un'ora nella griglia settimanale.
-const double kGridHourH = 56;
+const double kGridHourH = 66;
 
 /// Spazio tra una riga e l'altra nella griglia settimanale.
 const double kGridGap = 6;
@@ -106,7 +108,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       ..showSnackBar(SnackBar(
         content: Text(mine
             ? 'Non è più il tuo orario'
-            : '${widget.ref.displayName} è ora il tuo orario: lo trovi nella prima scheda'),
+            : '${widget.ref.displayName} è ora il tuo orario: lo trovi nella scheda Orario e in home'),
       ));
   }
 
@@ -173,6 +175,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 isMine ? 'Non è il mio orario' : 'Imposta come mio orario',
                 () => _toggleMine(store),
               ),
+            if (cached != null)
+              AppMenuItem(Icons.event_rounded, 'Esporta nel calendario', () => exportToCalendar(context, cached)),
             if (wide)
               AppMenuItem(
                 store.preferGrid ? Icons.view_day_outlined : Icons.calendar_view_week_outlined,
@@ -410,6 +414,13 @@ class _DayPagerState extends State<DayPager> with TickerProviderStateMixin {
                 color: cardColor(context),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: scheme.outlineVariant.withAlpha(90)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(Theme.of(context).brightness == Brightness.dark ? 60 : 14),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
               child: TabBar(
                 controller: _tabs,
@@ -601,6 +612,7 @@ class NowCard extends StatelessWidget {
     String title;
     String? subtitle;
     double? progress;
+    String? place; // laboratorio della lezione (adesso o prossima)
 
     Lesson? nextAfter(int i) {
       for (var k = i + 1; k < n; k++) {
@@ -614,6 +626,7 @@ class NowCard extends StatelessWidget {
       final s = slots[idx];
       overline = 'ADESSO · fino alle ${s.endText}';
       title = l.isEmpty ? 'Ora libera' : l.title;
+      if (l.lab.isNotEmpty) place = l.lab;
       progress = ((m - s.start!) / (s.end! - s.start!)).clamp(0.0, 1.0).toDouble();
       final next = nextAfter(idx);
       subtitle = next != null ? 'Poi: ${next.title}' : (idx == n - 1 ? 'Ultima ora di oggi' : null);
@@ -637,6 +650,7 @@ class NowCard extends StatelessWidget {
       if (nextIdx != null) {
         overline = 'PROSSIMA LEZIONE · ore ${slots[nextIdx].startText}';
         title = lessons[nextIdx].title;
+        if (lessons[nextIdx].lab.isNotEmpty) place = lessons[nextIdx].lab;
         final mins = slots[nextIdx].start! - m;
         subtitle = mins < 60 ? 'Tra $mins minuti' : 'Tra ${mins ~/ 60} h ${mins % 60} min';
       } else if (lastEnd != null && m >= lastEnd) {
@@ -653,12 +667,19 @@ class NowCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(26),
         gradient: LinearGradient(
           colors: [scheme.primary, Color.lerp(scheme.primary, scheme.tertiary, 0.55)!],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.primary.withAlpha(90),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -680,6 +701,10 @@ class NowCard extends StatelessWidget {
           if (subtitle != null) ...[
             const SizedBox(height: 2),
             Text(subtitle, style: TextStyle(color: scheme.onPrimary.withAlpha(220), fontSize: 15)),
+          ],
+          if (place != null) ...[
+            const SizedBox(height: 10),
+            PlacePill(place, color: scheme.onPrimary),
           ],
           if (progress != null) ...[
             const SizedBox(height: 12),
@@ -795,7 +820,11 @@ class LessonTile extends StatelessWidget {
                 ),
                 if (l.lab.isNotEmpty) ...[
                   const SizedBox(width: 6),
-                  _MiniChip(label: 'LAB', color: scheme.tertiary),
+                  LabBadge(l.lab, dense: true),
+                ],
+                if (teacherCount(l) > 1) ...[
+                  const SizedBox(width: 6),
+                  CompresenzaBadge(teacherCount(l)),
                 ],
                 const SizedBox(width: 6),
                 if (active)
@@ -808,7 +837,7 @@ class LessonTile extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 1, left: 15),
                 child: Text(
-                  [...l.details, if (l.lab.isNotEmpty) l.lab].join(' · '),
+                  [...l.details, if (l.lab.isNotEmpty) '${labInfo(l.lab).emoji} ${l.lab}'].join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
@@ -845,33 +874,7 @@ class _NowBadge extends StatelessWidget {
   }
 }
 
-/// Etichetta piccola con bordo (es. LAB).
-class _MiniChip extends StatelessWidget {
-  const _MiniChip({required this.label, required this.color, this.dense = false});
-
-  final String label;
-  final Color color;
-  final bool dense;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: dense ? 5 : 6, vertical: 1),
-      decoration: BoxDecoration(
-        color: color.withAlpha(22),
-        border: Border.all(color: color.withAlpha(90)),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        style: TextStyle(color: color, fontSize: dense ? 8.5 : 9.5, fontWeight: FontWeight.w700, letterSpacing: 0.3),
-      ),
-    );
-  }
-}
-
-/// Badge rosso del sostegno: risalta quando c'è solo in alcune ore.
+/// Badge del sostegno: colore neutro con icona (il rosso sembrava un errore).
 class _SostegnoBadge extends StatelessWidget {
   const _SostegnoBadge(this.label, {this.dense = false});
 
@@ -881,29 +884,51 @@ class _SostegnoBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final color = scheme.secondary;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: dense ? 5 : 7, vertical: 1),
       decoration: BoxDecoration(
-        color: scheme.error.withAlpha(22),
-        border: Border.all(color: scheme.error.withAlpha(90)),
+        color: color.withAlpha(22),
+        border: Border.all(color: color.withAlpha(90)),
         borderRadius: BorderRadius.circular(7),
       ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: scheme.error, fontSize: dense ? 9 : 10.5, fontWeight: FontWeight.w700),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.accessibility_new_rounded, size: dense ? 10 : 12, color: color),
+          SizedBox(width: dense ? 3 : 4),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: color, fontSize: dense ? 9 : 10.5, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 /// Sostegno mostrato ora per ora dentro una lezione: se cambia tra un'ora e
-/// l'altra si vede subito (badge rosso quando c'è, grigio quando manca).
+/// l'altra si vede subito (badge quando c'è, testo grigio quando manca).
 List<Widget> sostegnoSplit(BuildContext context, LessonGroup group, {bool dense = false}) {
   final theme = Theme.of(context);
   final scheme = theme.colorScheme;
   if (!group.items.any((l) => l.sostegno.isNotEmpty)) return const [];
+  if (dense) {
+    // Griglia settimanale: una riga sola, es. "Sost. 1ª 2ª · Rossi" oppure "Sost. · Rossi".
+    final withSost = [for (final it in group.items) if (it.sostegno.isNotEmpty) '${it.index + 1}ª'];
+    final names = <String>{for (final it in group.items) ...it.sostegno}.join(', ');
+    final hours = (group.hours > 1 && withSost.length < group.items.length) ? ' ${withSost.join(' ')}' : '';
+    return [
+      Padding(
+        padding: const EdgeInsets.only(top: 3),
+        child: _SostegnoBadge('Sost.$hours · $names', dense: true),
+      ),
+    ];
+  }
   if (group.hours == 1) {
     return [
       Padding(
@@ -989,7 +1014,16 @@ class WeekGrid extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
                           color: i == today ? scheme.primary : cardColor(context),
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: i == today
+                                  ? scheme.primary.withAlpha(80)
+                                  : Colors.black.withAlpha(Theme.of(context).brightness == Brightness.dark ? 55 : 12),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: Column(
                           children: [
@@ -1161,8 +1195,11 @@ class _GridCell extends StatelessWidget {
       );
     }
     final c = SubjectColors.of(lesson.title, theme.brightness);
+    final hasSost = group.items.any((l) => l.sostegno.isNotEmpty);
+    // In una cella da un'ora c'è spazio per 2 righe di titolo solo se non c'è altro.
+    final titleLines = (group.hours == 1 && (lesson.details.isNotEmpty || hasSost)) ? 1 : 2;
     return Container(
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
       decoration: BoxDecoration(
         color: cardColor(context),
         borderRadius: BorderRadius.circular(14),
@@ -1171,7 +1208,15 @@ class _GridCell extends StatelessWidget {
           width: active ? 2 : 1,
         ),
       ),
-      child: Column(
+      // Altezza della cella fissa (allineata alla griglia): se il testo è più lungo
+      // viene tagliato con i puntini invece di uscire e sovrapporsi.
+      child: LayoutBuilder(
+        builder: (context, box) => ClipRect(
+          child: SingleChildScrollView(
+            physics: const NeverScrollableScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: box.maxHeight.isFinite ? box.maxHeight : 0),
+              child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1182,12 +1227,12 @@ class _GridCell extends StatelessWidget {
               Expanded(
                 child: Text(
                   lesson.title,
-                  maxLines: 2,
+                  maxLines: titleLines,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, height: 1.2),
                 ),
               ),
-              if (lesson.lab.isNotEmpty) _MiniChip(label: 'LAB', color: scheme.tertiary, dense: true),
+              if (lesson.lab.isNotEmpty) LabBadge(lesson.lab, dense: true),
             ],
           ),
           if (lesson.details.isNotEmpty)
@@ -1202,6 +1247,10 @@ class _GridCell extends StatelessWidget {
             ),
           ...sostegnoSplit(context, group, dense: true),
         ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

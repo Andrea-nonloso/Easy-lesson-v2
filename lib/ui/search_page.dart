@@ -24,6 +24,9 @@ class _SearchPageState extends State<SearchPage> {
   bool _prof = false;
   String _q = '';
 
+  /// Docenti: cerca e raggruppa per nome (false) o per materia (true).
+  bool _bySubject = false;
+
   @override
   void dispose() {
     _ctrl.dispose();
@@ -40,7 +43,9 @@ class _SearchPageState extends State<SearchPage> {
     final theme = Theme.of(context);
     final source = _prof ? store.docenti : store.classi;
     final q = normalizeSearch(_q);
-    final results = q.isEmpty ? source : source.where((s) => normalizeSearch(s).contains(q)).toList();
+    final bySubject = _prof && _bySubject;
+    String key(String s) => bySubject ? normalizeSearch(teacherSubject(s) ?? 'altro') : normalizeSearch(s);
+    final results = q.isEmpty ? source : source.where((s) => key(s).contains(q)).toList();
     final recents = [...store.favorites, ...store.recents].take(10).toList();
 
     Widget content;
@@ -77,11 +82,17 @@ class _SearchPageState extends State<SearchPage> {
       content = EmptyState(
         icon: Icons.search_off_rounded,
         title: 'Nessun risultato',
-        message: 'Nessun${_prof ? ' docente' : 'a classe'} corrisponde a "$_q".',
+        message: bySubject
+            ? 'Nessuna materia corrisponde a "$_q".'
+            : 'Nessun${_prof ? ' docente' : 'a classe'} corrisponde a "$_q".',
       );
     } else {
       content = _prof
-          ? _TeacherList(names: results, onOpen: (n) => openSchedule(context, ScheduleRef(n, prof: true)))
+          ? _TeacherList(
+              names: results,
+              bySubject: bySubject,
+              onOpen: (n) => openSchedule(context, ScheduleRef(n, prof: true)),
+            )
           : _ClassGrid(names: results, onOpen: (n) => openSchedule(context, ScheduleRef(n, prof: false)));
     }
 
@@ -116,6 +127,34 @@ class _SearchPageState extends State<SearchPage> {
                   ),
                 ),
               ),
+              if (_prof)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Cerca per',
+                        style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                      const SizedBox(width: 10),
+                      ChoiceChip(
+                        avatar: const Icon(Icons.badge_outlined, size: 18),
+                        label: const Text('Nome'),
+                        selected: !_bySubject,
+                        showCheckmark: false,
+                        onSelected: (_) => setState(() => _bySubject = false),
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        avatar: const Icon(Icons.menu_book_outlined, size: 18),
+                        label: const Text('Materia'),
+                        selected: _bySubject,
+                        showCheckmark: false,
+                        onSelected: (_) => setState(() => _bySubject = true),
+                      ),
+                    ],
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
                 child: TextField(
@@ -126,7 +165,9 @@ class _SearchPageState extends State<SearchPage> {
                   textCapitalization: TextCapitalization.characters,
                   autocorrect: false,
                   decoration: InputDecoration(
-                    hintText: _prof ? 'Cerca un docente…' : 'Cerca una classe, es. 3A',
+                    hintText: !_prof
+                        ? 'Cerca una classe, es. 3A'
+                        : (_bySubject ? 'Cerca una materia, es. Matematica' : 'Cerca un docente…'),
                     prefixIcon: const Icon(Icons.search_rounded),
                     suffixIcon: _q.isEmpty
                         ? null
@@ -243,24 +284,43 @@ class _ClassGrid extends StatelessWidget {
 }
 
 class _TeacherList extends StatelessWidget {
-  const _TeacherList({required this.names, required this.onOpen});
+  const _TeacherList({required this.names, required this.onOpen, this.bySubject = false});
 
   final List<String> names;
   final ValueChanged<String> onOpen;
+
+  /// true = raggruppati per materia (A-Z delle materie), false = per iniziale del cognome.
+  final bool bySubject;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    // Lista piatta con intestazioni per lettera.
-    final items = <Object>[];
-    String? letter;
-    for (final n in names) {
+    // Lista piatta con intestazioni (iniziale del cognome oppure materia).
+    String group(String n) {
+      if (bySubject) return teacherSubject(n) ?? 'Sostegno e altri';
       final label = teacherLabel(n);
-      final l = label.isEmpty ? '#' : label[0].toUpperCase();
-      if (l != letter) {
-        items.add(l);
-        letter = l;
+      return label.isEmpty ? '#' : label[0].toUpperCase();
+    }
+
+    final sorted = [...names];
+    if (bySubject) {
+      sorted.sort((a, b) {
+        final ga = group(a), gb = group(b);
+        // "Sostegno e altri" in fondo
+        final oa = teacherSubject(a) == null ? 1 : 0, ob = teacherSubject(b) == null ? 1 : 0;
+        if (oa != ob) return oa - ob;
+        final c = ga.toLowerCase().compareTo(gb.toLowerCase());
+        return c != 0 ? c : teacherLabel(a).toLowerCase().compareTo(teacherLabel(b).toLowerCase());
+      });
+    }
+    final items = <Object>[];
+    String? current;
+    for (final n in sorted) {
+      final g = group(n);
+      if (g != current) {
+        items.add(g);
+        current = g;
       }
       items.add(_Name(n));
     }

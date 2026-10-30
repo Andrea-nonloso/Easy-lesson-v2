@@ -1,21 +1,41 @@
 ## Cosa c'è di nuovo in Easy Lesson 2.1.0
 
-### 📱 Interfaccia ottimizzata per ogni dispositivo
+### 🏠 Nuova home
 
-L'orario è stato ridisegnato per essere leggibile allo stesso modo su telefono, tablet e PC:
+All'apertura trovi il saluto con il tuo nome, la ricerca rapida e la lezione di adesso a colpo d'occhio, con i chip per cambiare orario al volo e le scorciatoie ai salvati. La nuova interfaccia prende ispirazione da alcuni sample di design online, riadattati e ottimizzati per l'uso a scuola: orario leggibile a colpo d'occhio, pochi colori, tutto a portata di pollice.
 
-- **Celle tutte uguali:** ogni ora ha la stessa altezza; una lezione da due ore occupa esattamente il doppio dello spazio.
-- **Meno colori, più ordine:** card neutre e pulite, la materia si riconosce da un piccolo puntino colorato.
-- **Ore consecutive unite:** le lezioni attaccate della stessa materia diventano una sola card, su telefono e nella griglia settimanale.
-- **Card più morbide:** angoli più arrotondati e ombre leggere, per un look più moderno.
+### 🧭 Configurazione iniziale
 
-### ♿ Sostegno ben visibile, ora per ora
+Al primo avvio l'app ti chiede nome, classe (o docente) e tema preferito: l'orario viene scaricato subito e resta disponibile anche offline.
 
-Dentro una lezione unita ogni ora ha la sua riga: se in quell'ora c'è il docente di sostegno compare un **badge rosso** con il suo nome, altrimenti la riga resta grigia. Se il sostegno c'è solo in alcune ore, la differenza salta subito all'occhio.
+### 🔍 Cerca i docenti per materia
 
-### 🌌 Nuovo tema "Blu Notte"
+In Cerca → Docenti puoi scegliere Nome o Materia: scrivi "mate" ed escono tutti i docenti di Matematica, raggruppati per materia.
 
-Tema scuro blu profondo con accento azzurro, in stile moderno. Lo trovi in cima alla pagina **Temi**, sezione "In evidenza".
+### 📅 Esporta nel calendario
+
+Dal menu ⋮ di un orario crei un file .ics per Google Calendar, Outlook o il Calendario di Windows: le lezioni si ripetono ogni settimana fino a giugno e il laboratorio finisce nel "luogo" dell'evento.
+
+### 📱 Orario ridisegnato
+
+- Celle tutte uguali: ogni ora ha la stessa altezza, una lezione da due ore occupa esattamente il doppio.
+- Ore consecutive della stessa materia unite in un'unica card.
+- Sostegno evidenziato ora per ora nella vista giorno; badge compatto con icona nella griglia.
+- Laboratori con la loro icona (🧪 chimica, ⚛️ fisica, 💻 informatica…) e badge 👥 per le compresenze.
+
+### 🎨 Temi rinnovati
+
+- Nuovo tema scuro neutro in scala di grigi.
+- "Blu notte" resta nella pagina Temi, tra i Classici.
+- Tema chiaro più morbido, con sfondo grigio-lilla e card bianche.
+
+### 💻 Windows
+
+La finestra si apre in formato verticale da telefono e si adatta da sola all'altezza dello schermo.
+
+### 🥚 E una sorpresa
+
+Nelle Impostazioni, in fondo. Sette tocchi sulla 🍃. Fidati.
 
 ### 📦 Download
 
@@ -23,5 +43,3 @@ Tema scuro blu profondo con accento azzurro, in stile moderno. Lo trovi in cima 
 - **EasyLesson-Windows.zip** — Windows senza installazione;
 - **EasyLesson.apk** — Android;
 - **EasyLesson-Web.zip** — versione web.
-
----

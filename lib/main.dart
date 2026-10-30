@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'store.dart';
 import 'ui/backdrop.dart';
 import 'ui/home_shell.dart';
+import 'ui/onboarding.dart';
 import 'ui/theme.dart';
 
 Future<void> main() async {
@@ -44,7 +45,7 @@ class EasyLessonApp extends StatelessWidget {
           // Sfondo del tema (anche animato) dietro a tutte le schermate
           builder: (context, child) => AppBackdrop(child: child ?? const SizedBox()),
           scrollBehavior: const _AppScrollBehavior(),
-          home: const HomeShell(),
+          home: store.setupDone ? const HomeShell() : const OnboardingPage(),
           );
         },
       ),

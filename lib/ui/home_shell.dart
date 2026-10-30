@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../store.dart';
 import '../updater.dart';
 import 'app_menu.dart';
+import 'home_page.dart';
 import 'saved_page.dart';
 import 'schedule_screen.dart';
 import 'search_page.dart';
@@ -22,7 +23,8 @@ class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
   static const _destinations = [
-    (icon: Icons.today_outlined, selected: Icons.today_rounded, label: 'Il mio orario'),
+    (icon: Icons.home_outlined, selected: Icons.home_rounded, label: 'Home'),
+    (icon: Icons.today_outlined, selected: Icons.today_rounded, label: 'Orario'),
     (icon: Icons.search_rounded, selected: Icons.search_rounded, label: 'Cerca'),
     (icon: Icons.bookmark_border_rounded, selected: Icons.bookmark_rounded, label: 'Salvati'),
   ];
@@ -30,8 +32,6 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
-    // Senza "mio orario" si parte direttamente dalla ricerca.
-    if (StoreScope.read(context).myRef == null) _index = 1;
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkUpdates());
   }
 
@@ -54,9 +54,14 @@ class _HomeShellState extends State<HomeShell> {
     final body = IndexedStack(
       index: _index,
       children: [
-        _MyScheduleTab(onSearch: () => _go(1)),
+        HomePage(
+          onSearch: () => _go(2),
+          onOpenMine: () => _go(1),
+          onOpenSaved: () => _go(3),
+        ),
+        _MyScheduleTab(onSearch: () => _go(2)),
         const SearchPage(),
-        SavedPage(onSearch: () => _go(1)),
+        SavedPage(onSearch: () => _go(2)),
       ],
     );
 

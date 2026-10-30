@@ -72,6 +72,8 @@ class AppStore extends ChangeNotifier {
   final EasyLessonApi _api;
 
   static const _kTheme = 'el.theme';
+  static const _kUsername = 'el.username';
+  static const _kSetupDone = 'el.setupDone';
   static const _kThemeId = 'el.themeId';
   static const _kCustomTheme = 'el.customTheme';
   static const _kClassi = 'el.classi';
@@ -87,6 +89,12 @@ class AppStore extends ChangeNotifier {
   static const _maxRecents = 8;
 
   ThemeMode themeMode = ThemeMode.system;
+
+  /// Nome mostrato nel saluto della home (chiesto al primo avvio).
+  String? username;
+
+  /// true dopo il setup iniziale (anche se completato saltando dei passi).
+  bool setupDone = false;
 
   /// Tema scelto nella pagina Temi (vedi ui/theme.dart).
   String themeId = 'auto';
@@ -165,6 +173,9 @@ class AppStore extends ChangeNotifier {
       (m) => m.name == _prefs.getString(_kTheme),
       orElse: () => ThemeMode.system,
     );
+    final u = _prefs.getString(_kUsername);
+    username = (u != null && u.trim().isNotEmpty) ? u.trim() : null;
+    setupDone = _prefs.getBool(_kSetupDone) ?? false;
     final custom = _prefs.getString(_kCustomTheme);
     if (custom != null) {
       try {
@@ -471,6 +482,25 @@ class AppStore extends ChangeNotifier {
     themeId = id;
     notifyListeners();
     await _prefs.setString(_kThemeId, id);
+  }
+
+  /// Salva il nome utente (null/vuoto = nessun nome).
+  Future<void> setUsername(String? name) async {
+    final v = name?.trim() ?? '';
+    username = v.isEmpty ? null : v;
+    notifyListeners();
+    if (username == null) {
+      await _prefs.remove(_kUsername);
+    } else {
+      await _prefs.setString(_kUsername, username!);
+    }
+  }
+
+  /// Il setup iniziale e' finito: alla prossima apertura si va alla home.
+  Future<void> completeSetup() async {
+    setupDone = true;
+    notifyListeners();
+    await _prefs.setBool(_kSetupDone, true);
   }
 
   /// Crea o aggiorna "Il tuo tema" e lo attiva subito.

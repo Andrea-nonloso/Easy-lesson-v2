@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models.dart';
 import '../store.dart';
 import '../updater.dart';
+import 'fun.dart';
 import 'subjects_page.dart';
 import 'theme.dart';
 import 'themes_page.dart';
@@ -252,14 +253,9 @@ class SettingsSheet extends StatelessWidget {
             onTap: () => launchUrl(Uri.parse(_githubUrl), mode: LaunchMode.externalApplication),
           ),
           const _UpdateTile(),
-          const SizedBox(height: 8),
           FutureBuilder<String>(
             future: Updater.currentVersion(),
-            builder: (context, snap) => Text(
-              'Versione ${snap.data ?? ''}',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
+            builder: (context, snap) => CreditsFooter(version: snap.data ?? ''),
           ),
         ],
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-const brandSeed = Color(0xFF16A34A);
+/// Accento predefinito dell'app: azzurro elettrico (stile "blu notte").
+const brandSeed = Color(0xFF3B82F6);
 
 /// Icona "schiocco di dita" del font originale di Easy Lesson.
 const easyIcon = IconData(0xE802, fontFamily: 'EasyIcons');
@@ -85,17 +86,14 @@ class AppPalette extends ThemeExtension<AppPalette> {
 // Catalogo dei temi
 
 const appThemes = <AppThemeSpec>[
-  // In evidenza
-  AppThemeSpec(
-    id: 'blunotte', name: 'Blu Notte', seed: Color(0xFF3B82F6), brightness: Brightness.dark,
-    background: Color(0xFF0C1626), card: Color(0xFF16233A), nav: Color(0xFF101C30),
-    category: 'In evidenza',
-  ),
-
   // Classici
   AppThemeSpec(id: 'auto', name: 'Automatico', seed: brandSeed, category: 'Classici'),
   AppThemeSpec(id: 'light', name: 'Chiaro', seed: brandSeed, brightness: Brightness.light, category: 'Classici'),
   AppThemeSpec(id: 'dark', name: 'Scuro', seed: brandSeed, brightness: Brightness.dark, category: 'Classici'),
+  AppThemeSpec(
+    id: 'blunotte', name: 'Blu notte', seed: Color(0xFF3B82F6), brightness: Brightness.dark,
+    background: Color(0xFF0C1626), card: Color(0xFF16233A), nav: Color(0xFF101C30), category: 'Classici',
+  ),
   AppThemeSpec(
     id: 'paper', name: 'Carta', seed: Color(0xFF8D6E63), brightness: Brightness.light,
     background: Color(0xFFF5EFE3), card: Color(0xFFFFFBF2), nav: Color(0xFFFFFBF2), category: 'Classici',
@@ -281,9 +279,10 @@ AppThemeSpec themeById(String? id, {AppThemeSpec? custom}) {
 ThemeData buildTheme(Brightness brightness, [AppThemeSpec spec = const AppThemeSpec(id: 'auto', name: 'Automatico', seed: brandSeed)]) {
   final dark = brightness == Brightness.dark;
   var scheme = ColorScheme.fromSeed(seedColor: spec.seed, brightness: brightness);
-  final bg = spec.background ?? (dark ? const Color(0xFF0F1411) : const Color(0xFFF4F7F4));
-  final card = spec.card ?? (dark ? const Color(0xFF18201B) : Colors.white);
-  final nav = spec.nav ?? (dark ? const Color(0xFF161C18) : Colors.white);
+  // Predefiniti: scuro neutro su scala di grigi; chiaro morbido grigio-lilla.
+  final bg = spec.background ?? (dark ? const Color(0xFF131313) : const Color(0xFFF4F3F7));
+  final card = spec.card ?? (dark ? const Color(0xFF1F1F1F) : Colors.white);
+  final nav = spec.nav ?? (dark ? const Color(0xFF181818) : Colors.white);
   if (spec.pureBlack) {
     scheme = scheme.copyWith(
       surface: Colors.black,
