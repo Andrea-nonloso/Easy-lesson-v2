@@ -5,9 +5,11 @@
 *.swp
 .DS_Store
 .atom/
+.build/
 .buildlog/
 .history
 .svn/
+.swiftpm/
 migrate_working_dir/
 
 # IntelliJ related
@@ -25,13 +27,11 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
-.flutter-plugins
 .flutter-plugins-dependencies
-.packages
 .pub-cache/
 .pub/
 /build/
-android/local.properties
+/coverage/
 
 # Symbolication related
 app.*.symbols
@@ -44,48 +44,8 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# ------------------------------
-# Sensitive & generated files (added)
-# ------------------------------
+# Widget Preview related
+.widget_preview/
 
-# Firebase configuration files (treat as sensitive; avoid committing)
-android/app/google-services.json
-ios/Runner/GoogleService-Info.plist
-**/firebase_app_id_file.json
-
-# FlutterFire generated options (contains API keys). If you intentionally commit it, remove this line.
-lib/firebase_options.dart
-
-# Android signing keys and properties
-android/app/*.keystore
-android/app/*.jks
-android/key.properties
-**/*.keystore
-**/*.jks
-**/key.properties
-
-# Common secrets and environment files
-.env
-.env.*
-.secret
-secrets.*
-firebase.json
-serviceAccount*.json
-credentials*.json
-*.pem
-*.p12
-*.crt
-*.key
-
-# Additional Android/iOS generated artifacts
-android/.gradle/
-android/**/build/
-android/captures/
-ios/Flutter/ephemeral/
-ios/.generated/
-ios/Flutter/Generated.xcconfig
-ios/Flutter/flutter_export_environment.sh
-macos/Flutter/ephemeral/
-**/*.xcuserdatad
-**/*.xcscmblueprint
-**/*.xcuserstate
+# Build Windows da distribuire
+/dist/

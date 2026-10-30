@@ -1,150 +1,92 @@
-# EasyLesson Web
+# Easy Lesson 2
 
-Applicazione multi-piattaforma sviluppata in Flutter per la visualizzazione e la gestione semplificata degli orari scolastici. Il progetto è pensato per essere eseguito su Web, Android, iOS e piattaforme Desktop da un'unica codebase.
+**L'orario delle lezioni sempre in tasca, anche offline.**
+App per telefono, tablet, web e Windows con un'unica codebase Flutter.
 
-## 📜 Indice
+> Fork di [Easy Lesson Web](https://github.com/dalonzoo/Easy-Lesson-Web) di Daniele D'Alonzo:
+> interfaccia rifatta da zero, orari salvati sul dispositivo e lettura diretta del file Excel della scuola.
 
-- [Architettura](#-architettura)
-  - [Framework Multi-Piattaforma](#-framework-multi-piattaforma)
-  - [Gestione dello Stato](#-gestione-dello-stato)
-  - [Design Responsivo](#-design-responsivo)
-  - [Struttura a Componenti](#-struttura-a-componenti)
-  - [Layer Dati](#-layer-dati)
-- [🚀 Tecnologie Implementate](#-tecnologie-implementate)
-  - [Core](#core)
-  - [Backend & Database](#backend--database)
-  - [UI & Design](#ui--design)
-- [📂 Struttura del Progetto](#-struttura-del-progetto)
-- [⚙️ Come Iniziare](#️-come-iniziare)
-  - [Prerequisiti](#prerequisiti)
-  - [Installazione ed Esecuzione](#installazione-ed-esecuzione)
-- [📦 Build per la Produzione](#-build-per-la-produzione)
+## Download
 
----
+Dalla pagina [Releases](../../releases):
 
-## 🏛️ Architettura
+| Piattaforma | File |
+|---|---|
+| Windows | `EasyLesson-Setup-x.y.z.exe` (installer) oppure `EasyLesson-Windows.zip` (portatile) |
+| Android | `EasyLesson.apk` |
+| Web | la versione online su GitHub Pages; dal telefono "Aggiungi a schermata Home" la installa come app |
 
-L'architettura di EasyLesson Web è stata progettata per essere scalabile, manutenibile e performante, sfruttando i punti di forza del framework Flutter.
+## Cosa fa
 
-### 🌐 Framework Multi-Piattaforma
+- **Il mio orario**: scegli la tua classe (o il tuo nome se sei docente) e l'app si apre direttamente lì.
+- **Offline**: gli orari salvati restano sul dispositivo; all'apertura si vede subito la copia salvata e intanto si aggiorna.
+- **Card "Adesso"**: la lezione in corso con barra di avanzamento, la prossima, la ricreazione e quando finisci.
+- **Telefono**: giorni a schede con swipe; ore consecutive della stessa materia unite.
+- **Tablet / PC**: barra laterale e griglia settimanale completa.
+- **File Excel della scuola**: si importa dal dispositivo o da un link e tutto viene calcolato in locale.
+- **Materie per codice**: A026 = Matematica, AS12 = Italiano e storia… modificabili dalle impostazioni,
+  anche per singolo docente.
+- Laboratori e sostegno come etichette, colori stabili per materia, tema chiaro / scuro / automatico.
 
-Il progetto è costruito utilizzando **Flutter**, che consente di compilare l'applicazione per diverse piattaforme (Web, Mobile, Desktop) partendo da un'unica codebase scritta in linguaggio **Dart**. Questo garantisce coerenza visiva e funzionale su tutti i dispositivi.
+## Orario da file Excel
 
-### 🔄 Gestione dello Stato
+Formato atteso (vedi l'esempio anonimo in `test/fixtures/orario_esempio.xlsx`):
 
-Per la gestione dello stato dell'applicazione (es. la selezione della scheda corrente, i dati dell'orario), viene utilizzato un approccio reattivo. La logica di business è separata dalla UI, consentendo un flusso di dati unidirezionale e prevedibile. Il file `lib/utils/tab_controller_handler.dart` è un esempio di gestione centralizzata dello stato della navigazione a schede.
+- una riga con i giorni (Lunedì … Venerdì) e sotto le ore in numeri romani (I … VII);
+- una riga per docente: `A026 Cognome` in colonna A, la classe nelle celle giorno/ora;
+- una riga titolo con "sostegno" apre i docenti di sostegno, una con "laboratori" i laboratori.
 
-### 📱 Design Responsivo
+Il numero di ore di ogni giorno viene dall'orario stesso; le fasce orarie predefinite
+(7:50 – 14:00 con ricreazioni 10:20 e 12:10) sono in `lib/models.dart`.
 
-L'interfaccia utente è progettata per essere completamente responsiva. Il widget `lib/utils/responsive_widget.dart` e il `lib/utils/view_wrapper.dart` lavorano insieme per adattare il layout in base alle dimensioni dello schermo, garantendo un'esperienza utente ottimale sia su grandi schermi desktop che su piccoli schermi di smartphone.
+## Compilare dal sorgente
 
-### 🧩 Struttura a Componenti
+Serve [Flutter](https://docs.flutter.dev/get-started/install) stabile; per Windows anche Visual Studio 2022
+con "Sviluppo di applicazioni desktop con C++".
 
-L'architettura della UI è basata su **widget riutilizzabili**. I widget generici e di base (come pulsanti, punti elenco, barre di navigazione) sono isolati nella directory `lib/widgets/`. Le pagine principali dell'applicazione, che assemblano questi widget, si trovano in `lib/pages/`. Questo approccio favorisce il riutilizzo del codice e la manutenibilità.
-
-### 📊 Layer Dati
-
-La logica di recupero dei dati è centralizzata e gestita dal `lib/utils/DataFetcher.dart`. Questo componente è responsabile del caricamento dei dati dell'orario (probabilmente da una fonte esterna come un file JSON o un'API) e della loro conversione in modelli di dati strutturati come `OrarioSettimanale`, `GiornoDetails`, e `Ora`, definiti nella directory `lib/utils/`. Questo disaccoppia la logica di business dalla fonte dei dati.
-
----
-
-## 🚀 Tecnologie Implementate
-
-### Core
-
-- **[Flutter](https://flutter.dev/)**: Framework UI di Google per la creazione di applicazioni compilate in modo nativo per mobile, web e desktop da un'unica codebase.
-- **[Dart](https://dart.dev/)**: Linguaggio di programmazione ottimizzato per la creazione di app veloci su qualsiasi piattaforma.
-
-### Backend & Database
-
-- **[Firebase](https://firebase.google.com/)**: La presenza dei file `firebase_options.dart` e `google-services.json` indica l'integrazione con la piattaforma Firebase. Le funzionalità utilizzate probabilmente includono:
-  - **Firebase Core**: Per la connessione dell'app ai servizi Firebase.
-  - **Cloud Firestore / Realtime Database** (potenziale): Per la memorizzazione e la sincronizzazione dei dati degli orari in tempo reale.
-
-### UI & Design
-
-- **[Material Design](https://material.io/)**: L'applicazione segue le linee guida di Material Design, utilizzando i widget forniti da Flutter.
-- **Custom Widgets**: Numerosi widget personalizzati (`gradient_button`, `custom_tab_bar`, `bottom_bar`, etc.) per creare un'identità visiva unica.
-- **Google Fonts**: La directory `assets/fonts/` e il probabile utilizzo del package `google_fonts` per una tipografia personalizzata e coerente.
-- **Icone Personalizzate**: Il file `lib/utils/my_flutter_app_icons.dart` e i font in `assets/fonts/` suggeriscono l'uso di una suite di icone personalizzate.
-
----
-
-## 📂 Struttura del Progetto
-
-```
-.
-├── lib/
-│   ├── main.dart               # Entry point dell'applicazione
-│   ├── pages/                  # Widget che rappresentano le pagine principali
-│   ├── utils/                  # Classi di utilità, modelli dati, helper
-│   └── widgets/                # Widget riutilizzabili (componenti UI)
-├── assets/
-│   ├── fonts/                  # Font personalizzati
-│   └── images/                 # Immagini e illustrazioni
-├── web/                        # Codice specifico per la piattaforma Web
-├── android/                    # Codice specifico per la piattaforma Android
-├── ios/                        # Codice specifico per la piattaforma iOS
-├── windows/                    # Codice specifico per la piattaforma Windows
-├── macos/                      # Codice specifico per la piattaforma macOS
-├── linux/                      # Codice specifico per la piattaforma Linux
-└── pubspec.yaml                # Definizione del progetto e delle dipendenze
+```bash
+flutter pub get
+flutter test
+flutter run -d windows      # oppure: -d chrome, oppure un telefono collegato
 ```
 
----
+Build:
 
-## ⚙️ Come Iniziare
+```bash
+flutter build web --release
+flutter build apk --release
+flutter build windows --release   # su Windows: .\build_windows.ps1 crea zip + installer in dist\
+```
 
-Segui queste istruzioni per ottenere una copia del progetto funzionante sulla tua macchina locale per scopi di sviluppo e test.
+Le release si generano da sole con GitHub Actions creando un tag:
 
-### Prerequisiti
+```bash
+git tag v2.0.0
+git push origin v2.0.0
+```
 
-Assicurati di avere installato il **[Flutter SDK](https://docs.flutter.dev/get-started/install)**.
+## Struttura
 
-### Installazione ed Esecuzione
+```
+lib/
+  main.dart               avvio app e tema
+  api.dart                cloud function di Easy Lesson (Dart puro)
+  xlsx.dart               lettore .xlsx (Dart puro)
+  timetable.dart          dal file Excel all'orario di classe / docente (Dart puro)
+  models.dart             modelli, fasce orarie, codici materia
+  store.dart              stato e salvataggio locale
+  ui/                     schermate (orario, ricerca, salvati, impostazioni, materie)
+test/                     test di parsing e interfaccia
+installer/                script Inno Setup per l'installer Windows
+.github/workflows/        CI, GitHub Pages e release automatiche
+```
 
-1.  **Clona il repository**
-    ```sh
-    git clone <URL_DEL_TUO_REPOSITORY>
-    cd EasyLesson_web
-    ```
+## Privacy
 
-2.  **Installa le dipendenze**
-    Esegui questo comando dalla root del progetto per scaricare tutte le dipendenze necessarie.
-    ```sh
-    flutter pub get
-    ```
+Gli orari e il file Excel importato restano sul dispositivo (SharedPreferences / localStorage).
+L'app non raccoglie dati e non richiede login.
 
-3.  **Esegui l'applicazione**
-    Puoi avviare l'app sulla piattaforma che preferisci. Per il web, usa:
-    ```sh
-    flutter run -d chrome
-    ```
-    Per altri dispositivi (se configurati):
-    ```sh
-    flutter run
-    ```
+## Crediti
 
----
-
-## 📦 Build per la Produzione
-
-Per creare una build ottimizzata per il rilascio, utilizza i comandi di build di Flutter.
-
-- **Web:**
-  ```sh
-  flutter build web
-  ```
-  I file verranno generati nella directory `build/web`.
-
-- **Android:**
-  ```sh
-  flutter build apk
-  # oppure
-  flutter build appbundle
-  ```
-
-- **iOS:**
-  ```sh
-  flutter build ios
-  ```
+Progetto originale [Easy Lesson Web](https://github.com/dalonzoo/Easy-Lesson-Web) di
+[Daniele D'Alonzo](https://github.com/dalonzoo). Font Hind Siliguri (SIL Open Font License).

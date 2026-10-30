@@ -1,75 +1,59 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
-  <meta name="theme-color" content="#FFFFFF">
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
-
   <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Trova il tuo orario delle lezioni!">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Easy Lesson: l'orario delle lezioni sempre in tasca, anche offline.">
+  <meta name="theme-color" content="#16A34A" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0F1411" media="(prefers-color-scheme: dark)">
 
-  <!-- iOS meta tags & icons -->
+  <!-- Installabile come app su iPhone / iPad -->
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="Easy_Lesson_web">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Easy Lesson">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-  <!-- Favicon -->
-  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
-  <link rel="icon" type="image/x-icon" href="favicon.ico"/>
-
-  <title>Easy Lesson</title>
+  <link rel="icon" type="image/png" href="favicon.png">
   <link rel="manifest" href="manifest.json">
-
-  <script>
-    // The value below is injected by flutter build, do not touch.
-    var serviceWorkerVersion = null;
-  </script>
-  <!-- This script adds the flutter initialization JS code -->
-  <script src="flutter.js" defer></script>
   <title>Easy Lesson</title>
 
-
-  <script type="text/javascript" src="https://alcdn.msauth.net/browser/2.13.1/js/msal-browser.min.js" integrity="sha384-2Vr9MyareT7qv+wLp1zBt78ZWB4aljfCTMUrml3/cxm0W81ahmDOC6uyNmmn0Vrc" crossorigin="anonymous"></script>
-  <script src="assets/packages/aad_oauth/assets/msalv2.js"></script>
-  <link rel="manifest" href="manifest.json">
+  <style>
+    html, body { margin: 0; height: 100%; background: #F4F7F4; }
+    @media (prefers-color-scheme: dark) { html, body { background: #0F1411; } }
+    #splash {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 18px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: #3d4a41; transition: opacity .35s ease;
+    }
+    @media (prefers-color-scheme: dark) { #splash { color: #c4d0c7; } }
+    #splash img {
+      width: 96px; height: 96px; border-radius: 28px;
+      box-shadow: 0 12px 32px rgba(22, 163, 74, .35);
+      animation: pop 1.4s ease-in-out infinite;
+    }
+    #splash span { font-size: 15px; letter-spacing: .02em; }
+    @keyframes pop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+    body.ready #splash { opacity: 0; pointer-events: none; }
+  </style>
 </head>
 <body>
+  <div id="splash" aria-label="Caricamento">
+    <img src="icons/Icon-192.png" alt="">
+    <span>Easy Lesson</span>
+  </div>
   <script>
-    window.addEventListener('load', function(ev) {
-      // Download main.dart.js
-      _flutter.loader.loadEntrypoint({
-        serviceWorker: {
-          serviceWorkerVersion: serviceWorkerVersion,
-        },
-        onEntrypointLoaded: function(engineInitializer) {
-          engineInitializer.initializeEngine().then(function(appRunner) {
-            appRunner.runApp();
-          });
-        }
-      });
+    window.addEventListener('flutter-first-frame', function () {
+      document.body.classList.add('ready');
+      setTimeout(function () {
+        var s = document.getElementById('splash');
+        if (s) s.remove();
+      }, 400);
     });
   </script>
-
-  <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('flutter-first-frame', function() {
-                navigator.serviceWorker.register('flutter_service_worker.js');
-            });
-        }
-    </script>
+  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

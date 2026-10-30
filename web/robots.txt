@@ -1,3 +1,0 @@
-User-agent: *
-Disallow: /EasyLesson_PrivacyPolicy
-Disallow: /EasyLesson_PrivacyPolicy/

@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "Easy_Lesson_web" "\0"
+            VALUE "CompanyName", "Easy Lesson" "\0"
+            VALUE "FileDescription", "Easy Lesson" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "Easy_Lesson_web" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2023 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "Easy_Lesson_web.exe" "\0"
-            VALUE "ProductName", "Easy_Lesson_web" "\0"
+            VALUE "InternalName", "Easy Lesson" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 it.easylesson. All rights reserved." "\0"
+            VALUE "OriginalFilename", "easy_lesson.exe" "\0"
+            VALUE "ProductName", "Easy Lesson" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
