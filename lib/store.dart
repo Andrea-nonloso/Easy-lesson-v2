@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'models.dart';
 import 'timetable.dart';
+import 'ui/theme.dart';
 import 'xlsx.dart';
 
 /// Un orario salvato sul dispositivo.
@@ -72,6 +73,7 @@ class AppStore extends ChangeNotifier {
 
   static const _kTheme = 'el.theme';
   static const _kThemeId = 'el.themeId';
+  static const _kCustomTheme = 'el.customTheme';
   static const _kClassi = 'el.classi';
   static const _kDocenti = 'el.docenti';
   static const _kOre = 'el.ore';
@@ -88,6 +90,23 @@ class AppStore extends ChangeNotifier {
 
   /// Tema scelto nella pagina Temi (vedi ui/theme.dart).
   String themeId = 'auto';
+
+  /// Tema creato dall'utente ("Il tuo tema" nella pagina Temi).
+  bool hasCustomTheme = false;
+  String customName = 'Il mio tema';
+  int customSeed = 0xFF985DE4;
+  String customMode = 'system'; // 'system' | 'light' | 'dark'
+  bool customOled = false;
+
+  /// Il tema personalizzato come AppThemeSpec, null se mai creato.
+  AppThemeSpec? get customThemeSpec => hasCustomTheme
+      ? buildCustomSpec(
+          name: customName,
+          seed: Color(customSeed),
+          mode: customMode,
+          oled: customOled,
+        )
+      : null;
   List<String> _serverClassi = [];
   List<String> _serverDocenti = [];
   List<TimeSlot> slots = [];
@@ -146,6 +165,17 @@ class AppStore extends ChangeNotifier {
       (m) => m.name == _prefs.getString(_kTheme),
       orElse: () => ThemeMode.system,
     );
+    final custom = _prefs.getString(_kCustomTheme);
+    if (custom != null) {
+      try {
+        final m = jsonDecode(custom) as Map<String, dynamic>;
+        customName = m['name'] as String? ?? customName;
+        customSeed = m['seed'] as int? ?? customSeed;
+        customMode = m['mode'] as String? ?? customMode;
+        customOled = m['oled'] == true;
+        hasCustomTheme = true;
+      } catch (_) {/* tema salvato non più leggibile */}
+    }
     _serverClassi = _prefs.getStringList(_kClassi) ?? [];
     _serverDocenti = _prefs.getStringList(_kDocenti) ?? [];
     Map<String, String> readMap(String key) {
@@ -441,6 +471,27 @@ class AppStore extends ChangeNotifier {
     themeId = id;
     notifyListeners();
     await _prefs.setString(_kThemeId, id);
+  }
+
+  /// Crea o aggiorna "Il tuo tema" e lo attiva subito.
+  Future<void> setCustomTheme({
+    String? name,
+    int? seed,
+    String? mode,
+    bool? oled,
+  }) async {
+    customName = name ?? customName;
+    customSeed = seed ?? customSeed;
+    customMode = mode ?? customMode;
+    customOled = oled ?? customOled;
+    hasCustomTheme = true;
+    themeId = customThemeId;
+    notifyListeners();
+    await _prefs.setString(
+      _kCustomTheme,
+      jsonEncode({'name': customName, 'seed': customSeed, 'mode': customMode, 'oled': customOled}),
+    );
+    await _prefs.setString(_kThemeId, themeId);
   }
 
   Future<void> setThemeMode(ThemeMode m) async {

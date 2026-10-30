@@ -204,10 +204,69 @@ const appThemes = <AppThemeSpec>[
     backdropColors: [Color(0xFFD7F5EC), Color(0xFFDDEFFA), Color(0xFFF3F7D4)],
     category: 'Animati',
   ),
+
+  // Lavanda (palette dalle foto: base Lavender Indigo #985DE4)
+  AppThemeSpec(
+    id: 'lavender', name: 'Lavanda', seed: Color(0xFF985DE4), brightness: Brightness.light,
+    background: Color(0xFFF1EBFF), card: Color(0xFFFFFFFF), nav: Color(0xFFFFFFFF), category: 'Lavanda',
+  ),
+  AppThemeSpec(
+    id: 'lavenderSoft', name: 'Lavanda Tenue', seed: Color(0xFF9667D3), brightness: Brightness.light,
+    background: Color(0xFFF6F1FF), card: Color(0xFFFCFAFF), nav: Color(0xFFFCFAFF), category: 'Lavanda',
+  ),
+  AppThemeSpec(
+    id: 'lavenderNight', name: 'Notte Lavanda', seed: Color(0xFFA978E8), brightness: Brightness.dark,
+    background: Color(0xFF1E122D), card: Color(0xFF2C1B42), nav: Color(0xFF241638), category: 'Lavanda',
+  ),
+  AppThemeSpec(
+    id: 'lavenderOled', name: 'Lavanda OLED', seed: Color(0xFFAE80EA), brightness: Brightness.dark,
+    background: Color(0xFF000000), card: Color(0xFF150A20), nav: Color(0xFF000000), pureBlack: true,
+    category: 'Lavanda',
+  ),
+  AppThemeSpec(
+    id: 'lavenderHarmony', name: 'Lavanda in movimento', seed: Color(0xFF985DE4), brightness: Brightness.dark,
+    background: Color(0xFF160E24), card: Color(0xE6221A38), nav: Color(0xCC160E24),
+    backdrop: BackdropKind.gradient,
+    backdropColors: [Color(0xFF985DE4), Color(0xFFDC5DE4), Color(0xFF5D65E4)],
+    category: 'Lavanda',
+  ),
 ];
 
-AppThemeSpec themeById(String? id) =>
-    appThemes.firstWhere((t) => t.id == id, orElse: () => appThemes.first);
+/// Id riservato al tema creato dall'utente: i colori sono salvati a parte
+/// (vedi AppStore.customThemeSpec) perché non fanno parte del catalogo.
+const customThemeId = 'custom';
+
+/// Costruisce il tema dai colori scelti dall'utente.
+/// [mode]: 'system' | 'light' | 'dark'. [oled] vale solo per lo scuro.
+AppThemeSpec buildCustomSpec({
+  required String name,
+  required Color seed,
+  String mode = 'system',
+  bool oled = false,
+}) {
+  final brightness = switch (mode) {
+    'light' => Brightness.light,
+    'dark' => Brightness.dark,
+    _ => null,
+  };
+  final darkOled = oled && brightness != Brightness.light;
+  return AppThemeSpec(
+    id: customThemeId,
+    name: name.trim().isEmpty ? 'Il mio tema' : name.trim(),
+    seed: seed,
+    brightness: brightness,
+    pureBlack: darkOled,
+    background: darkOled ? const Color(0xFF000000) : null,
+    card: darkOled ? const Color(0xFF0E0E0E) : null,
+    nav: darkOled ? const Color(0xFF000000) : null,
+    category: 'Il tuo tema',
+  );
+}
+
+AppThemeSpec themeById(String? id, {AppThemeSpec? custom}) {
+  if (id == customThemeId && custom != null) return custom;
+  return appThemes.firstWhere((t) => t.id == id, orElse: () => appThemes.first);
+}
 
 // ---------------------------------------------------------------------------
 // Costruzione del ThemeData

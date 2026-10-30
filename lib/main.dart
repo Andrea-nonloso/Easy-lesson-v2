@@ -21,7 +21,7 @@ class EasyLessonApp extends StatelessWidget {
   static final Map<String, ThemeData> _themes = {};
 
   static ThemeData _theme(AppThemeSpec spec, Brightness b) =>
-      _themes.putIfAbsent('${spec.id}-${b.name}', () => buildTheme(b, spec));
+      _themes.putIfAbsent('${spec.id}-${spec.seed.value}-${spec.pureBlack}-${b.name}', () => buildTheme(b, spec));
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +30,7 @@ class EasyLessonApp extends StatelessWidget {
       child: ListenableBuilder(
         listenable: store,
         builder: (context, _) {
-          final spec = themeById(store.themeId);
+          final spec = themeById(store.themeId, custom: store.customThemeSpec);
           return MaterialApp(
           title: 'Easy Lesson',
           debugShowCheckedModeBanner: false,
