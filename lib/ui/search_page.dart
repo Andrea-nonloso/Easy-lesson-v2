@@ -206,13 +206,19 @@ class _ClassGrid extends StatelessWidget {
                     child: InkWell(
                       borderRadius: BorderRadius.circular(18),
                       onTap: () => onOpen(n),
-                      child: Container(
+                      child: ConstrainedBox(
                         constraints: const BoxConstraints(minWidth: 78, minHeight: 60),
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        alignment: Alignment.center,
-                        child: Text(
-                          n.toUpperCase(),
-                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: c.fg),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          // widthFactor/heightFactor: il riquadro resta grande quanto il testo
+                          child: Center(
+                            widthFactor: 1,
+                            heightFactor: 1,
+                            child: Text(
+                              n.toUpperCase(),
+                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: c.fg),
+                            ),
+                          ),
                         ),
                       ),
                     ),

@@ -94,6 +94,27 @@ String? teacherSubject(String raw) {
   return c == null ? null : subjectForCode(c);
 }
 
+/// Il server scrive le ore come "A041 Rossi con B016 Bianchi": si trasformano in
+/// ["Informatica", "Rossi · Bianchi"], come per i dati letti dal file Excel.
+List<String> readableLessonLines(List<String> lines) {
+  if (lines.isEmpty) return lines;
+  final parts = lines.first
+      .split(RegExp(r'\s+con\s+|\s*[,;+]\s*', caseSensitive: false))
+      .map((p) => p.trim())
+      .where((p) => p.isNotEmpty)
+      .toList();
+  if (parts.isEmpty || parts.any((p) => teacherCode(p) == null)) return lines;
+  final main = parts.firstWhere(
+    (p) => !teacherCode(p)!.startsWith('B'),
+    orElse: () => parts.first,
+  );
+  return [
+    teacherSubject(main) ?? lines.first,
+    parts.map(teacherLabel).join(' · '),
+    ...lines.skip(1),
+  ];
+}
+
 /// Una singola ora di lezione.
 class Lesson {
   Lesson({
@@ -101,11 +122,11 @@ class Lesson {
     required String text,
     required this.lab,
     required this.sostegno,
-  }) : lines = text
+  }) : lines = readableLessonLines(text
             .split(RegExp(r'[\r\n]+'))
             .map((s) => s.trim())
             .where((s) => s.isNotEmpty && s.toLowerCase() != 'null')
-            .toList();
+            .toList());
 
   /// Indice dell'ora (0 = prima ora).
   final int index;

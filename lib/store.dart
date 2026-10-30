@@ -402,21 +402,20 @@ class AppStore extends ChangeNotifier {
   }
 
   /// Gli orari calcolati dal file Excel contengono il nome della materia: si ricalcolano.
+  /// Anche gli orari del server vengono ricostruiti, perché i nomi delle materie
+  /// si calcolano quando l'orario viene letto.
   Future<void> _afterSubjectsChanged() async {
     final tt = _timetable;
-    if (tt != null) {
-      for (final s in _schedules.values.toList()) {
-        if (!tt.has(s.ref)) continue;
-        _schedules[s.ref.key] = CachedSchedule(
-          ref: s.ref,
-          raw: tt.scheduleJson(s.ref),
-          updatedAt: s.updatedAt,
-          lastOpened: s.lastOpened,
-          favorite: s.favorite,
-        );
-      }
-      await _saveSchedules();
+    for (final s in _schedules.values.toList()) {
+      _schedules[s.ref.key] = CachedSchedule(
+        ref: s.ref,
+        raw: (tt != null && tt.has(s.ref)) ? tt.scheduleJson(s.ref) : s.raw,
+        updatedAt: s.updatedAt,
+        lastOpened: s.lastOpened,
+        favorite: s.favorite,
+      );
     }
+    await _saveSchedules();
     notifyListeners();
   }
 

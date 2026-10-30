@@ -58,4 +58,15 @@ void main() {
     expect(todayIndex(mercoledi, 5), 2);
     expect(weekStart(mercoledi, 5), DateTime(2026, 10, 26));
   });
+
+  test('testo del server "A041 Rossi con B016 Bianchi" diventa materia + docenti', () {
+    final l = Lesson(index: 0, text: 'A041 Fieramonti con B016 Russo', lab: '', sostegno: const []);
+    expect(l.title, 'Informatica');
+    expect(l.details, ['Fieramonti · Russo']);
+    final irc = Lesson(index: 0, text: '_IRC Fiorella', lab: '', sostegno: const []);
+    expect(irc.title, 'Religione');
+    expect(irc.details, ['Fiorella']);
+    // Testo libero (es. classe nell'orario di un docente): invariato
+    expect(Lesson(index: 0, text: '3B BS', lab: '', sostegno: const []).title, '3B BS');
+  });
 }
