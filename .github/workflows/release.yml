@@ -98,6 +98,7 @@ jobs:
     needs: [windows, android, web]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: out
@@ -105,5 +106,6 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           name: Easy Lesson ${{ github.ref_name }}
+          body_path: RELEASE_NOTES.md
           generate_release_notes: true
           files: out/*
