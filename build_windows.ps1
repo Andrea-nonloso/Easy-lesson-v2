@@ -45,3 +45,4 @@ if ($iscc) {
 } else {
   Write-Host "Inno Setup 6 non trovato: installer saltato (scaricalo da jrsoftware.org se ti serve)."
 }
+

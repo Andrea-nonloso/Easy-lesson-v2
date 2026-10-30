@@ -65,3 +65,4 @@ class _AppScrollBehavior extends MaterialScrollBehavior {
         PointerDeviceKind.unknown,
       };
 }
+

@@ -94,3 +94,4 @@ Release automatiche con GitHub Actions: `git tag v2.0.1 && git push origin v2.0.
 crea installer Windows, APK e zip web nella pagina Releases.
 
 </details>
+

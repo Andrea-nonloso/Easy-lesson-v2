@@ -49,3 +49,4 @@ Write-Host "  flutter run -d chrome      (web)"
 Write-Host "  flutter run                (telefono collegato)"
 Write-Host ""
 Write-Host "Per creare la versione Windows da distribuire:  .\build_windows.ps1"
+

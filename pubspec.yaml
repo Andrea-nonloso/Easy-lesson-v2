@@ -58,3 +58,4 @@ flutter:
     - family: EasyIcons
       fonts:
         - asset: assets/fonts/MyFlutterApp.ttf
+
