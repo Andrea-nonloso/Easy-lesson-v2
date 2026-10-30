@@ -297,11 +297,11 @@ class _UpdateTileState extends State<_UpdateTile> {
   @override
   Widget build(BuildContext context) {
     if (!Updater.supported) {
-      return ListTile(
+      return const ListTile(
         contentPadding: EdgeInsets.zero,
-        leading: const Icon(Icons.system_update_outlined),
-        title: const Text('Aggiornamenti'),
-        subtitle: const Text('La versione web si aggiorna da sola: ricarica la pagina'),
+        leading: Icon(Icons.system_update_outlined),
+        title: Text('Aggiornamenti'),
+        subtitle: Text('La versione web si aggiorna da sola: ricarica la pagina'),
       );
     }
     return ListTile(

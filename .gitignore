@@ -49,3 +49,6 @@ app.*.map.json
 
 # Build Windows da distribuire
 /dist/
+
+# iOS non supportato: niente file generati per iPhone
+/ios/
