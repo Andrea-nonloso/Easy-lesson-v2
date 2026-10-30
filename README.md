@@ -77,7 +77,7 @@ Idee su cui sto lavorando o che vorrei aggiungere:
 Hai un'idea o hai trovato un errore? Apri una [issue](../../issues).
 
 **DISCLAIMER**
-    Si, in questo rpogetto ho usato l'ia, ho usato l'ia per fare la nuova ui, ma la base flutter è presa da easy lesson e
+    Si, in questo progetto ho usato l'ia, ho usato l'ia per fare la nuova ui, ma la base flutter è presa da easy lesson e
     modificata da me a mano, l'unica cosa fatta dall'ia è la grafica(e la parte sociale: readme, commit etcc). Le mie competenze     sono limitate e ho fatto il possibile per usare il più possibile il mio cervello, ma purtroppo tutto quello che usciva non       mi piaceva e secondo me un'ia e un programmatore è molto meglio di un solo programmatore, perche l'ia scrive codice molto        velocemente e l'umano può capire ciò che accade, se questa cosa non piace, siete liberi di prendere e usare la versione          "ufficiale" di easy lesson. Grazie a tutti.
 
 ---
