@@ -67,7 +67,8 @@ jobs:
             "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" > android/key.properties
       - name: Avviso firma mancante
         if: env.KEYSTORE_B64 == ''
-        run: echo "::warning::APK firmato con chiave di debug: gli aggiornamenti non si installeranno sopra la versione precedente."
+        run: |
+          echo "::warning::APK firmato con chiave di debug, gli aggiornamenti non si installeranno sopra la versione precedente."
       - run: flutter pub get
       - run: flutter build apk --release --build-name=${{ steps.v.outputs.name }} --build-number=$((100 + ${{ github.run_number }}))
       - run: cp build/app/outputs/flutter-apk/app-release.apk EasyLesson.apk
