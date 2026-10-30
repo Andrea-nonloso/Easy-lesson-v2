@@ -1,11 +1,25 @@
 import 'dart:convert';
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
-import 'package:url_launcher/url_launcher.dart';
+/// Versione web: scarica il file con un link "download" (i browser bloccano
+/// l'apertura diretta dei link data:). Restituisce '' se avviato.
+Future<String?> saveTextFile(String name, String content, {String mime = 'text/plain'}) =>
+    saveBytesFile(name, utf8.encode(content), mime: mime);
 
-/// Versione web: apre il file come download (il browser lo salva o lo apre
-/// direttamente con il calendario). Restituisce '' se avviato.
-Future<String?> saveTextFile(String name, String content, {String mime = 'text/plain'}) async {
-  final uri = Uri.dataFromString(content, mimeType: mime, encoding: utf8);
-  final ok = await launchUrl(uri, webOnlyWindowName: '_blank');
-  return ok ? '' : null;
+Future<String?> saveBytesFile(
+  String name,
+  List<int> data, {
+  String mime = 'application/octet-stream',
+  String title = 'Salva il file',
+}) async {
+  final url = 'data:$mime;base64,${base64Encode(data)}';
+  final doc = globalContext.getProperty<JSObject>('document'.toJS);
+  final a = doc.callMethod<JSObject>('createElement'.toJS, 'a'.toJS);
+  a.setProperty('href'.toJS, url.toJS);
+  a.setProperty('download'.toJS, name.toJS);
+  doc.getProperty<JSObject>('body'.toJS).callMethod<JSAny?>('appendChild'.toJS, a);
+  a.callMethod<JSAny?>('click'.toJS);
+  a.callMethod<JSAny?>('remove'.toJS);
+  return '';
 }

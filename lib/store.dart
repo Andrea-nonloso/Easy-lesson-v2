@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api.dart';
+import 'log.dart';
 import 'models.dart';
 import 'timetable.dart';
 import 'ui/theme.dart';
@@ -86,6 +87,7 @@ class AppStore extends ChangeNotifier {
   static const _kXlsx = 'el.xlsx';
   static const _kSubjects = 'el.subjects';
   static const _kTeacherSubjects = 'el.teacherSubjects';
+  static const _kDevMode = 'el.devMode';
   static const _maxRecents = 8;
 
   ThemeMode themeMode = ThemeMode.system;
@@ -106,6 +108,14 @@ class AppStore extends ChangeNotifier {
   String customMode = 'system'; // 'system' | 'light' | 'dark'
   bool customOled = false;
 
+  /// Colori esatti scelti nel "Laboratorio colori" (null = automatico).
+  int? customBg;
+  int? customCard;
+  int? customNav;
+
+  /// Opzioni sviluppatore sbloccate (7 tocchi sulla foglia nelle impostazioni).
+  bool devMode = false;
+
   /// Il tema personalizzato come AppThemeSpec, null se mai creato.
   AppThemeSpec? get customThemeSpec => hasCustomTheme
       ? buildCustomSpec(
@@ -113,6 +123,9 @@ class AppStore extends ChangeNotifier {
           seed: Color(customSeed),
           mode: customMode,
           oled: customOled,
+          background: customBg == null ? null : Color(customBg!),
+          card: customCard == null ? null : Color(customCard!),
+          nav: customNav == null ? null : Color(customNav!),
         )
       : null;
   List<String> _serverClassi = [];
@@ -126,6 +139,15 @@ class AppStore extends ChangeNotifier {
   String? excelUrl;
 
   bool get usingExcel => _timetable != null;
+
+  /// Il foglio Excel importato così com'è (per vederlo nelle opzioni sviluppatore).
+  List<List<String>>? excelGrid;
+
+  /// Orario calcolato dal file Excel, senza salvarlo (per le esportazioni).
+  WeekSchedule? excelWeek(ScheduleRef ref) =>
+      _timetable != null && _timetable!.has(ref)
+          ? WeekSchedule.fromJson(_timetable!.scheduleJson(ref), prof: ref.prof)
+          : null;
   List<String> get classi => _timetable != null ? (_timetable!.classi..sort(compareClassi)) : _serverClassi;
   List<String> get docenti => _timetable?.docenti ?? _serverDocenti;
   List<String> _oreLabels = [];
@@ -176,6 +198,7 @@ class AppStore extends ChangeNotifier {
     final u = _prefs.getString(_kUsername);
     username = (u != null && u.trim().isNotEmpty) ? u.trim() : null;
     setupDone = _prefs.getBool(_kSetupDone) ?? false;
+    devMode = _prefs.getBool(_kDevMode) ?? false;
     final custom = _prefs.getString(_kCustomTheme);
     if (custom != null) {
       try {
@@ -184,6 +207,9 @@ class AppStore extends ChangeNotifier {
         customSeed = m['seed'] as int? ?? customSeed;
         customMode = m['mode'] as String? ?? customMode;
         customOled = m['oled'] == true;
+        customBg = m['bg'] as int?;
+        customCard = m['card'] as int?;
+        customNav = m['nav'] as int?;
         hasCustomTheme = true;
       } catch (_) {/* tema salvato non più leggibile */}
     }
@@ -207,13 +233,17 @@ class AppStore extends ChangeNotifier {
     if (xlsx != null) {
       try {
         final m = jsonDecode(xlsx) as Map<String, dynamic>;
-        _timetable = Timetable.parse([
+        final grid = [
           for (final r in m['grid'] as List) [for (final c in r as List) c.toString()],
-        ]);
+        ];
+        _timetable = Timetable.parse(grid);
+        excelGrid = grid;
         excelName = m['name'] as String?;
         excelAt = DateTime.tryParse('${m['at']}');
         excelUrl = m['url'] as String?;
-      } catch (_) {/* file salvato non più leggibile */}
+      } catch (e, st) {
+        AppLog.e('excel', e, st); // file salvato non più leggibile
+      }
     }
     _oreLabels = _prefs.getStringList(_kOre) ?? [];
     slots = slotsFrom(_oreLabels);
@@ -252,6 +282,7 @@ class AppStore extends ChangeNotifier {
         await _downloadExcel(excelUrl!);
       } catch (e) {
         listsError = e;
+        AppLog.e('excel', e);
       }
       listsLoading = false;
       notifyListeners();
@@ -267,6 +298,7 @@ class AppStore extends ChangeNotifier {
       await _prefs.setString(_kListsAt, listsUpdatedAt!.toIso8601String());
     } catch (e) {
       listsError = e is ParallelWaitError ? ApiException('Connessione non disponibile') : e;
+      AppLog.w('server', 'Elenchi non aggiornati: $e');
     }
     try {
       final ore = await _api.ore();
@@ -283,6 +315,7 @@ class AppStore extends ChangeNotifier {
   /// Scarica l'orario e lo salva in locale. Lancia un'eccezione se non riesce.
   Future<void> fetchSchedule(ScheduleRef ref) async {
     final Map<String, dynamic> raw;
+    AppLog.i('orario', 'Carico ${ref.key} da ${_timetable != null ? 'Excel' : 'server'}');
     if (_timetable != null) {
       if (!_timetable!.has(ref)) throw ApiException('${ref.displayName} non è nel file Excel importato');
       raw = _timetable!.scheduleJson(ref);
@@ -319,6 +352,8 @@ class AppStore extends ChangeNotifier {
       trimmed.removeLast();
     }
     _timetable = tt;
+    excelGrid = trimmed;
+    AppLog.i('excel', 'Importato ${name ?? 'file'}: ${trimmed.length} righe, ${tt.classi.length} classi, ${tt.docenti.length} docenti');
     listsError = null;
     excelName = name ?? excelName ?? 'orario.xlsx';
     excelAt = DateTime.now();
@@ -369,6 +404,8 @@ class AppStore extends ChangeNotifier {
     excelName = null;
     excelAt = null;
     excelUrl = null;
+    excelGrid = null;
+    AppLog.i('excel', 'File rimosso, si torna al server');
     await _prefs.remove(_kXlsx);
     notifyListeners();
     unawaited(refreshLists());
@@ -480,6 +517,7 @@ class AppStore extends ChangeNotifier {
 
   Future<void> setThemeId(String id) async {
     themeId = id;
+    AppLog.i('tema', 'Tema: $id');
     notifyListeners();
     await _prefs.setString(_kThemeId, id);
   }
@@ -517,11 +555,43 @@ class AppStore extends ChangeNotifier {
     hasCustomTheme = true;
     themeId = customThemeId;
     notifyListeners();
+    await _saveCustomTheme();
+  }
+
+  /// Colori esatti dal Laboratorio colori (null = automatico).
+  Future<void> setCustomColors({required int? background, required int? card, required int? nav}) async {
+    customBg = background;
+    customCard = card;
+    customNav = nav;
+    hasCustomTheme = true;
+    themeId = customThemeId;
+    notifyListeners();
+    await _saveCustomTheme();
+  }
+
+  Future<void> _saveCustomTheme() async {
+    AppLog.i('tema', 'Tema personalizzato: seed #${customSeed.toRadixString(16)} · $customMode'
+        '${customBg != null ? ' · sfondo #${customBg!.toRadixString(16)}' : ''}');
     await _prefs.setString(
       _kCustomTheme,
-      jsonEncode({'name': customName, 'seed': customSeed, 'mode': customMode, 'oled': customOled}),
+      jsonEncode({
+        'name': customName,
+        'seed': customSeed,
+        'mode': customMode,
+        'oled': customOled,
+        'bg': customBg,
+        'card': customCard,
+        'nav': customNav,
+      }),
     );
     await _prefs.setString(_kThemeId, themeId);
+  }
+
+  Future<void> setDevMode(bool v) async {
+    devMode = v;
+    AppLog.i('dev', v ? 'Opzioni sviluppatore attivate' : 'Opzioni sviluppatore disattivate');
+    notifyListeners();
+    await _prefs.setBool(_kDevMode, v);
   }
 
   Future<void> setThemeMode(ThemeMode m) async {

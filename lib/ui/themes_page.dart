@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../store.dart';
 import 'backdrop.dart';
+import 'color_lab.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
-void openThemesPage(BuildContext context) =>
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ThemesPage()));
+Future<void> openThemesPage(BuildContext context) async {
+  await colorMenuGate(context);
+  if (!context.mounted) return;
+  await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ThemesPage()));
+}
 
 /// Scelta del tema con anteprime dal vivo.
 class ThemesPage extends StatelessWidget {
@@ -293,6 +297,8 @@ const _customSeedColors = <int>[
 
 /// Apre il dialogo per creare/modificare il tema personalizzato.
 Future<void> editCustomTheme(BuildContext context) async {
+  await colorMenuGate(context);
+  if (!context.mounted) return;
   final store = StoreScope.read(context);
   final nameCtrl = TextEditingController(text: store.customName);
   var seed = store.customSeed;

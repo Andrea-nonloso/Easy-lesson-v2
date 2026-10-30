@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models.dart';
 import '../store.dart';
 import '../updater.dart';
+import 'dev_page.dart';
 import 'fun.dart';
 import 'subjects_page.dart';
 import 'theme.dart';
@@ -253,6 +254,15 @@ class SettingsSheet extends StatelessWidget {
             onTap: () => launchUrl(Uri.parse(_githubUrl), mode: LaunchMode.externalApplication),
           ),
           const _UpdateTile(),
+          if (store.devMode)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.science_outlined, color: theme.colorScheme.primary),
+              title: const Text('Opzioni sviluppatore'),
+              subtitle: const Text('Log, file Excel, esportazioni, laboratorio colori'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => openDevPage(context),
+            ),
           FutureBuilder<String>(
             future: Updater.currentVersion(),
             builder: (context, snap) => CreditsFooter(version: snap.data ?? ''),

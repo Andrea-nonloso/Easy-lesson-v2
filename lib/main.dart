@@ -2,6 +2,7 @@ import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
 
+import 'log.dart';
 import 'store.dart';
 import 'ui/backdrop.dart';
 import 'ui/home_shell.dart';
@@ -10,6 +11,7 @@ import 'ui/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  AppLog.install();
   final store = await AppStore.create();
   runApp(EasyLessonApp(store: store));
 }
@@ -22,7 +24,11 @@ class EasyLessonApp extends StatelessWidget {
   static final Map<String, ThemeData> _themes = {};
 
   static ThemeData _theme(AppThemeSpec spec, Brightness b) =>
-      _themes.putIfAbsent('${spec.id}-${spec.seed.value}-${spec.pureBlack}-${b.name}', () => buildTheme(b, spec));
+      _themes.putIfAbsent(
+        '${spec.id}-${spec.seed.toARGB32()}-${spec.background?.toARGB32()}-${spec.card?.toARGB32()}'
+        '-${spec.nav?.toARGB32()}-${spec.pureBlack}-${b.name}',
+        () => buildTheme(b, spec),
+      );
 
   @override
   Widget build(BuildContext context) {

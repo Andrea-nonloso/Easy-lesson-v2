@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../models.dart';
@@ -9,7 +11,9 @@ import 'theme.dart';
 import 'widgets.dart';
 
 /// Prima schermata dell'app: data, saluto, ricerca rapida, la lezione di
-/// adesso e le scorciatoie. Stile chiaro e semplice, senza fronzoli.
+/// adesso, le scorciatoie e (se c'e' spazio) le prossime lezioni.
+/// La disposizione si adatta allo schermo: telefono, telefono in orizzontale,
+/// tablet e finestra di Windows.
 class HomePage extends StatelessWidget {
   const HomePage({
     super.key,
@@ -30,222 +34,467 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final now = DateTime.now();
 
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: LayoutBuilder(
-              builder: (context, box) {
-                // Schermi bassi (es. portatile 1280x720): spazi piu' stretti e niente titolo "Per te".
-                final tight = box.maxHeight < 620;
-                final header = <Widget>[
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${dayShort[now.weekday - 1]} ${now.day} ${_months[now.month - 1]}',
-                            style: theme.textTheme.labelMedium
-                                ?.copyWith(color: scheme.onSurfaceVariant, letterSpacing: 0.6),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            store.username != null ? 'Ciao, ${store.username}!' : 'Ciao!',
-                            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Impostazioni',
-                      onPressed: () => showSettingsSheet(context),
-                      icon: const Icon(Icons.tune_rounded),
-                    ),
-                    const SizedBox(width: 2),
-                    const AppLogo(size: 38),
-                  ],
-                ),
-                  SizedBox(height: tight ? 8 : 14),
-                Material(
-                  color: cardColor(context),
-                  borderRadius: BorderRadius.circular(28),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(28),
-                    onTap: onSearch,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                      child: Row(
-                        children: [
-                          Icon(Icons.search_rounded, size: 20, color: scheme.onSurfaceVariant),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Cerca classe o docente…',
-                            style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                  _QuickSwitch(store: store, onOpenMine: onOpenMine, onSearch: onSearch),
-                  SizedBox(height: tight ? 10 : 16),
-                  _TodayCard(store: store, now: now, onOpenMine: onOpenMine, onSearch: onSearch),
-                  SizedBox(height: tight ? 12 : 18),
-                  if (!tight) ...[
-                    Text('Per te', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 10),
-                  ],
-                ];
-                Widget shortcuts(double height) {
-                  // Poco spazio: i tre riquadri in fila su una riga, piu' bassi.
-                  if (height < 150) {
-                    return SizedBox(
-                      height: height,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(
-                            child: _ShortcutCard(
-                              icon: Icons.today_rounded,
-                              title: 'Il mio orario',
-                              subtitle: store.myRef?.displayName ?? 'Da impostare',
-                              filled: true,
-                              compact: true,
-                              onTap: store.myRef != null ? onOpenMine : onSearch,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _ShortcutCard(
-                              icon: Icons.search_rounded,
-                              title: 'Cerca',
-                              subtitle: 'Classi e docenti',
-                              compact: true,
-                              onTap: onSearch,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _ShortcutCard(
-                              icon: Icons.bookmark_rounded,
-                              title: 'Salvati',
-                              subtitle: '${store.favorites.length} offline',
-                              compact: true,
-                              onTap: onOpenSaved,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  return SizedBox(height: height, child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        flex: 11,
-                        child: _ShortcutCard(
-                          icon: Icons.today_rounded,
-                          title: 'Il mio orario',
-                          subtitle: store.myRef?.displayName ?? 'Da impostare',
-                          filled: true,
-                          onTap: store.myRef != null ? onOpenMine : onSearch,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 10,
-                        child: Column(
-                          children: [
-                            Expanded(
-                              child: _ShortcutCard(
-                                icon: Icons.search_rounded,
-                                title: 'Cerca',
-                                subtitle: 'Classi e docenti',
-                                onTap: onSearch,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Expanded(
-                              child: _ShortcutCard(
-                                icon: Icons.bookmark_rounded,
-                                title: 'Salvati',
-                                subtitle: '${store.favorites.length} offline',
-                                onTap: onOpenSaved,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ));
-                }
+        child: LayoutBuilder(
+          builder: (context, box) {
+            // Tablet / finestra larga: due colonne.
+            if (box.maxWidth >= 840 && box.maxHeight >= 440) return _wide(context, store, now);
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: _narrow(context, store, now, box.maxHeight),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
 
-                // Schermo basso (es. telefono in orizzontale): si scorre come prima.
-                if (box.maxHeight < 440) {
-                  return ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-                    children: [...header, shortcuts(168)],
-                  );
-                }
-                // Altrimenti tutto sta in una schermata: le scorciatoie si allungano
-                // fino a riempire lo spazio (max 300), e se avanza spazio
-                // compaiono gli ultimi orari aperti, quanti ne entrano.
-                return Padding(
-                  padding: EdgeInsets.fromLTRB(20, tight ? 10 : 18, 20, tight ? 10 : 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      ...header,
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, rest) {
-                            // Spazio troppo poco anche cosi': le scorciatoie scorrono da sole.
-                            if (rest.maxHeight < 88) {
-                              return SingleChildScrollView(child: shortcuts(96));
-                            }
-                            // Da 150 in su: riquadri grandi (max 300); sotto: riga compatta (max 120).
-                            final h = rest.maxHeight >= 150
-                                ? (rest.maxHeight < 300 ? rest.maxHeight : 300.0)
-                                : (rest.maxHeight < 120 ? rest.maxHeight : 120.0);
-                            final spare = rest.maxHeight - h - 16;
-                            final fit = spare > 60 ? ((spare - 36) / 58).floor() : 0;
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                shortcuts(h),
-                                if (fit > 0) ...[
-                                  const SizedBox(height: 16),
-                                  // Se la stima e' un po' larga, l'ultimo elemento viene tagliato
-                                  // invece di uscire dallo schermo.
-                                  Flexible(
-                                    child: ClipRect(
-                                      child: SingleChildScrollView(
-                                        physics: const NeverScrollableScrollPhysics(),
-                                        child: _Recents(store: store, max: fit),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+  /// Saluto, ricerca e cambio rapido.
+  List<Widget> _header(BuildContext context, AppStore store, DateTime now, {required bool tight}) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return [
+      Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${dayShort[now.weekday - 1]} ${now.day} ${_months[now.month - 1]}',
+                  style: theme.textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant, letterSpacing: 0.6),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  store.username != null ? 'Ciao, ${store.username}!' : 'Ciao!',
+                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Impostazioni',
+            onPressed: () => showSettingsSheet(context),
+            icon: const Icon(Icons.tune_rounded),
+          ),
+          const SizedBox(width: 2),
+          const AppLogo(size: 38),
+        ],
+      ),
+      SizedBox(height: tight ? 8 : 14),
+      Material(
+        color: cardColor(context),
+        borderRadius: BorderRadius.circular(28),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(28),
+          onTap: onSearch,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            child: Row(
+              children: [
+                Icon(Icons.search_rounded, size: 20, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 10),
+                Text(
+                  'Cerca classe o docente…',
+                  style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+              ],
             ),
           ),
         ),
       ),
+      _QuickSwitch(store: store, onOpenMine: onOpenMine, onSearch: onSearch),
+      SizedBox(height: tight ? 10 : 16),
+      _TodayCard(store: store, now: now, onOpenMine: onOpenMine, onSearch: onSearch),
+    ];
+  }
+
+  /// Le tre scorciatoie. [inRow] = tutte e tre in fila (schermi bassi o larghi),
+  /// altrimenti quella grande a sinistra e due impilate a destra.
+  Widget _shortcuts(AppStore store, {required double height, required bool inRow}) {
+    final compact = height < 120;
+    final mine = _ShortcutCard(
+      icon: Icons.today_rounded,
+      title: 'Il mio orario',
+      subtitle: store.myRef?.displayName ?? 'Da impostare',
+      filled: true,
+      compact: compact && inRow,
+      onTap: store.myRef != null ? onOpenMine : onSearch,
+    );
+    final search = _ShortcutCard(
+      icon: Icons.search_rounded,
+      title: 'Cerca',
+      subtitle: 'Classi e docenti',
+      compact: inRow ? compact : height < 170,
+      onTap: onSearch,
+    );
+    final saved = _ShortcutCard(
+      icon: Icons.bookmark_rounded,
+      title: 'Salvati',
+      subtitle: '${store.favorites.length} offline',
+      compact: inRow ? compact : height < 170,
+      onTap: onOpenSaved,
+    );
+    if (inRow) {
+      return SizedBox(
+        height: height,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: mine),
+            const SizedBox(width: 10),
+            Expanded(child: search),
+            const SizedBox(width: 10),
+            Expanded(child: saved),
+          ],
+        ),
+      );
+    }
+    return SizedBox(
+      height: height,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(flex: 11, child: mine),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 10,
+            child: Column(
+              // stretch: le due card occupano tutta la larghezza della colonna.
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: search),
+                const SizedBox(height: 12),
+                Expanded(child: saved),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _narrow(BuildContext context, AppStore store, DateTime now, double height) {
+    final tight = height < 620;
+    final header = _header(context, store, now, tight: tight);
+    final gap = tight ? 12.0 : 16.0;
+
+    // Schermo basso (es. telefono in orizzontale): si scorre.
+    if (height < 440) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+        children: [
+          ...header,
+          SizedBox(height: gap),
+          _shortcuts(store, height: 100, inRow: true),
+          SizedBox(height: gap),
+          _HomeExtras(store: store, now: now, onOpenMine: onOpenMine, scrollable: true),
+        ],
+      );
+    }
+
+    // Altrimenti tutto in una schermata, senza scorrere: le scorciatoie hanno
+    // proporzioni fisse (non si allungano piu' in altezza) e lo spazio che
+    // avanza va alle prossime lezioni e agli orari recenti.
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, tight ? 10 : 18, 20, tight ? 10 : 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ...header,
+          SizedBox(height: gap),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, rest) {
+                if (rest.maxHeight < 84) {
+                  return SingleChildScrollView(child: _shortcuts(store, height: 92, inRow: true));
+                }
+                // Riquadri grandi solo se resta spazio anche per il resto.
+                final big = math.min(rest.maxWidth * 0.46, 200.0);
+                final inRow = rest.maxHeight < big + 100;
+                final h = inRow ? math.min(rest.maxHeight, 112.0) : big;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _shortcuts(store, height: h, inRow: inRow),
+                    if (rest.maxHeight - h > 90) ...[
+                      SizedBox(height: gap),
+                      Expanded(child: _HomeExtras(store: store, now: now, onOpenMine: onOpenMine)),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _wide(BuildContext context, AppStore store, DateTime now) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1100),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(28, 18, 28, 16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 6,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ..._header(context, store, now, tight: false),
+                      const SizedBox(height: 16),
+                      _shortcuts(store, height: 120, inRow: true),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 28),
+              Expanded(
+                flex: 5,
+                child: _HomeExtras(store: store, now: now, onOpenMine: onOpenMine),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Le lezioni di oggi (o del prossimo giorno di scuola) e gli orari recenti:
+/// ne mostra quante entrano nello spazio disponibile.
+class _HomeExtras extends StatelessWidget {
+  const _HomeExtras({required this.store, required this.now, required this.onOpenMine, this.scrollable = false});
+
+  final AppStore store;
+  final DateTime now;
+  final VoidCallback onOpenMine;
+
+  /// true = dentro una lista che scorre: mostra tutto senza misurare.
+  final bool scrollable;
+
+  static const _peekTitle = 34.0;
+  static const _peekPad = 12.0;
+  static const _peekRow = 36.0;
+  static const _recentTitle = 36.0;
+  static const _recentRow = 74.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final peek = _peekFor(store, now);
+    final mine = store.myRef?.key;
+    final others = [...store.favorites, ...store.recents].where((s) => s.ref.key != mine).toList();
+
+    if (scrollable) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (peek != null && peek.items.isNotEmpty) _DayPeek(peek: peek, max: peek.items.length, onOpen: onOpenMine),
+          if (peek != null && peek.items.isNotEmpty && others.isNotEmpty) const SizedBox(height: 16),
+          if (others.isNotEmpty) _Recents(items: others, max: 5),
+        ],
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, box) {
+        var h = box.maxHeight;
+        final children = <Widget>[];
+        if (peek != null && peek.items.isNotEmpty && h >= _peekTitle + _peekPad + _peekRow) {
+          final k = math.min(peek.items.length, ((h - _peekTitle - _peekPad) / _peekRow).floor());
+          children.add(_DayPeek(peek: peek, max: k, onOpen: onOpenMine));
+          h -= _peekTitle + _peekPad + _peekRow * k + 16;
+        }
+        if (others.isNotEmpty && h >= _recentTitle + _recentRow) {
+          if (children.isNotEmpty) children.add(const SizedBox(height: 16));
+          children.add(_Recents(items: others, max: ((h - _recentTitle) / _recentRow).floor()));
+        }
+        // Se la stima e' un po' larga, l'ultimo elemento viene tagliato invece di uscire dallo schermo.
+        return ClipRect(
+          child: SingleChildScrollView(
+            physics: const NeverScrollableScrollPhysics(),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PeekItem {
+  const _PeekItem(this.hours, this.time, this.lesson, {this.now = false});
+  final String hours;
+  final String time;
+  final Lesson lesson;
+  final bool now;
+}
+
+class _Peek {
+  const _Peek(this.title, this.items);
+  final String title;
+  final List<_PeekItem> items;
+}
+
+/// Le lezioni rimaste oggi, oppure quelle del prossimo giorno di scuola.
+_Peek? _peekFor(AppStore store, DateTime now) {
+  final ref = store.myRef;
+  if (ref == null) return null;
+  final cached = store.cached(ref);
+  if (cached == null) return null;
+  final days = cached.week.days;
+  if (days.isEmpty) return null;
+  final slots = store.slots;
+  final m = now.hour * 60 + now.minute;
+  final ti = todayIndex(now, days.length);
+
+  bool finished(int k) => k < slots.length && slots[k].end != null && slots[k].end! <= m;
+
+  int? dayIdx;
+  var title = '';
+  if (ti >= 0 && !days[ti].isEmpty) {
+    final lessons = days[ti].lessons;
+    final left = [for (var k = 0; k < lessons.length; k++) if (!lessons[k].isEmpty && !finished(k)) k];
+    if (left.isNotEmpty) {
+      dayIdx = ti;
+      title = 'Oggi';
+    }
+  }
+  if (dayIdx == null) {
+    for (var off = 1; off <= 7; off++) {
+      final wd = (now.weekday - 1 + off) % 7;
+      if (wd < days.length && !days[wd].isEmpty) {
+        dayIdx = wd;
+        title = off == 1 ? 'Domani' : dayNames[wd];
+        break;
+      }
+    }
+  }
+  if (dayIdx == null) return null;
+
+  final today = dayIdx == ti && title == 'Oggi';
+  final cur = today ? currentSlot(slots, now) : null;
+  final lessons = days[dayIdx].lessons;
+  final items = <_PeekItem>[];
+  var i = 0;
+  while (i < lessons.length) {
+    final l = lessons[i];
+    var j = i;
+    while (j + 1 < lessons.length && lessons[j + 1].signature == l.signature) {
+      j++;
+    }
+    if (!l.isEmpty && !(today && finished(j))) {
+      items.add(_PeekItem(
+        j > i ? '${i + 1}ª–${j + 1}ª' : '${i + 1}ª',
+        i < slots.length ? slots[i].startText : '',
+        l,
+        now: cur != null && cur >= i && cur <= j,
+      ));
+    }
+    i = j + 1;
+  }
+  return _Peek(title, items);
+}
+
+class _DayPeek extends StatelessWidget {
+  const _DayPeek({required this.peek, required this.max, required this.onOpen});
+
+  final _Peek peek;
+  final int max;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final shown = peek.items.take(max).toList();
+    final hidden = peek.items.length - shown.length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 34,
+          child: Row(
+            children: [
+              Text(peek.title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(width: 8),
+              Text(
+                hidden > 0 ? '+$hidden dopo' : '${peek.items.length} ${peek.items.length == 1 ? 'lezione' : 'lezioni'}',
+                style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: onOpen,
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, 30),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('Orario'),
+              ),
+            ],
+          ),
+        ),
+        Material(
+          color: cardColor(context),
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Column(
+              children: [
+                for (final it in shown)
+                  Container(
+                    height: 36,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: it.now
+                        ? BoxDecoration(color: scheme.primary.withAlpha(36), borderRadius: BorderRadius.circular(10))
+                        : null,
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 56,
+                          child: Text(
+                            it.hours,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: it.now ? scheme.primary : scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 46,
+                          child: Text(it.time, style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+                        ),
+                        Expanded(
+                          child: Text(
+                            it.lesson.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: it.now ? FontWeight.w700 : FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        if (it.lesson.lab.isNotEmpty)
+                          Tooltip(message: it.lesson.lab, child: Text(labInfo(it.lesson.lab).emoji)),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -465,21 +714,20 @@ class _ShortcutCard extends StatelessWidget {
   }
 }
 
-/// Ultimi orari aperti, in fondo alla home.
+/// Ultimi orari aperti e salvati (senza il proprio), in fondo alla home.
 class _Recents extends StatelessWidget {
-  const _Recents({required this.store, this.max = 5});
+  const _Recents({required this.items, this.max = 5});
 
-  final AppStore store;
+  final List<CachedSchedule> items;
 
-  /// Quanti orari mostrare (in base allo spazio libero sotto le scorciatoie).
+  /// Quanti orari mostrare (in base allo spazio libero).
   final int max;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final items = [...store.favorites, ...store.recents];
-    if (items.isEmpty) return const SizedBox.shrink();
+    if (items.isEmpty || max <= 0) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

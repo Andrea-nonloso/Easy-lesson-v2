@@ -1,49 +1,29 @@
-## Easy Lesson 2.1.1
+## Cosa c'è di nuovo in Easy Lesson 2.2.0
 
-Stessa app della 2.1.0, ma con una correzione importante per Android: l'APK ora è firmato con la chiave definitiva. **Chi aggiorna da una versione precedente deve disinstallare la vecchia app una volta** (gli orari salvati vanno reimportati): da questa versione in poi gli aggiornamenti si installano sopra senza problemi, anche dal pulsante "aggiorna" nell'app.
+### 📐 Home che si adatta allo schermo
 
-## Cosa c'è di nuovo (dalla 2.1.0)
+I riquadri della Home non si allungano più in verticale: hanno proporzioni fisse e su schermi bassi si dispongono in fila. Lo spazio che avanza mostra le lezioni rimaste oggi — o quelle di domani se hai finito — con l'ora in corso evidenziata, e sotto gli orari recenti. Su tablet o con la finestra larga (da 840 px) la Home va su due colonne; in orizzontale si scorre.
 
-### 🏠 Nuova home
+### 🛠️ Opzioni sviluppatore
 
-All'apertura trovi il saluto con il tuo nome, la ricerca rapida e la lezione di adesso a colpo d'occhio, con i chip per cambiare orario al volo e le scorciatoie ai salvati. La nuova interfaccia prende ispirazione da alcuni sample di design online, riadattati e ottimizzati per l'uso a scuola: orario leggibile a colpo d'occhio, pochi colori, tutto a portata di pollice.
+Sette tocchi sulla 🍃 in fondo alle Impostazioni e si apre la pagina sviluppatore:
 
-### 🧭 Configurazione iniziale
+- **Log**: errori e operazioni dell'app, con filtro Tutto/Avvisi/Errori, copiabili o salvabili in un file.
+- **Vedi il file Excel**: il foglio importato con lettere di colonna e numeri di riga, ricerca con celle evidenziate e tocco su una cella per leggerla tutta.
+- **Esporta in .xlsx**: un foglio per ogni orario, a scelta tra salvati, tutte le classi, tutti i docenti o tutto.
+- **Laboratorio colori**: accento, sfondo, card e barra in HEX, R/G/B, decimale o HSL, con anteprima, controllo di leggibilità del testo, copia del tema come codice — e la "ricetta" di ogni colore in gocce da ½ ml su tela di cotone 🧵.
 
-Al primo avvio l'app ti chiede nome, classe (o docente) e tema preferito: l'orario viene scaricato subito e resta disponibile anche offline.
+### 🥚 Easter egg dei colori
 
-### 🔍 Cerca i docenti per materia
+Alla terza volta in 10 minuti che apri una pagina di personalizzazione dei colori: 30 secondi di assolutamente zero personalizzazione, scritto nero su bianco. Non si può chiudere. Te lo meriti.
 
-In Cerca → Docenti puoi scegliere Nome o Materia: scrivi "mate" ed escono tutti i docenti di Matematica, raggruppati per materia.
+### 🐞 Correzioni
 
-### 📅 Esporta nel calendario
-
-Dal menu ⋮ di un orario crei un file .ics per Google Calendar, Outlook o il Calendario di Windows: le lezioni si ripetono ogni settimana fino a giugno e il laboratorio finisce nel "luogo" dell'evento.
-
-### 📱 Orario ridisegnato
-
-- Celle tutte uguali: ogni ora ha la stessa altezza, una lezione da due ore occupa esattamente il doppio.
-- Ore consecutive della stessa materia unite in un'unica card.
-- Sostegno evidenziato ora per ora nella vista giorno; badge compatto con icona nella griglia.
-- Laboratori con la loro icona (🧪 chimica, ⚛️ fisica, 💻 informatica…) e badge 👥 per le compresenze.
-
-### 🎨 Temi rinnovati
-
-- Nuovo tema scuro neutro in scala di grigi.
-- "Blu notte" resta nella pagina Temi, tra i Classici.
-- Tema chiaro più morbido, con sfondo grigio-lilla e card bianche.
-
-### 💻 Windows
-
-La finestra si apre in formato verticale da telefono e si adatta da sola all'altezza dello schermo.
-
-### 🥚 E una sorpresa
-
-Nelle Impostazioni, in fondo. Sette tocchi sulla 🍃. Fidati.
+- Sul web il download dell'esportazione per il calendario ora funziona: prima il browser bloccava il file.
 
 ### 📦 Download
 
-- **EasyLesson-Setup-2.1.0.exe** — installer per Windows;
+- **EasyLesson-Setup-2.2.0.exe** — installer per Windows;
 - **EasyLesson-Windows.zip** — Windows senza installazione;
-- **EasyLesson.apk** — Android;
+- **EasyLesson.apk** — Android (firmato: gli aggiornamenti si installano sopra, da questa versione in poi);
 - **EasyLesson-Web.zip** — versione web.

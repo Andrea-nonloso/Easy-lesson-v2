@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../models.dart';
+import '../store.dart';
+import 'dev_page.dart';
 
 /// Icona e nome breve di un laboratorio, ricavati dal nome nell'orario
 /// (es. "W Chim biennio" → 🧪 Chimica, "E Fisica" → ⚛️ Fisica).
@@ -105,7 +107,32 @@ const _battute = [
   'Se stai leggendo questo, la 7ª ora non è ancora finita. Coraggio.',
 ];
 
-/// Firma in fondo alle impostazioni. Tocca 7 volte il logo per una sorpresa.
+/// La vecchia sorpresa: una battuta a caso (ora nelle opzioni sviluppatore).
+void showRandomJoke(BuildContext context) {
+  final battuta = _battute[math.Random().nextInt(_battute.length)];
+  showDialog<void>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: const Text('🎉 Easter egg'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('🧪 ⚛️ 🔬 💻 ⚡ 🏀 📐 ⚙️', style: TextStyle(fontSize: 26)),
+          const SizedBox(height: 14),
+          Text(battuta),
+          const SizedBox(height: 14),
+          const Text('Passa in 1A IT e dì la parola d\'ordine: "Easy Lesson".'),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Ahah, ok')),
+      ],
+    ),
+  );
+}
+
+/// Firma in fondo alle impostazioni. 7 tocchi sulla foglia = opzioni sviluppatore.
 class CreditsFooter extends StatefulWidget {
   const CreditsFooter({super.key, required this.version});
 
@@ -121,43 +148,27 @@ class _CreditsFooterState extends State<CreditsFooter> {
   void _tap() {
     _taps++;
     final messenger = ScaffoldMessenger.of(context);
+    final store = StoreScope.read(context);
     if (_taps < 7) {
       if (_taps >= 4) {
         messenger
           ..hideCurrentSnackBar()
           ..showSnackBar(SnackBar(
             duration: const Duration(milliseconds: 700),
-            content: Text('Ancora ${7 - _taps}…'),
+            content: Text(store.devMode
+                ? 'Le opzioni sviluppatore sono già attive 😉'
+                : 'Ancora ${7 - _taps} tocchi per diventare sviluppatore…'),
           ));
       }
       return;
     }
     _taps = 0;
     messenger.hideCurrentSnackBar();
-    final battuta = _battute[math.Random().nextInt(_battute.length)];
-    showDialog<void>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('🎉 Easter egg trovato!'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('🧪 ⚛️ 🔬 💻 ⚡ 🏀 📐 ⚙️', style: TextStyle(fontSize: 26)),
-            const SizedBox(height: 14),
-            Text(battuta),
-            const SizedBox(height: 14),
-            const Text(
-              'Ora sei ufficialmente una persona curiosa. '
-              'Passa in 1A IT e dì la parola d\'ordine: "Easy Lesson".',
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Ahah, ok')),
-        ],
-      ),
-    );
+    if (!store.devMode) {
+      store.setDevMode(true);
+      messenger.showSnackBar(const SnackBar(content: Text('🧪 Ora sei uno sviluppatore! Opzioni sviluppatore sbloccate')));
+    }
+    openDevPage(context);
   }
 
   @override

@@ -6,11 +6,19 @@ import 'package:file_picker/file_picker.dart';
 
 /// Android / Windows: finestra "Salva con nome".
 /// Restituisce il percorso, null se annullato.
-Future<String?> saveTextFile(String name, String content, {String mime = 'text/plain'}) async {
-  final bytes = Uint8List.fromList(utf8.encode(content));
+Future<String?> saveTextFile(String name, String content, {String mime = 'text/plain'}) =>
+    saveBytesFile(name, utf8.encode(content), mime: mime, title: 'Salva il calendario');
+
+Future<String?> saveBytesFile(
+  String name,
+  List<int> data, {
+  String mime = 'application/octet-stream',
+  String title = 'Salva il file',
+}) async {
+  final bytes = Uint8List.fromList(data);
   final ext = name.contains('.') ? name.split('.').last : 'txt';
   final path = await FilePicker.platform.saveFile(
-    dialogTitle: 'Salva il calendario',
+    dialogTitle: title,
     fileName: name,
     type: FileType.custom,
     allowedExtensions: [ext],

@@ -248,6 +248,9 @@ AppThemeSpec buildCustomSpec({
   required Color seed,
   String mode = 'system',
   bool oled = false,
+  Color? background,
+  Color? card,
+  Color? nav,
 }) {
   final brightness = switch (mode) {
     'light' => Brightness.light,
@@ -261,9 +264,9 @@ AppThemeSpec buildCustomSpec({
     seed: seed,
     brightness: brightness,
     pureBlack: darkOled,
-    background: darkOled ? const Color(0xFF000000) : null,
-    card: darkOled ? const Color(0xFF0E0E0E) : null,
-    nav: darkOled ? const Color(0xFF000000) : null,
+    background: background ?? (darkOled ? const Color(0xFF000000) : null),
+    card: card ?? (darkOled ? const Color(0xFF0E0E0E) : null),
+    nav: nav ?? (darkOled ? const Color(0xFF000000) : null),
     category: 'Il tuo tema',
   );
 }
