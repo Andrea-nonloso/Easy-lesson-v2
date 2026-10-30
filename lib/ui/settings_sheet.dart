@@ -4,7 +4,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models.dart';
 import '../store.dart';
+import '../updater.dart';
 import 'subjects_page.dart';
+import 'theme.dart';
+import 'themes_page.dart';
 import 'widgets.dart';
 
 const _privacyUrl = 'https://easy-lesson.web.app/EasyLesson_PrivacyPolicy.html';
@@ -137,15 +140,13 @@ class SettingsSheet extends StatelessWidget {
             ],
           ),
           const SectionLabel('Aspetto'),
-          SegmentedButton<ThemeMode>(
-            showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto_outlined), label: Text('Auto')),
-              ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_outlined), label: Text('Chiaro')),
-              ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_outlined), label: Text('Scuro')),
-            ],
-            selected: {store.themeMode},
-            onSelectionChanged: (s) => store.setThemeMode(s.first),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.palette_outlined, color: theme.colorScheme.primary),
+            title: const Text('Tema'),
+            subtitle: Text(themeById(store.themeId).name),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => openThemesPage(context),
           ),
           const SectionLabel("Fonte dell'orario"),
           if (store.usingExcel) ...[
@@ -209,7 +210,7 @@ class SettingsSheet extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.link_rounded),
             title: const Text('Scarica Excel da un link'),
-            subtitle: const Text('Ideale nelle app (Android, iOS, Windows); dal browser alcuni siti lo bloccano'),
+            subtitle: const Text('Ideale nelle app (Android, Windows); dal browser alcuni siti lo bloccano'),
             onTap: () => askExcelUrl(context),
           ),
           ListTile(
@@ -250,14 +251,69 @@ class SettingsSheet extends StatelessWidget {
             trailing: const Icon(Icons.open_in_new_rounded, size: 18),
             onTap: () => launchUrl(Uri.parse(_githubUrl), mode: LaunchMode.externalApplication),
           ),
+          const _UpdateTile(),
           const SizedBox(height: 8),
-          Text(
-            'Versione 2.0',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          FutureBuilder<String>(
+            future: Updater.currentVersion(),
+            builder: (context, snap) => Text(
+              'Versione ${snap.data ?? ''}',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// "Cerca aggiornamenti" (Android, Windows) o come si aggiorna sulle altre piattaforme.
+class _UpdateTile extends StatefulWidget {
+  const _UpdateTile();
+
+  @override
+  State<_UpdateTile> createState() => _UpdateTileState();
+}
+
+class _UpdateTileState extends State<_UpdateTile> {
+  bool _checking = false;
+  String? _status;
+  UpdateInfo? _update;
+
+  Future<void> _check() async {
+    setState(() {
+      _checking = true;
+      _status = null;
+    });
+    final info = await Updater.check();
+    if (!mounted) return;
+    setState(() {
+      _checking = false;
+      _update = info;
+      _status = info == null ? 'Hai già l\'ultima versione' : 'Disponibile la versione ${info.version}';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!Updater.supported) {
+      return ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.system_update_outlined),
+        title: const Text('Aggiornamenti'),
+        subtitle: const Text('La versione web si aggiorna da sola: ricarica la pagina'),
+      );
+    }
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(_update != null ? Icons.system_update_rounded : Icons.system_update_outlined,
+          color: _update != null ? Theme.of(context).colorScheme.primary : null),
+      title: Text(_update != null ? 'Scarica la versione ${_update!.version}' : 'Cerca aggiornamenti'),
+      subtitle: _status == null ? null : Text(_status!),
+      trailing: _checking
+          ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+          : null,
+      onTap: _checking ? null : (_update != null ? () => Updater.open(_update!) : _check),
     );
   }
 }

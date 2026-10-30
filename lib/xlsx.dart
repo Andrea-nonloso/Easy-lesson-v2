@@ -4,7 +4,7 @@ import 'package:archive/archive.dart';
 
 /// Lettore minimale di file .xlsx (solo testo, primo foglio).
 ///
-/// Dart puro: funziona su Android, iOS, web e anche da riga di comando.
+/// Dart puro: funziona su Android, Windows, web e anche da riga di comando.
 /// Restituisce le righe del foglio come liste di stringhe (celle vuote = '').
 List<List<String>> readXlsx(List<int> bytes) {
   final Archive zip;

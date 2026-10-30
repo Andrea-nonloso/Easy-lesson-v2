@@ -2,7 +2,9 @@
 ; Si compila da build_windows.ps1 dopo "flutter build windows --release".
 
 #define MyAppName "Easy Lesson"
-#define MyAppVersion "2.0.0"
+#ifndef MyAppVersion
+  #define MyAppVersion "2.0.0"
+#endif
 #define MyAppExe "easy_lesson.exe"
 
 [Setup]

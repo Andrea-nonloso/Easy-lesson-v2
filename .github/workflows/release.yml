@@ -1,5 +1,10 @@
-# Crea una release con Windows (installer + zip), Android (APK) e web (zip)
-# quando si pubblica un tag, es.:  git tag v2.0.0 && git push origin v2.0.0
+# Crea una release quando si pubblica un tag, es.:  git tag v2.0.1 && git push origin v2.0.1
+# Contiene: installer + zip Windows, APK Android e zip web.
+# La versione dell'app viene presa dal tag (v2.0.1 -> 2.0.1): le app installate la
+# confrontano con l'ultima release per proporre l'aggiornamento.
+#
+# Firma Android stabile (necessaria perche' gli aggiornamenti si installino sopra):
+# secrets ANDROID_KEYSTORE_BASE64 e ANDROID_KEYSTORE_PASSWORD (vedi chiavi-android/LEGGIMI.txt).
 name: Release
 
 on:
@@ -15,6 +20,11 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - id: v
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then echo "name=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else echo "name=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)" >> "$GITHUB_OUTPUT"; fi
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -24,7 +34,7 @@ jobs:
         run: choco install innosetup -y --no-progress
       - name: Build Windows
         shell: pwsh
-        run: ./build_windows.ps1
+        run: ./build_windows.ps1 -Version ${{ steps.v.outputs.name }} -BuildNumber ${{ github.run_number }}
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -32,8 +42,15 @@ jobs:
 
   android:
     runs-on: ubuntu-latest
+    env:
+      KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
+      - id: v
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then echo "name=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else echo "name=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)" >> "$GITHUB_OUTPUT"; fi
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -42,8 +59,17 @@ jobs:
         with:
           channel: stable
           cache: true
+      - name: Chiave di firma Android
+        if: env.KEYSTORE_B64 != ''
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > android/app/upload-keystore.jks
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=upload\nstoreFile=upload-keystore.jks\n' \
+            "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" > android/key.properties
+      - name: Avviso firma mancante
+        if: env.KEYSTORE_B64 == ''
+        run: echo "::warning::APK firmato con chiave di debug: gli aggiornamenti non si installeranno sopra la versione precedente."
       - run: flutter pub get
-      - run: flutter build apk --release
+      - run: flutter build apk --release --build-name=${{ steps.v.outputs.name }} --build-number=$((100 + ${{ github.run_number }}))
       - run: cp build/app/outputs/flutter-apk/app-release.apk EasyLesson.apk
       - uses: actions/upload-artifact@v4
         with:

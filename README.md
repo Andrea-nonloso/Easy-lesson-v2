@@ -24,10 +24,23 @@ Tutti i file si trovano nella pagina **[Releases](../../releases)**.
 | **Windows** | `EasyLesson-Setup-x.y.z.exe` | Apri il file e segui l'installazione. Se Windows mostra "PC protetto", clicca *Ulteriori informazioni → Esegui comunque*. |
 | **Windows (senza installare)** | `EasyLesson-Windows.zip` | Estrai la cartella e apri `easy_lesson.exe`. |
 | **Android** | `EasyLesson.apk` | Apri il file dal telefono e consenti l'installazione da "origini sconosciute". |
-| **iPhone / iPad** | — | Usa la versione web (sotto) e aggiungila alla schermata Home. |
 
 **Primo avvio:** cerca la tua classe, aprila e tocca *"È il tuo orario?"*: da quel momento l'app si apre
 direttamente sul tuo orario, anche offline.
+
+### Temi
+
+Dal menu **⋮ → Temi** scegli tra oltre 20 temi: chiari e scuri classici, **Pure Black / OLED / AMOLED**
+(nero vero, che sugli schermi OLED consuma meno batteria), temi naturali come **Deserto**, **Oceano** e **Sakura**,
+e temi **animati** con sfondi in movimento (**Tramonto**, **Aurora**, **Lava**, **Notte stellata**, **Onde**, **Tinta viva**…).
+Le animazioni si fermano da sole se nel sistema è attivo "riduci animazioni".
+
+### Aggiornamenti
+
+- **Android e Windows**: all'avvio l'app controlla se c'è una nuova versione e mostra *"È disponibile Easy Lesson x.y.z — Aggiorna"*.
+  Tocca *Aggiorna*, scarica il file e aprilo: si installa sopra la versione vecchia senza perdere i tuoi orari.
+  Puoi controllare anche da *Impostazioni → Cerca aggiornamenti*.
+- **Web**: si aggiorna da sola, basta ricaricare la pagina.
 
 ---
 
@@ -36,8 +49,7 @@ direttamente sul tuo orario, anche offline.
 La versione web è online su **https://andrea-nonloso.github.io/Easy-lesson-v2/**: si apre dal browser,
 senza installare nulla.
 
-- **Come un'app:** dal telefono apri il link e scegli *Aggiungi a schermata Home*
-  (Safari: tasto Condividi → *Aggiungi alla schermata Home*).
+- **Come un'app:** dal telefono apri il link e scegli *Aggiungi a schermata Home*.
 - **Offline:** gli orari che apri vengono salvati nel browser; restano disponibili anche senza connessione
   finché non cancelli i dati del sito.
 - **File Excel:** da *Impostazioni → Importa file Excel* puoi caricare il file dell'orario scaricato dal sito della scuola.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../store.dart';
+import 'app_menu.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -119,6 +120,7 @@ class _SubjectsPageState extends State<SubjectsPage> {
       appBar: AppBar(
         title: const Text('Materie e codici'),
         actions: [
+          const AppMenuButton(),
           IconButton(
             tooltip: 'Ripristina predefiniti',
             onPressed: subjectOverrides.isEmpty && teacherSubjectOverrides.isEmpty ? null : () => _reset(store),

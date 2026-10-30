@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../store.dart';
+import 'app_menu.dart';
 import 'schedule_screen.dart';
 import 'settings_sheet.dart';
 import 'theme.dart';
@@ -85,7 +86,16 @@ class _SearchPageState extends State<SearchPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Cerca orario')),
+      appBar: AppBar(
+        title: const Text('Cerca orario'),
+        actions: [
+          AppMenuButton(items: [
+            AppMenuItem(Icons.sync_rounded, 'Aggiorna elenchi', () => store.refreshLists()),
+            AppMenuItem(Icons.upload_file_rounded, 'Importa file Excel', () => pickAndImportExcel(context)),
+          ]),
+          const SizedBox(width: 4),
+        ],
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 860),

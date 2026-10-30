@@ -14,7 +14,7 @@ function Write-Utf8($path, $text) {
 
 # 1. Abilita Windows desktop e genera le cartelle mancanti (i file gia' presenti non vengono toccati)
 flutter config --enable-windows-desktop
-flutter create . --project-name easy_lesson --org it.easylesson --platforms=android,ios,web,windows
+flutter create . --project-name easy_lesson --org it.easylesson --platforms=android,web,windows
 
 # 2. Finestra Windows: titolo "Easy Lesson" e dimensione iniziale
 $main = "windows\runner\main.cpp"
@@ -35,7 +35,7 @@ if (Test-Path $rc) {
 # 3. Dipendenze
 flutter pub get
 
-# 4. Icone dell'app (Android, iOS, web, Windows)
+# 4. Icone dell'app (Android, web, Windows)
 dart run flutter_launcher_icons
 
 # 5. Controlli

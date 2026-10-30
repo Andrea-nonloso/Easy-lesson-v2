@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../store.dart';
-import 'settings_sheet.dart';
+import 'app_menu.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -154,47 +154,20 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               icon: Icon(isFav ? Icons.bookmark_rounded : Icons.bookmark_border_rounded),
               color: isFav ? scheme.primary : null,
             ),
-          PopupMenuButton<String>(
-            tooltip: 'Altro',
-            onSelected: (v) {
-              switch (v) {
-                case 'mine':
-                  _toggleMine(store);
-                case 'grid':
-                  store.setPreferGrid(!store.preferGrid);
-                case 'settings':
-                  showSettingsSheet(context);
-              }
-            },
-            itemBuilder: (_) => [
-              if (cached != null)
-                PopupMenuItem(
-                  value: 'mine',
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(isMine ? Icons.home_rounded : Icons.home_outlined),
-                    title: Text(isMine ? 'Non è il mio orario' : 'Imposta come mio orario'),
-                  ),
-                ),
-              if (wide)
-                PopupMenuItem(
-                  value: 'grid',
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(store.preferGrid ? Icons.view_day_outlined : Icons.calendar_view_week_outlined),
-                    title: Text(store.preferGrid ? 'Vista per giorno' : 'Vista settimana'),
-                  ),
-                ),
-              const PopupMenuItem(
-                value: 'settings',
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.settings_outlined),
-                  title: Text('Impostazioni'),
-                ),
+          AppMenuButton(items: [
+            if (cached != null)
+              AppMenuItem(
+                isMine ? Icons.home_rounded : Icons.home_outlined,
+                isMine ? 'Non è il mio orario' : 'Imposta come mio orario',
+                () => _toggleMine(store),
               ),
-            ],
-          ),
+            if (wide)
+              AppMenuItem(
+                store.preferGrid ? Icons.view_day_outlined : Icons.calendar_view_week_outlined,
+                store.preferGrid ? 'Vista per giorno' : 'Vista settimana',
+                () => store.setPreferGrid(!store.preferGrid),
+              ),
+          ]),
           const SizedBox(width: 4),
         ],
       ),

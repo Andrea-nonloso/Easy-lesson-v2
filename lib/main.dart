@@ -3,6 +3,7 @@ import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 
 import 'store.dart';
+import 'ui/backdrop.dart';
 import 'ui/home_shell.dart';
 import 'ui/theme.dart';
 
@@ -17,8 +18,10 @@ class EasyLessonApp extends StatelessWidget {
 
   final AppStore store;
 
-  static final _light = buildTheme(Brightness.light);
-  static final _dark = buildTheme(Brightness.dark);
+  static final Map<String, ThemeData> _themes = {};
+
+  static ThemeData _theme(AppThemeSpec spec, Brightness b) =>
+      _themes.putIfAbsent('${spec.id}-${b.name}', () => buildTheme(b, spec));
 
   @override
   Widget build(BuildContext context) {
@@ -26,15 +29,24 @@ class EasyLessonApp extends StatelessWidget {
       store: store,
       child: ListenableBuilder(
         listenable: store,
-        builder: (context, _) => MaterialApp(
+        builder: (context, _) {
+          final spec = themeById(store.themeId);
+          return MaterialApp(
           title: 'Easy Lesson',
           debugShowCheckedModeBanner: false,
-          themeMode: store.themeMode,
-          theme: _light,
-          darkTheme: _dark,
+          themeMode: switch (spec.brightness) {
+            Brightness.light => ThemeMode.light,
+            Brightness.dark => ThemeMode.dark,
+            null => ThemeMode.system,
+          },
+          theme: _theme(spec, spec.brightness ?? Brightness.light),
+          darkTheme: _theme(spec, spec.brightness ?? Brightness.dark),
+          // Sfondo del tema (anche animato) dietro a tutte le schermate
+          builder: (context, child) => AppBackdrop(child: child ?? const SizedBox()),
           scrollBehavior: const _AppScrollBehavior(),
           home: const HomeShell(),
-        ),
+          );
+        },
       ),
     );
   }

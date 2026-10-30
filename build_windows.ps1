@@ -4,10 +4,19 @@
 #   - EasyLesson-Setup-2.0.0.exe      (installer, solo se e' installato Inno Setup 6)
 #
 # Prima volta: eseguire .\setup.ps1
+param(
+  [string]$Version,        # es. 2.0.1 (default: quella in pubspec.yaml)
+  [int]$BuildNumber = 1
+)
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-flutter build windows --release
+if (-not $Version) {
+  $Version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*([^+\s]+)').Matches[0].Groups[1].Value
+}
+Write-Host "Versione $Version"
+flutter build windows --release --build-name=$Version --build-number=$BuildNumber
+if ($LASTEXITCODE -ne 0) { throw "flutter build windows non riuscito" }
 
 $rel = "build\windows\x64\runner\Release"
 if (-not (Test-Path "$rel\easy_lesson.exe")) { throw "Build non trovata in $rel" }
@@ -31,7 +40,7 @@ $iscc = @(
 ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
 
 if ($iscc) {
-  & $iscc "installer\easy_lesson.iss"
+  & $iscc "/DMyAppVersion=$Version" "installer\easy_lesson.iss"
   Write-Host "Installer creato in dist\"
 } else {
   Write-Host "Inno Setup 6 non trovato: installer saltato (scaricalo da jrsoftware.org se ti serve)."

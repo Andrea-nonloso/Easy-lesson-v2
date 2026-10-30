@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../store.dart';
+import '../updater.dart';
+import 'app_menu.dart';
 import 'saved_page.dart';
 import 'schedule_screen.dart';
 import 'search_page.dart';
 import 'settings_sheet.dart';
+import 'themes_page.dart';
 import 'widgets.dart';
 
 /// Struttura principale: barra in basso su telefono, barra laterale su tablet.
@@ -29,6 +32,19 @@ class _HomeShellState extends State<HomeShell> {
     super.initState();
     // Senza "mio orario" si parte direttamente dalla ricerca.
     if (StoreScope.read(context).myRef == null) _index = 1;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkUpdates());
+  }
+
+  /// Android e Windows: se su GitHub c'e' una versione piu' recente, la propone.
+  Future<void> _checkUpdates() async {
+    if (!Updater.supported) return;
+    final info = await Updater.check();
+    if (info == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      duration: const Duration(seconds: 15),
+      content: Text('È disponibile Easy Lesson ${info.version}'),
+      action: SnackBarAction(label: 'Aggiorna', onPressed: () => Updater.open(info)),
+    ));
   }
 
   void _go(int i) => setState(() => _index = i);
@@ -62,10 +78,19 @@ class _HomeShellState extends State<HomeShell> {
                   ),
                   trailing: Padding(
                     padding: const EdgeInsets.only(top: 16),
-                    child: IconButton(
-                      tooltip: 'Impostazioni',
-                      onPressed: () => showSettingsSheet(context),
-                      icon: const Icon(Icons.settings_outlined),
+                    child: Column(
+                      children: [
+                        IconButton(
+                          tooltip: 'Temi',
+                          onPressed: () => openThemesPage(context),
+                          icon: const Icon(Icons.palette_outlined),
+                        ),
+                        IconButton(
+                          tooltip: 'Impostazioni',
+                          onPressed: () => showSettingsSheet(context),
+                          icon: const Icon(Icons.settings_outlined),
+                        ),
+                      ],
                     ),
                   ),
                   destinations: [
@@ -111,13 +136,7 @@ class _MyScheduleTab extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Easy Lesson'),
-        actions: [
-          IconButton(
-            tooltip: 'Impostazioni',
-            onPressed: () => showSettingsSheet(context),
-            icon: const Icon(Icons.settings_outlined),
-          ),
-        ],
+        actions: const [AppMenuButton(), SizedBox(width: 4)],
       ),
       body: EmptyState(
         icon: Icons.school_outlined,

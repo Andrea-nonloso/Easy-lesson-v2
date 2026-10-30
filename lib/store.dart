@@ -55,7 +55,7 @@ class CachedSchedule {
 }
 
 /// Stato dell'app + persistenza locale (localStorage sul web,
-/// SharedPreferences/NSUserDefaults su Android/iOS).
+/// SharedPreferences su Android e Windows).
 class AppStore extends ChangeNotifier {
   AppStore._(this._prefs, this._api);
 
@@ -71,6 +71,7 @@ class AppStore extends ChangeNotifier {
   final EasyLessonApi _api;
 
   static const _kTheme = 'el.theme';
+  static const _kThemeId = 'el.themeId';
   static const _kClassi = 'el.classi';
   static const _kDocenti = 'el.docenti';
   static const _kOre = 'el.ore';
@@ -84,6 +85,9 @@ class AppStore extends ChangeNotifier {
   static const _maxRecents = 8;
 
   ThemeMode themeMode = ThemeMode.system;
+
+  /// Tema scelto nella pagina Temi (vedi ui/theme.dart).
+  String themeId = 'auto';
   List<String> _serverClassi = [];
   List<String> _serverDocenti = [];
   List<TimeSlot> slots = [];
@@ -132,6 +136,12 @@ class AppStore extends ChangeNotifier {
   // ---------------------------------------------------------------- load/save
 
   void _load() {
+    themeId = _prefs.getString(_kThemeId) ??
+        switch (_prefs.getString(_kTheme)) {
+          'light' => 'light',
+          'dark' => 'dark',
+          _ => 'auto',
+        };
     themeMode = ThemeMode.values.firstWhere(
       (m) => m.name == _prefs.getString(_kTheme),
       orElse: () => ThemeMode.system,
@@ -425,6 +435,12 @@ class AppStore extends ChangeNotifier {
     await _prefs.remove(_kMine);
     await _saveSchedules();
     notifyListeners();
+  }
+
+  Future<void> setThemeId(String id) async {
+    themeId = id;
+    notifyListeners();
+    await _prefs.setString(_kThemeId, id);
   }
 
   Future<void> setThemeMode(ThemeMode m) async {

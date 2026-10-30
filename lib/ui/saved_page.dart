@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../store.dart';
+import 'app_menu.dart';
 import 'search_page.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -17,7 +18,15 @@ class SavedPage extends StatelessWidget {
     final recents = store.recents;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Salvati')),
+      appBar: AppBar(
+        title: const Text('Salvati'),
+        actions: [
+          AppMenuButton(items: [
+            AppMenuItem(Icons.search_rounded, 'Cerca un orario', onSearch),
+          ]),
+          const SizedBox(width: 4),
+        ],
+      ),
       body: favs.isEmpty && recents.isEmpty
           ? EmptyState(
               icon: Icons.bookmark_border_rounded,
