@@ -758,16 +758,24 @@ class LessonTile extends StatelessWidget {
       );
     } else {
       final c = SubjectColors.of(l.title, theme.brightness);
+      final dark = theme.brightness == Brightness.dark;
       card = Container(
         constraints: BoxConstraints(minHeight: cardH),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: cardColor(context),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: active ? scheme.primary : scheme.outlineVariant.withAlpha(140),
             width: active ? 2 : 1,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(dark ? 70 : 16),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

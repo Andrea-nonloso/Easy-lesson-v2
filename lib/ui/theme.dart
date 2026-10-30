@@ -85,6 +85,13 @@ class AppPalette extends ThemeExtension<AppPalette> {
 // Catalogo dei temi
 
 const appThemes = <AppThemeSpec>[
+  // In evidenza
+  AppThemeSpec(
+    id: 'blunotte', name: 'Blu Notte', seed: Color(0xFF3B82F6), brightness: Brightness.dark,
+    background: Color(0xFF0C1626), card: Color(0xFF16233A), nav: Color(0xFF101C30),
+    category: 'In evidenza',
+  ),
+
   // Classici
   AppThemeSpec(id: 'auto', name: 'Automatico', seed: brandSeed, category: 'Classici'),
   AppThemeSpec(id: 'light', name: 'Chiaro', seed: brandSeed, brightness: Brightness.light, category: 'Classici'),
