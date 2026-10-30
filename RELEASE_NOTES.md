@@ -1,4 +1,8 @@
-## Cosa c'è di nuovo in Easy Lesson 2.1.0
+## Easy Lesson 2.1.1
+
+Stessa app della 2.1.0, ma con una correzione importante per Android: l'APK ora è firmato con la chiave definitiva. **Chi aggiorna da una versione precedente deve disinstallare la vecchia app una volta** (gli orari salvati vanno reimportati): da questa versione in poi gli aggiornamenti si installano sopra senza problemi, anche dal pulsante "aggiorna" nell'app.
+
+## Cosa c'è di nuovo (dalla 2.1.0)
 
 ### 🏠 Nuova home
 
