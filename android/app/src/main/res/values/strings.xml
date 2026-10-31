@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">Lezione di adesso e la prossima</string>
+    <string name="sc_mine">Il mio orario</string>
+    <string name="sc_prof">Dov\'è il prof</string>
+    <string name="sc_agenda">Agenda</string>
+</resources>

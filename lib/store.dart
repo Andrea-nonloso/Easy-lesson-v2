@@ -8,8 +8,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'agenda.dart';
 import 'api.dart';
+import 'bag.dart';
 import 'log.dart';
 import 'models.dart';
+import 'school_calendar.dart';
 import 'timetable.dart';
 import 'ui/theme.dart';
 import 'xlsx.dart';
@@ -66,6 +68,7 @@ class AppStore extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final store = AppStore._(prefs, api ?? EasyLessonApi());
     store._load();
+    store._countLaunch();
     unawaited(store.refreshLists(onlyIfStale: true));
     return store;
   }
@@ -90,6 +93,17 @@ class AppStore extends ChangeNotifier {
   static const _kTeacherSubjects = 'el.teacherSubjects';
   static const _kDevMode = 'el.devMode';
   static const _kAgenda = 'el.agenda';
+  static const _kBagRules = 'el.bagRules';
+  static const _kBagChecked = 'el.bagChecked';
+  static const _kClosures = 'el.closures';
+  static const _kNotify = 'el.notify';
+  static const _kBeta = 'el.betaUpdates';
+  static const _kExtras = 'el.extras';
+  static const _kNicknames = 'el.nicknames';
+  static const _kEmojis = 'el.subjectEmojis';
+  static const _kBells = 'el.bells';
+  static const _kLaunches = 'el.launches';
+  static const _kFirstRun = 'el.firstRun';
   static const _maxRecents = 8;
 
   ThemeMode themeMode = ThemeMode.system;
@@ -118,6 +132,24 @@ class AppStore extends ChangeNotifier {
   /// Compiti, verifiche e promemoria (vedi agenda.dart).
   final List<AgendaItem> agenda = [];
 
+  /// Regole dello zaino ("se c'è chimica porta il camice").
+  final List<BagRule> bagRules = [...defaultBagRules];
+
+  /// Cose già messe nello zaino, per data ("2026-11-2" -> elementi spuntati).
+  final Map<String, Set<String>> bagChecked = {};
+
+  /// Giorni senza scuola aggiunti a mano (ponti, sospensioni decise dalla scuola).
+  final List<Closure> extraClosures = [];
+
+  /// Calendario scolastico con i giorni aggiunti a mano.
+  SchoolCalendar get calendar => SchoolCalendar(extraClosures);
+
+  /// Notifiche della prossima lezione: minuti prima (null = spente).
+  int? notifyMinutes;
+
+  /// Canale aggiornamenti: false = Stabile, true = Beta (anche le pre-release).
+  bool betaUpdates = false;
+
   /// Opzioni sviluppatore sbloccate (7 tocchi sulla foglia nelle impostazioni).
   bool devMode = false;
 
@@ -135,7 +167,24 @@ class AppStore extends ChangeNotifier {
       : null;
   List<String> _serverClassi = [];
   List<String> _serverDocenti = [];
-  List<TimeSlot> slots = [];
+  List<TimeSlot> _serverSlots = [];
+
+  /// Orari delle campanelle scelti a mano (null = quelli della scuola).
+  List<(int, int)>? customBells;
+  List<TimeSlot>? _customSlots;
+
+  /// Fasce orarie in uso: quelle personalizzate se ci sono, altrimenti della scuola.
+  List<TimeSlot> get slots => _customSlots ?? _serverSlots;
+
+  /// Fasce della scuola (server o predefinite), senza le modifiche a mano.
+  List<TimeSlot> get schoolSlots => _serverSlots;
+
+  /// Opzioni varie (home, notifiche, sviluppatore...), salvate tutte insieme.
+  final Map<String, Object?> _extras = {};
+
+  /// Volte in cui l'app è stata aperta e data della prima apertura.
+  int launches = 0;
+  DateTime? firstRun;
 
   // Orario importato da file Excel (ha la precedenza sul server).
   Timetable? _timetable;
@@ -208,6 +257,26 @@ class AppStore extends ChangeNotifier {
     setupDone = _prefs.getBool(_kSetupDone) ?? false;
     devMode = _prefs.getBool(_kDevMode) ?? false;
     try {
+      final rules = _prefs.getString(_kBagRules);
+      if (rules != null) {
+        bagRules
+          ..clear()
+          ..addAll((jsonDecode(rules) as List).map(BagRule.fromJson).whereType<BagRule>());
+      }
+      final checked = jsonDecode(_prefs.getString(_kBagChecked) ?? '{}') as Map;
+      bagChecked
+        ..clear()
+        ..addAll({for (final e in checked.entries) '${e.key}': {for (final x in e.value as List) '$x'}});
+      extraClosures
+        ..clear()
+        ..addAll((jsonDecode(_prefs.getString(_kClosures) ?? '[]') as List).map(Closure.fromJson).whereType<Closure>());
+      betaUpdates = _prefs.getBool(_kBeta) ?? false;
+      final n = _prefs.getInt(_kNotify);
+      notifyMinutes = n == null || n < 0 ? null : n;
+    } catch (e) {
+      AppLog.w('prefs', 'Zaino/calendario non leggibili: $e');
+    }
+    try {
       agenda
         ..clear()
         ..addAll((jsonDecode(_prefs.getString(_kAgenda) ?? '[]') as List)
@@ -243,6 +312,12 @@ class AppStore extends ChangeNotifier {
     subjectOverrides
       ..clear()
       ..addAll(readMap(_kSubjects));
+    nicknames
+      ..clear()
+      ..addAll(readMap(_kNicknames));
+    subjectEmojis
+      ..clear()
+      ..addAll(readMap(_kEmojis));
     teacherSubjectOverrides
       ..clear()
       ..addAll(readMap(_kTeacherSubjects));
@@ -263,7 +338,23 @@ class AppStore extends ChangeNotifier {
       }
     }
     _oreLabels = _prefs.getStringList(_kOre) ?? [];
-    slots = slotsFrom(_oreLabels);
+    _serverSlots = slotsFrom(_oreLabels);
+    try {
+      final b = _prefs.getString(_kBells);
+      customBells = b == null
+          ? null
+          : [for (final x in jsonDecode(b) as List) ((x as List)[0] as int, x[1] as int)];
+    } catch (_) {
+      customBells = null;
+    }
+    _customSlots = customBells == null || customBells!.isEmpty ? null : TimeSlot.parseAll(bellLabels(customBells!));
+    try {
+      _extras
+        ..clear()
+        ..addAll(Map<String, Object?>.from(jsonDecode(_prefs.getString(_kExtras) ?? '{}') as Map));
+    } catch (_) {/* opzioni non leggibili: si usano quelle predefinite */}
+    launches = _prefs.getInt(_kLaunches) ?? 0;
+    firstRun = DateTime.tryParse(_prefs.getString(_kFirstRun) ?? '');
     listsUpdatedAt = DateTime.tryParse(_prefs.getString(_kListsAt) ?? '');
     _mineKey = _prefs.getString(_kMine);
     preferGrid = _prefs.getBool(_kGrid) ?? true;
@@ -321,7 +412,7 @@ class AppStore extends ChangeNotifier {
       final ore = await _api.ore();
       if (ore.isNotEmpty) {
         _oreLabels = ore;
-        slots = slotsFrom(ore);
+        _serverSlots = slotsFrom(ore);
         await _prefs.setStringList(_kOre, ore);
       }
     } catch (_) {/* si usano le fasce salvate */}
@@ -551,6 +642,13 @@ class AppStore extends ChangeNotifier {
     }
   }
 
+  /// Opzioni sviluppatore: si rifà il setup iniziale (i dati restano).
+  Future<void> restartSetup() async {
+    setupDone = false;
+    notifyListeners();
+    await _prefs.setBool(_kSetupDone, false);
+  }
+
   /// Il setup iniziale e' finito: alla prossima apertura si va alla home.
   Future<void> completeSetup() async {
     setupDone = true;
@@ -654,6 +752,218 @@ class AppStore extends ChangeNotifier {
     agenda.removeWhere((a) => a.done && a.date.isBefore(old));
     notifyListeners();
     await _prefs.setString(_kAgenda, jsonEncode(agenda.map((a) => a.toJson()).toList()));
+  }
+
+  // ---------------------------------------------------------------- zaino e calendario
+
+  static String dayKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
+
+  /// Prossimo giorno di scuola dopo [from] (escluso), secondo il calendario e
+  /// i giorni dell'orario. null se non ce n'è uno nei prossimi 120 giorni.
+  DateTime? nextSchoolDay(DateTime from, {int daysPerWeek = 5}) {
+    final cal = calendar;
+    for (var off = 1; off <= 120; off++) {
+      final d = DateTime(from.year, from.month, from.day + off);
+      if (cal.isSchoolDay(d, daysPerWeek: daysPerWeek)) return d;
+    }
+    return null;
+  }
+
+  Future<void> setBagRules(List<BagRule> rules) async {
+    bagRules
+      ..clear()
+      ..addAll(rules);
+    notifyListeners();
+    await _prefs.setString(_kBagRules, jsonEncode(bagRules.map((r) => r.toJson()).toList()));
+  }
+
+  Future<void> toggleBagItem(DateTime day, String item) async {
+    final k = dayKey(day);
+    final set = bagChecked[k] ??= {};
+    if (!set.remove(item)) set.add(item);
+    // Si tengono solo gli ultimi giorni.
+    if (bagChecked.length > 10) {
+      final keys = bagChecked.keys.toList()..sort();
+      for (final old in keys.take(bagChecked.length - 10)) {
+        bagChecked.remove(old);
+      }
+    }
+    notifyListeners();
+    await _prefs.setString(_kBagChecked, jsonEncode({for (final e in bagChecked.entries) e.key: e.value.toList()}));
+  }
+
+  Future<void> addClosure(Closure c) async {
+    extraClosures.add(c);
+    await _saveClosures();
+  }
+
+  Future<void> removeClosure(Closure c) async {
+    extraClosures.remove(c);
+    await _saveClosures();
+  }
+
+  Future<void> _saveClosures() async {
+    notifyListeners();
+    await _prefs.setString(_kClosures, jsonEncode(extraClosures.map((c) => c.toJson()).toList()));
+  }
+
+  // ---------------------------------------------------------------- opzioni varie
+
+  /// Legge un'opzione (es. opt('home.agenda', true)).
+  T opt<T>(String key, T fallback) {
+    final v = _extras[key];
+    return v is T ? v : fallback;
+  }
+
+  /// Cambia un'opzione (null = torna al valore predefinito).
+  Future<void> setOpt(String key, Object? value) async {
+    if (value == null) {
+      _extras.remove(key);
+    } else {
+      _extras[key] = value;
+    }
+    AppLog.i('opzioni', '$key = $value');
+    notifyListeners();
+    await _prefs.setString(_kExtras, jsonEncode(_extras));
+  }
+
+  void _countLaunch() {
+    launches++;
+    firstRun ??= DateTime.now();
+    _prefs.setInt(_kLaunches, launches);
+    _prefs.setString(_kFirstRun, firstRun!.toIso8601String());
+  }
+
+  // ---------------------------------------------------------------- soprannomi ed emoji
+
+  /// Soprannome e emoji per un nome dell'orario (vuoto = toglie).
+  Future<void> setNickname(String original, {String? name, String? emoji}) async {
+    final k = original.trim();
+    if (k.isEmpty) return;
+    if (name != null) {
+      if (name.trim().isEmpty || name.trim() == k) {
+        nicknames.remove(k);
+      } else {
+        nicknames[k] = name.trim();
+      }
+    }
+    if (emoji != null) {
+      if (emoji.trim().isEmpty) {
+        subjectEmojis.remove(k);
+      } else {
+        subjectEmojis[k] = emoji.trim();
+      }
+    }
+    AppLog.i('soprannomi', '$k → ${nicknames[k] ?? k} ${subjectEmojis[k] ?? ''}');
+    await _prefs.setString(_kNicknames, jsonEncode(nicknames));
+    await _prefs.setString(_kEmojis, jsonEncode(subjectEmojis));
+    await _afterSubjectsChanged();
+  }
+
+  Future<void> resetNicknames() async {
+    nicknames.clear();
+    subjectEmojis.clear();
+    await _prefs.remove(_kNicknames);
+    await _prefs.remove(_kEmojis);
+    await _afterSubjectsChanged();
+  }
+
+  // ---------------------------------------------------------------- campanelle
+
+  /// Orari delle campanelle scelti a mano: (inizio, fine) in minuti. null = quelli della scuola.
+  Future<void> setCustomBells(List<(int, int)>? bells) async {
+    customBells = bells == null || bells.isEmpty ? null : [...bells];
+    _customSlots = customBells == null ? null : TimeSlot.parseAll(bellLabels(customBells!));
+    AppLog.i('campanelle', customBells == null ? 'Orari della scuola' : bellLabels(customBells!).join(', '));
+    if (customBells == null) {
+      await _prefs.remove(_kBells);
+    } else {
+      await _prefs.setString(_kBells, jsonEncode([for (final b in customBells!) [b.$1, b.$2]]));
+    }
+    notifyListeners();
+  }
+
+  // ---------------------------------------------------------------- memoria (opzioni sviluppatore)
+
+  /// Tutto quello che l'app ha salvato sul dispositivo (chiave -> valore).
+  Map<String, Object?> rawPrefs() => {
+        for (final k in _prefs.getKeys().toList()..sort()) k: _prefs.get(k),
+      };
+
+  Future<void> removePref(String key) async {
+    await _prefs.remove(key);
+    AppLog.w('memoria', 'Chiave cancellata: $key');
+    reload();
+  }
+
+  /// Copia di sicurezza di tutte le impostazioni e i dati (JSON).
+  String backup() => jsonEncode({
+        'easyLessonBackup': 1,
+        'at': DateTime.now().toIso8601String(),
+        'prefs': {
+          for (final e in rawPrefs().entries)
+            if (e.key.startsWith('el.')) e.key: e.value,
+        },
+      });
+
+  /// Ripristina una copia fatta con [backup]. Lancia FormatException se non è valida.
+  Future<int> restore(String json) async {
+    final Map<String, dynamic> m;
+    try {
+      m = Map<String, dynamic>.from(jsonDecode(json.trim()) as Map);
+    } catch (_) {
+      throw const FormatException('Non è un backup di Easy Lesson');
+    }
+    final prefs = m['prefs'];
+    if (m['easyLessonBackup'] == null || prefs is! Map) throw const FormatException('Non è un backup di Easy Lesson');
+    var n = 0;
+    for (final e in prefs.entries) {
+      final k = '${e.key}';
+      final v = e.value;
+      if (!k.startsWith('el.')) continue;
+      if (v is bool) {
+        await _prefs.setBool(k, v);
+      } else if (v is int) {
+        await _prefs.setInt(k, v);
+      } else if (v is double) {
+        await _prefs.setDouble(k, v);
+      } else if (v is String) {
+        await _prefs.setString(k, v);
+      } else if (v is List) {
+        await _prefs.setStringList(k, [for (final x in v) '$x']);
+      } else {
+        continue;
+      }
+      n++;
+    }
+    AppLog.i('memoria', 'Backup ripristinato: $n chiavi');
+    reload();
+    return n;
+  }
+
+  /// Rilegge tutto dalla memoria del dispositivo.
+  void reload() {
+    _schedules.clear();
+    _timetable = null;
+    excelGrid = null;
+    excelName = null;
+    excelAt = null;
+    excelUrl = null;
+    _load();
+    notifyListeners();
+  }
+
+  Future<void> setBetaUpdates(bool v) async {
+    betaUpdates = v;
+    AppLog.i('aggiornamenti', 'Canale: ${v ? 'Beta' : 'Stabile'}');
+    notifyListeners();
+    await _prefs.setBool(_kBeta, v);
+  }
+
+  Future<void> setNotifyMinutes(int? minutes) async {
+    notifyMinutes = minutes;
+    notifyListeners();
+    await _prefs.setInt(_kNotify, minutes ?? -1);
   }
 
   Future<void> setDevMode(bool v) async {

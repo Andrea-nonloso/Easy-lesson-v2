@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#16A34A</color>
+    <color name="icon_blue">#2563EB</color>
+    <color name="icon_purple">#7C3AED</color>
+    <color name="icon_red">#DC2626</color>
+    <color name="icon_orange">#EA580C</color>
+    <color name="icon_pink">#DB2777</color>
+    <color name="icon_black">#111827</color>
 </resources>

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import '../models.dart';
 import '../store.dart';
 import '../agenda.dart';
 import 'agenda_page.dart';
+import 'bag_page.dart';
 import 'fun.dart';
 import 'now_page.dart';
 import 'search_page.dart';
@@ -111,9 +113,10 @@ class HomePage extends StatelessWidget {
           ),
         ),
       ),
-      _QuickSwitch(store: store, onOpenMine: onOpenMine, onSearch: onSearch),
+      if (store.opt('home.shortcuts', true)) _QuickSwitch(store: store, onOpenMine: onOpenMine, onSearch: onSearch),
       SizedBox(height: tight ? 10 : 16),
       _TodayCard(store: store, now: now, onOpenMine: onOpenMine, onSearch: onSearch),
+      if (!tight && store.opt('home.countdown', true)) ...[const SizedBox(height: 10), _Countdowns(store: store)],
     ];
   }
 
@@ -294,16 +297,23 @@ class _HomeExtras extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final peek = _peekFor(store, now);
-    final todo = store.agendaFrom(now, days: 7);
+    // Cosa mostrare si sceglie in Impostazioni → Home e app.
+    final peek = store.opt('home.next', true) ? _peekFor(store, now) : null;
+    final todo = store.opt('home.agenda', true) ? store.agendaFrom(now, days: 7) : const <AgendaItem>[];
+    // Lo zaino compare quando le lezioni di oggi sono finite (o oggi non c'e' scuola).
+    final plan = store.opt('home.bag', true) ? bagPlanFor(store, now) : null;
+    final showBag = plan != null && (peek == null || peek.title != 'Oggi');
     final mine = store.myRef?.key;
-    final others = [...store.favorites, ...store.recents].where((s) => s.ref.key != mine).toList();
+    final others = store.opt('home.recents', true)
+        ? [...store.favorites, ...store.recents].where((s) => s.ref.key != mine).toList()
+        : const <CachedSchedule>[];
 
     if (scrollable) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (todo.isNotEmpty) ...[_AgendaPeek(items: todo, max: 5), const SizedBox(height: 16)],
+          if (showBag) ...[_BagPeek(plan: plan!), const SizedBox(height: 16)],
           if (peek != null && peek.items.isNotEmpty) _DayPeek(peek: peek, max: peek.items.length, onOpen: onOpenMine),
           if (peek != null && peek.items.isNotEmpty && others.isNotEmpty) const SizedBox(height: 16),
           if (others.isNotEmpty) _Recents(items: others, max: 5),
@@ -320,6 +330,11 @@ class _HomeExtras extends StatelessWidget {
           final k = math.min(math.min(todo.length, 3), ((h - _peekTitle - _peekPad) / _peekRow).floor());
           children.add(_AgendaPeek(items: todo, max: k));
           h -= _peekTitle + _peekPad + _peekRow * k + 16;
+        }
+        if (showBag && h >= _peekTitle + _peekPad + _peekRow) {
+          if (children.isNotEmpty) children.add(const SizedBox(height: 16));
+          children.add(_BagPeek(plan: plan!));
+          h -= _peekTitle + _peekPad + _peekRow + 16;
         }
         if (peek != null && peek.items.isNotEmpty && h >= _peekTitle + _peekPad + _peekRow) {
           final k = math.min(peek.items.length, ((h - _peekTitle - _peekPad) / _peekRow).floor());
@@ -355,9 +370,10 @@ class _PeekItem {
 }
 
 class _Peek {
-  const _Peek(this.title, this.items);
+  const _Peek(this.title, this.items, this.date);
   final String title;
   final List<_PeekItem> items;
+  final DateTime date;
 }
 
 /// Le lezioni rimaste oggi, oppure quelle del prossimo giorno di scuola.
@@ -377,7 +393,8 @@ _Peek? _peekFor(AppStore store, DateTime now) {
   int? dayIdx;
   var title = '';
   var date = dateOnly(now);
-  if (ti >= 0 && !days[ti].isEmpty) {
+  final cal = store.calendar;
+  if (ti >= 0 && !days[ti].isEmpty && cal.closureOn(now) == null) {
     final lessons = days[ti].lessons;
     final left = [for (var k = 0; k < lessons.length; k++) if (!lessons[k].isEmpty && !finished(k)) k];
     if (left.isNotEmpty) {
@@ -386,12 +403,14 @@ _Peek? _peekFor(AppStore store, DateTime now) {
     }
   }
   if (dayIdx == null) {
-    for (var off = 1; off <= 7; off++) {
-      final wd = (now.weekday - 1 + off) % 7;
-      if (wd < days.length && !days[wd].isEmpty) {
+    // Il prossimo giorno con lezioni, saltando vacanze e feste.
+    for (var off = 1; off <= 120; off++) {
+      final d = DateTime(now.year, now.month, now.day + off);
+      final wd = d.weekday - 1;
+      if (wd < days.length && !days[wd].isEmpty && cal.closureOn(d) == null) {
         dayIdx = wd;
-        title = off == 1 ? 'Domani' : dayNames[wd];
-        date = DateTime(now.year, now.month, now.day + off);
+        title = off == 1 ? 'Domani' : (off < 7 ? dayNames[wd] : '${dayNames[wd]} ${d.day}/${d.month}');
+        date = d;
         break;
       }
     }
@@ -421,7 +440,58 @@ _Peek? _peekFor(AppStore store, DateTime now) {
     }
     i = j + 1;
   }
-  return _Peek(title, items);
+  return _Peek(title, items, date);
+}
+
+/// "Zaino per domani": una riga con le cose da portare.
+class _BagPeek extends StatelessWidget {
+  const _BagPeek({required this.plan});
+
+  final BagPlan plan;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final store = StoreScope.of(context);
+    final checked = store.bagChecked[AppStore.dayKey(plan.date)] ?? const <String>{};
+    final todo = plan.checklist.where((x) => !checked.contains(x)).toList();
+    final line = plan.checklist.isEmpty
+        ? '📚 ${plan.subjects.join(', ')}'
+        : (todo.isEmpty ? '✅ Zaino pronto!' : todo.join(' · '));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 34,
+          child: Row(
+            children: [
+              Text('🎒 Zaino', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(width: 8),
+              Text(
+                'per ${friendlyDate(plan.date, DateTime.now()).toLowerCase()}',
+                style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+        Material(
+          color: cardColor(context),
+          borderRadius: BorderRadius.circular(18),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => openBag(context),
+            child: Container(
+              height: 48,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              alignment: Alignment.centerLeft,
+              child: Text(line, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Compiti e verifiche dei prossimi giorni, in cima alla parte bassa della home.
@@ -608,6 +678,116 @@ class _DayPeek extends StatelessWidget {
   }
 }
 
+/// Conti alla rovescia: ricreazione, ultima campanella, weekend, vacanze.
+/// Si aggiorna da solo ogni 30 secondi.
+class _Countdowns extends StatefulWidget {
+  const _Countdowns({required this.store});
+
+  final AppStore store;
+
+  @override
+  State<_Countdowns> createState() => _CountdownsState();
+}
+
+class _CountdownsState extends State<_Countdowns> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  static String _mins(int m) => m < 60 ? '$m min' : '${m ~/ 60} h${m % 60 == 0 ? '' : ' ${m % 60} min'}';
+
+  List<String> _items(DateTime now) {
+    final store = widget.store;
+    final out = <String>[];
+    final m = now.hour * 60 + now.minute;
+    final ref = store.myRef;
+    final cached = ref == null ? null : store.cached(ref);
+    final cal = store.calendar;
+    final schoolToday = cal.closureOn(now) == null;
+    if (cached != null && schoolToday) {
+      final days = cached.week.days;
+      final ti = todayIndex(now, days.length);
+      if (ti >= 0 && !days[ti].isEmpty) {
+        final slots = store.slots;
+        final lessons = days[ti].lessons;
+        int? lastEnd;
+        int? firstStart;
+        for (var k = 0; k < lessons.length && k < slots.length; k++) {
+          if (lessons[k].isEmpty) continue;
+          firstStart ??= slots[k].start;
+          lastEnd = slots[k].end ?? lastEnd;
+        }
+        if (firstStart != null && lastEnd != null && m < lastEnd) {
+          // Ricreazione (adesso o la prossima)
+          for (final b in breaksOf(slots)) {
+            if (b.afterIndex + 1 >= lessons.length) continue;
+            if (m >= b.start && m < b.end) {
+              out.add('☕ Ricreazione: ancora ${_mins(b.end - m)}');
+              break;
+            }
+            if (b.start > m && m >= firstStart - 60) {
+              out.add('☕ Ricreazione tra ${_mins(b.start - m)}');
+              break;
+            }
+          }
+          out.add(m < firstStart
+              ? '🔔 Si entra tra ${_mins(firstStart - m)}'
+              : '🔔 Ultima campanella tra ${_mins(lastEnd - m)}');
+        }
+      }
+    }
+    // Weekend (lun-ven)
+    final wd = now.weekday;
+    if (wd <= 4) {
+      final n = 6 - wd;
+      out.add('🎉 Weekend tra $n giorni');
+    } else if (wd == 5) {
+      out.add('🎉 Domani è sabato!');
+    }
+    for (final c in cal.countdowns(now, max: 2)) {
+      out.add('${c.emoji} ${c.name} tra ${c.days} ${c.days == 1 ? 'giorno' : 'giorni'}');
+    }
+    return out;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = _items(DateTime.now());
+    if (items.isEmpty) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      height: 34,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        separatorBuilder: (context, i) => const SizedBox(width: 8),
+        itemBuilder: (context, i) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: cardColor(context),
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(color: scheme.outlineVariant.withAlpha(120)),
+          ),
+          child: Text(items[i], style: Theme.of(context).textTheme.labelLarge),
+        ),
+      ),
+    );
+  }
+}
+
 /// La card principale: cosa c'e' adesso (o dopo) nell'orario personale.
 class _TodayCard extends StatelessWidget {
   const _TodayCard({
@@ -649,7 +829,16 @@ class _TodayCard extends StatelessWidget {
       } else {
         final days = cached.week.days;
         final ti = todayIndex(now, days.length);
-        if (ti < 0 || days[ti].isEmpty) {
+        final closure = store.calendar.closureOn(now);
+        if (closure != null && ti >= 0) {
+          // Vacanza o festa in un giorno di scuola.
+          final back = store.nextSchoolDay(now, daysPerWeek: days.length);
+          overline = 'OGGI NIENTE SCUOLA';
+          title = '${closure.emoji} ${closure.name}';
+          subtitle = back == null
+              ? 'Goditi la giornata.'
+              : 'Si torna ${friendlyDate(back, now).toLowerCase()} (${dayNames[back.weekday - 1].toLowerCase()} ${back.day}/${back.month}).';
+        } else if (ti < 0 || days[ti].isEmpty) {
           overline = 'OGGI';
           title = 'Nessuna lezione oggi';
           subtitle = 'Goditi la giornata.';
@@ -925,6 +1114,7 @@ class _QuickSwitch extends StatelessWidget {
             if (store.usingExcel) chip('Dov\'è il prof', Icons.person_search_rounded, () => openNowAtSchool(context)),
             if (store.usingExcel) chip('Lab liberi', Icons.science_outlined, () => openNowAtSchool(context, labs: true)),
             chip('Agenda', Icons.event_note_rounded, () => openAgenda(context)),
+            chip('Zaino', Icons.backpack_outlined, () => openBag(context)),
           ],
         ),
       ),

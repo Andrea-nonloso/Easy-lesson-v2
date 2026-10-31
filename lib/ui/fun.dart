@@ -48,6 +48,9 @@ class LabBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final info = labInfo(lab);
     final color = Theme.of(context).colorScheme.tertiary;
+    // Emoji spente da Impostazioni → Home e app: solo testo.
+    final emoji = StoreScope.of(context).opt('ui.emoji', true);
+    final short = lab.length > 4 ? lab.substring(0, 4) : lab;
     return Tooltip(
       message: '${info.kind} · $lab',
       child: Container(
@@ -58,7 +61,7 @@ class LabBadge extends StatelessWidget {
           borderRadius: BorderRadius.circular(7),
         ),
         child: Text(
-          dense ? info.emoji : '${info.emoji} $lab',
+          dense ? (emoji ? info.emoji : short) : (emoji ? '${info.emoji} $lab' : lab),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(color: color, fontSize: dense ? 10 : 11, fontWeight: FontWeight.w700),

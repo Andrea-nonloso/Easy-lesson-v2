@@ -28,6 +28,7 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
   int? _day;
   int? _hour;
   String _q = '';
+  String _qc = '';
   String _filter = 'tutti'; // 'tutti' | 'classe' | 'liberi'
 
   /// Giorno e ora di partenza: adesso, oppure la prossima ora di lezione.
@@ -82,7 +83,7 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
     final slot = hour < store.slots.length ? store.slots[hour] : null;
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       initialIndex: widget.initialTab,
       child: Scaffold(
         appBar: AppBar(
@@ -91,6 +92,7 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
           bottom: const TabBar(tabs: [
             Tab(icon: Icon(Icons.person_search_rounded), text: 'Dov\'è il prof'),
             Tab(icon: Icon(Icons.science_outlined), text: 'Laboratori'),
+            Tab(icon: Icon(Icons.groups_outlined), text: 'Classi'),
           ]),
         ),
         body: Center(
@@ -150,6 +152,7 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
                     children: [
                       _teachers(context, store, tt, day, hour),
                       _labs(context, store, tt, day, hour),
+                      _classes(context, store, tt, day, hour),
                     ],
                   ),
                 ),
@@ -256,6 +259,65 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
         Expanded(
           child: rows.isEmpty
               ? const EmptyState(icon: Icons.person_off_outlined, title: 'Nessun docente', message: 'Prova a cambiare filtro o ricerca.')
+              : ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 24), children: rows),
+        ),
+      ],
+    );
+  }
+
+  Widget _classes(BuildContext context, AppStore store, Timetable tt, int day, int hour) {
+    final scheme = Theme.of(context).colorScheme;
+    final q = _qc.trim().toLowerCase();
+    final names = [...tt.classi]..sort(compareClassi);
+    final rows = <Widget>[];
+    for (final c in names) {
+      if (q.isNotEmpty && !c.toLowerCase().contains(q)) continue;
+      final at = tt.classAt(c, day, hour);
+      final busy = at.subject != null || at.labs.isNotEmpty;
+      final place = at.labs.isNotEmpty
+          ? at.labs.map((l) => '${labInfo(l).emoji} $l').join(', ')
+          : (busy ? '🏫 In aula' : '');
+      rows.add(ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+        leading: CircleAvatar(
+          backgroundColor: at.labs.isNotEmpty ? scheme.tertiaryContainer : scheme.surfaceContainerHighest,
+          child: Text(
+            c.split(' ').first,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: at.labs.isNotEmpty ? scheme.onTertiaryContainer : scheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        title: Text(c, style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(
+          busy
+              ? '$place${at.subject != null ? ' · ${at.subject}' : ''}'
+                  '${at.teachers.isNotEmpty ? '\n${at.teachers.map(teacherLabel).join(' · ')}' : ''}'
+              : 'Nessuna lezione a quest\'ora',
+          style: TextStyle(color: busy ? scheme.onSurface : scheme.onSurfaceVariant),
+        ),
+        isThreeLine: busy && at.teachers.isNotEmpty,
+        onTap: () => openSchedule(context, ScheduleRef(c, prof: false)),
+      ));
+    }
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+          child: TextField(
+            decoration: const InputDecoration(
+              isDense: true,
+              prefixIcon: Icon(Icons.search_rounded),
+              hintText: 'Cerca una classe… (es. 3B)',
+            ),
+            onChanged: (v) => setState(() => _qc = v),
+          ),
+        ),
+        Expanded(
+          child: rows.isEmpty
+              ? const EmptyState(icon: Icons.groups_outlined, title: 'Nessuna classe', message: 'Prova un\'altra ricerca.')
               : ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 24), children: rows),
         ),
       ],

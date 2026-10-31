@@ -195,6 +195,15 @@ class Timetable {
     return (classes: classes, labs: labs);
   }
 
+  /// Cosa fa una classe a quell'ora: materia, docenti e laboratorio.
+  ({String? subject, List<String> teachers, List<String> labs}) classAt(String cls, int day, int hour) {
+    final k = classKey(cls);
+    final here = (_byClass[k] ?? const <TimetableEntry>[]).where((e) => e.day == day && e.hour == hour).toList();
+    final teachers = [for (final e in here) if (e.section == Section.docenti) e.name];
+    final labs = [for (final e in here) if (e.section == Section.laboratori) e.name];
+    return (subject: teachers.isEmpty ? null : _subjectOf(teachers), teachers: teachers, labs: labs);
+  }
+
   /// Ore (0 = prima) in cui il docente ha lezione in quel giorno.
   List<int> teacherHours(String teacher, int day) {
     final hs = <int>{

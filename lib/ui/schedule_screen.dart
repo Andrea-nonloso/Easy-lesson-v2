@@ -11,6 +11,7 @@ import 'compare_page.dart';
 import 'export_calendar.dart';
 import 'fun.dart';
 import 'schedule_image.dart';
+import 'stats_page.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -184,6 +185,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             if (cached != null)
               AppMenuItem(Icons.image_outlined, 'Salva come immagine', () => saveScheduleImage(context, cached)),
             AppMenuItem(Icons.compare_arrows_rounded, 'Confronta con…', () => openCompare(context, widget.ref)),
+            if (cached != null)
+              AppMenuItem(Icons.bar_chart_rounded, 'Statistiche', () => openStats(context, cached)),
             if (wide)
               AppMenuItem(
                 store.preferGrid ? Icons.view_day_outlined : Icons.calendar_view_week_outlined,

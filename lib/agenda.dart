@@ -43,7 +43,10 @@ class AgendaItem {
   /// Testo breve per elenchi: "📝 Verifica di Matematica: equazioni".
   String get summary => '$emoji $label${subject.isEmpty ? '' : ' · $subject'}${text.isEmpty ? '' : ': $text'}';
 
-  bool sameSubject(String s) => subject.trim().toLowerCase() == s.trim().toLowerCase();
+  bool sameSubject(String s) => _norm(subject) == _norm(s);
+
+  /// Senza maiuscole né emoji davanti ("🧮 Matematica" = "matematica").
+  static String _norm(String s) => s.trim().toLowerCase().replaceFirst(RegExp(r'^[^\p{L}\p{N}]+', unicode: true), '');
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -85,7 +88,7 @@ DateTime nextDateFor(int dayIndex, DateTime now, {int? endMinutes}) {
 /// "Oggi", "Domani", "Lun 3/11"
 String friendlyDate(DateTime d, DateTime now) {
   const days = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
-  final diff = dateOnly(d).difference(dateOnly(now)).inDays;
+  final diff = DateTime.utc(d.year, d.month, d.day).difference(DateTime.utc(now.year, now.month, now.day)).inDays;
   if (diff == 0) return 'Oggi';
   if (diff == 1) return 'Domani';
   if (diff == -1) return 'Ieri';

@@ -1,10 +1,15 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models.dart';
+import '../native.dart';
 import '../store.dart';
 import '../updater.dart';
+import 'bag_page.dart';
+import 'calendar_page.dart';
+import 'customize_pages.dart';
 import 'dev_page.dart';
 import 'fun.dart';
 import 'subjects_page.dart';
@@ -150,6 +155,71 @@ class SettingsSheet extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => openThemesPage(context),
           ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.emoji_emotions_outlined, color: theme.colorScheme.primary),
+            title: const Text('Soprannomi ed emoji'),
+            subtitle: Text(nicknames.isEmpty && subjectEmojis.isEmpty
+                ? 'Chiama le materie e i prof come vuoi tu'
+                : '${{...nicknames.keys, ...subjectEmojis.keys}.length} nomi personalizzati'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => openNicknames(context),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.dashboard_customize_outlined, color: theme.colorScheme.primary),
+            title: const Text('Home e app'),
+            subtitle: const Text('Pagina iniziale, cosa vedere nella home, emoji, vibrazione'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => openHomeOptions(context),
+          ),
+          if (NativeBridge.supported)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.apps_rounded, color: theme.colorScheme.primary),
+              title: const Text("Icona dell'app"),
+              subtitle: const Text('Verde, blu, viola, rossa, nera…'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => pickAppIcon(context),
+            ),
+          const SectionLabel('Scuola'),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.schedule_rounded, color: theme.colorScheme.primary),
+            title: const Text('Orari delle campanelle'),
+            subtitle: Text(store.customBells == null
+                ? 'Quelli della scuola · ${store.slots.length} ore'
+                : 'Scelti da te · ${store.slots.length} ore'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => openBells(context),
+          ),
+          if (NativeBridge.supported)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.notifications_active_outlined, color: theme.colorScheme.primary),
+              title: const Text('Notifiche'),
+              subtitle: Text(_notifySummary(store)),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => openNotifications(context),
+            ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.backpack_outlined, color: theme.colorScheme.primary),
+            title: const Text('Zaino'),
+            subtitle: const Text('Cosa portare domani: camice, tuta, calcolatrice…'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => openBag(context),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.event_busy_outlined, color: theme.colorScheme.primary),
+            title: const Text('Calendario scolastico'),
+            subtitle: Text(store.extraClosures.isEmpty
+                ? 'Vacanze e feste, aggiungi i ponti della scuola'
+                : 'Vacanze e feste · ${store.extraClosures.length} giorni aggiunti da te'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => openSchoolCalendar(context),
+          ),
           const SectionLabel("Fonte dell'orario"),
           if (store.usingExcel) ...[
             ListTile(
@@ -237,6 +307,13 @@ class SettingsSheet extends StatelessWidget {
             subtitle: Text('${store.favorites.length} salvati · ${store.recents.length} recenti'),
             onTap: () => _confirmClear(context, store),
           ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.save_alt_rounded),
+            title: const Text('Copia di sicurezza'),
+            subtitle: const Text('Copia tutte le impostazioni e i dati, o rimettili su un altro dispositivo'),
+            onTap: () => _backupSheet(context, store),
+          ),
           const SectionLabel('Info'),
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -254,6 +331,28 @@ class SettingsSheet extends StatelessWidget {
             onTap: () => launchUrl(Uri.parse(_githubUrl), mode: LaunchMode.externalApplication),
           ),
           const _UpdateTile(),
+          if (Updater.supported)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  const Expanded(child: Text('Canale aggiornamenti')),
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: false, label: Text('Stabile')),
+                      ButtonSegment(value: true, label: Text('Beta 🧪')),
+                    ],
+                    selected: {store.betaUpdates},
+                    onSelectionChanged: (sel) => store.setBetaUpdates(sel.first),
+                  ),
+                ],
+              ),
+            ),
+          if (Updater.supported && store.betaUpdates)
+            Text(
+              'Con Beta ricevi le versioni di prova prima degli altri: possono avere qualche difetto.',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
           if (store.devMode)
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -270,6 +369,59 @@ class SettingsSheet extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+String _notifySummary(AppStore store) {
+  final on = [
+    if (store.notifyMinutes != null) 'lezioni',
+    if (store.opt('n.evening', false)) 'sera',
+    if (store.opt('n.morning', false)) 'buongiorno',
+    if (store.opt('n.break', false)) 'ricreazione',
+    if (store.opt('n.end', false)) 'fine scuola',
+    if (store.opt('n.holiday', false)) 'vacanze',
+    if (store.opt('n.updates', true)) 'aggiornamenti',
+  ];
+  return on.isEmpty ? 'Tutte spente' : 'Attive: ${on.join(', ')}';
+}
+
+/// Backup: copia negli appunti o ripristino da quello che si incolla.
+Future<void> _backupSheet(BuildContext context, AppStore store) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final choice = await showModalBottomSheet<String>(
+    context: context,
+    showDragHandle: true,
+    builder: (c) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.copy_rounded),
+            title: const Text('Copia il backup negli appunti'),
+            subtitle: const Text('Poi incollalo dove vuoi (note, chat con te stesso…)'),
+            onTap: () => Navigator.pop(c, 'copy'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.paste_rounded),
+            title: const Text('Ripristina dagli appunti'),
+            subtitle: const Text('Sostituisce le impostazioni di questo dispositivo'),
+            onTap: () => Navigator.pop(c, 'paste'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (choice == 'copy') {
+    await Clipboard.setData(ClipboardData(text: store.backup()));
+    messenger.showSnackBar(const SnackBar(content: Text('Backup copiato negli appunti')));
+  } else if (choice == 'paste') {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    try {
+      final n = await store.restore(data?.text ?? '');
+      messenger.showSnackBar(SnackBar(content: Text('Ripristinate $n impostazioni')));
+    } on FormatException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 }
 
@@ -291,12 +443,14 @@ class _UpdateTileState extends State<_UpdateTile> {
       _checking = true;
       _status = null;
     });
-    final info = await Updater.check();
+    final info = await Updater.check(beta: StoreScope.read(context).betaUpdates);
     if (!mounted) return;
     setState(() {
       _checking = false;
       _update = info;
-      _status = info == null ? 'Hai già l\'ultima versione' : 'Disponibile la versione ${info.version}';
+      _status = info == null
+          ? 'Hai già l\'ultima versione'
+          : 'Disponibile la versione ${info.version}${info.prerelease ? ' (beta)' : ''}';
     });
   }
 

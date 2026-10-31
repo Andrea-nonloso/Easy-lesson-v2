@@ -42,6 +42,9 @@ class EasyLessonApp extends StatelessWidget {
           return MaterialApp(
           title: 'Easy Lesson',
           debugShowCheckedModeBanner: false,
+          // Opzioni sviluppatore.
+          showPerformanceOverlay: store.opt('dev.perf', false),
+          showSemanticsDebugger: store.opt('dev.semantics', false),
           // Calendario, orologio e testi dei componenti in italiano.
           locale: const Locale('it'),
           supportedLocales: const [Locale('it'), Locale('en')],

@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show timeDilation;
+import 'package:flutter/services.dart';
 
+import '../native.dart';
 import '../store.dart';
 import '../updater.dart';
+import 'agenda_page.dart';
 import 'app_menu.dart';
 import 'home_page.dart';
+import 'now_page.dart';
 import 'saved_page.dart';
 import 'schedule_screen.dart';
 import 'search_page.dart';
@@ -19,8 +24,22 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   int _index = 0;
+  AppStore? _store;
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    // Pagina iniziale e opzioni sviluppatore scelte nelle impostazioni.
+    final store = StoreScope.read(context);
+    _index = store.opt('start.tab', 0).clamp(0, 3);
+    Updater.pretendOld = store.opt('dev.fakeOld', false);
+    timeDilation = store.opt('dev.slow', false) ? 5.0 : 1.0;
+  }
 
   static const _destinations = [
     (icon: Icons.home_outlined, selected: Icons.home_rounded, label: 'Home'),
@@ -32,22 +51,69 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkUpdates());
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      _checkUpdates();
+      // Android: notifiche e widget sempre allineati all'orario, scorciatoie dell'icona.
+      final store = StoreScope.read(context);
+      _store = store;
+      store.addListener(_onStoreChanged);
+      NativeBridge.scheduleSync(store);
+      NativeBridge.listen(_openShortcut);
+      final s = await NativeBridge.takeShortcut();
+      if (s != null && mounted) _openShortcut(s);
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _store?.removeListener(_onStoreChanged);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _store != null) {
+      NativeBridge.scheduleSync(_store!);
+      // Si ricontrolla GitHub quando si torna nell'app (al massimo ogni 3 ore).
+      final last = Updater.lastCheck;
+      if (last == null || DateTime.now().difference(last) > const Duration(hours: 3)) _checkUpdates();
+    }
+  }
+
+  void _onStoreChanged() {
+    if (_store != null) NativeBridge.scheduleSync(_store!);
+  }
+
+  void _openShortcut(String s) {
+    if (!mounted) return;
+    switch (s) {
+      case 'mine':
+        _go(1);
+      case 'prof':
+        openNowAtSchool(context);
+      case 'agenda':
+        openAgenda(context);
+    }
   }
 
   /// Android e Windows: se su GitHub c'e' una versione piu' recente, la propone.
   Future<void> _checkUpdates() async {
     if (!Updater.supported) return;
-    final info = await Updater.check();
+    final info = await Updater.check(beta: StoreScope.read(context).betaUpdates);
     if (info == null || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       duration: const Duration(seconds: 15),
-      content: Text('È disponibile Easy Lesson ${info.version}'),
+      content: Text('È disponibile Easy Lesson ${info.version}${info.prerelease ? ' (beta)' : ''}'),
       action: SnackBarAction(label: 'Aggiorna', onPressed: () => Updater.open(info)),
     ));
   }
 
-  void _go(int i) => setState(() => _index = i);
+  void _go(int i) {
+    if (i != _index && StoreScope.read(context).opt('ui.haptic', false)) HapticFeedback.selectionClick();
+    setState(() => _index = i);
+  }
 
   @override
   Widget build(BuildContext context) {

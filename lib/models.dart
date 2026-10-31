@@ -9,7 +9,7 @@ class ScheduleRef {
 
   String get key => '${prof ? 'd' : 'c'}:$name';
 
-  String get displayName => prof ? teacherLabel(name) : name.toUpperCase();
+  String get displayName => prof ? nick(teacherLabel(name)) : nick(name.toUpperCase());
 
   String get kindLabel {
     if (!prof) return 'Classe';
@@ -94,6 +94,34 @@ String? teacherSubject(String raw) {
   return c == null ? null : subjectForCode(c);
 }
 
+/// Soprannomi scelti dall'utente: nome originale (materia, docente, classe) -> nome mostrato.
+final Map<String, String> nicknames = {};
+
+/// Emoji scelte dall'utente per le materie: nome originale -> emoji.
+final Map<String, String> subjectEmojis = {};
+
+/// Nome con il soprannome, se c'è.
+String nick(String s) {
+  final n = nicknames[s.trim()];
+  return n == null || n.trim().isEmpty ? s : n;
+}
+
+/// Materia come la vuole vedere l'utente: emoji + soprannome.
+String decorateSubject(String s) {
+  final e = subjectEmojis[s.trim()];
+  final n = nick(s);
+  return e == null || e.trim().isEmpty ? n : '${e.trim()} $n';
+}
+
+/// Applica soprannomi ed emoji alle righe di un'ora (materia, poi docenti/classi).
+List<String> decorateLines(List<String> lines) {
+  if (lines.isEmpty || (nicknames.isEmpty && subjectEmojis.isEmpty)) return lines;
+  return [
+    decorateSubject(lines.first),
+    for (final l in lines.skip(1)) l.split(' · ').map(nick).join(' · '),
+  ];
+}
+
 /// Il server scrive le ore come "A041 Rossi con B016 Bianchi": si trasformano in
 /// ["Informatica", "Rossi · Bianchi"], come per i dati letti dal file Excel.
 List<String> readableLessonLines(List<String> lines) {
@@ -122,7 +150,7 @@ class Lesson {
     required String text,
     required this.lab,
     required this.sostegno,
-  }) : lines = readableLessonLines(text
+  }) : rawLines = readableLessonLines(text
             .split(RegExp(r'[\r\n]+'))
             .map((s) => s.trim())
             .where((s) => s.isNotEmpty && s.toLowerCase() != 'null')
@@ -131,8 +159,14 @@ class Lesson {
   /// Indice dell'ora (0 = prima ora).
   final int index;
 
-  /// Testo dell'ora diviso per righe (materia, docente/classe, ...).
-  final List<String> lines;
+  /// Righe originali, senza soprannomi né emoji.
+  final List<String> rawLines;
+
+  /// Testo dell'ora diviso per righe (materia, docente/classe, ...), con i soprannomi.
+  late final List<String> lines = decorateLines(rawLines);
+
+  /// Materia originale (per lo zaino e le ricerche).
+  String get rawTitle => rawLines.isEmpty ? '' : rawLines.first;
   final String lab;
   final List<String> sostegno;
 
@@ -244,6 +278,10 @@ class TimeSlot {
     ];
   }
 }
+
+/// Fasce scritte come "07:50 - 08:40" a partire da minuti (inizio, fine).
+List<String> bellLabels(List<(int, int)> bells) =>
+    [for (final b in bells) '${TimeSlot.fmt(b.$1)} - ${TimeSlot.fmt(b.$2)}'];
 
 /// Orario delle campanelle dell'IIS Rosselli (usato se il server non fornisce
 /// fasce orarie valide). La 7ª ora c'è solo in alcuni giorni.

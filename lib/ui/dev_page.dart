@@ -8,6 +8,7 @@ import '../store.dart';
 import '../updater.dart';
 import '../xlsx_write.dart';
 import 'color_lab.dart';
+import 'dev_tools.dart';
 import 'fun.dart';
 import 'save_file_io.dart' if (dart.library.js_interop) 'save_file_web.dart';
 import 'widgets.dart';
@@ -65,6 +66,7 @@ class DevPage extends StatelessWidget {
                   null,
                 ),
               ),
+              ...devExtraTiles(context, store, tile),
               const SectionLabel('Excel'),
               tile(
                 Icons.grid_on_rounded,

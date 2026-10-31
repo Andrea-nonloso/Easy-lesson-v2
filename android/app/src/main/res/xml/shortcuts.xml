@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Scorciatoie: pressione lunga sull'icona dell'app. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="mine"
+        android:enabled="true"
+        android:icon="@drawable/ic_sc_today"
+        android:shortcutShortLabel="@string/sc_mine">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="easylesson://mine"
+            android:targetClass="it.easylesson.easy_lesson.MainActivity"
+            android:targetPackage="it.easylesson.easy_lesson" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="prof"
+        android:enabled="true"
+        android:icon="@drawable/ic_sc_person"
+        android:shortcutShortLabel="@string/sc_prof">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="easylesson://prof"
+            android:targetClass="it.easylesson.easy_lesson.MainActivity"
+            android:targetPackage="it.easylesson.easy_lesson" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="agenda"
+        android:enabled="true"
+        android:icon="@drawable/ic_sc_note"
+        android:shortcutShortLabel="@string/sc_agenda">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="easylesson://agenda"
+            android:targetClass="it.easylesson.easy_lesson.MainActivity"
+            android:targetPackage="it.easylesson.easy_lesson" />
+    </shortcut>
+</shortcuts>
