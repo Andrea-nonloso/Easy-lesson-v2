@@ -34,7 +34,7 @@ jobs:
         run: choco install innosetup -y --no-progress
       - name: Build Windows
         shell: pwsh
-        run: ./build_windows.ps1 -Version ${{ steps.v.outputs.name }} -BuildNumber ${{ github.run_number }}
+        run: ./build_windows.ps1 -Version ${{ steps.v.outputs.name }} -BuildNumber ${{ github.run_number }} -Tag ${{ github.ref_name }}
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -70,7 +70,7 @@ jobs:
         run: |
           echo "::warning::APK firmato con chiave di debug, gli aggiornamenti non si installeranno sopra la versione precedente."
       - run: flutter pub get
-      - run: flutter build apk --release --build-name=${{ steps.v.outputs.name }} --build-number=$((100 + ${{ github.run_number }}))
+      - run: flutter build apk --release --build-name=${{ steps.v.outputs.name }} --build-number=$((100 + ${{ github.run_number }})) --dart-define=EL_TAG=${{ github.ref_name }}
       - run: cp build/app/outputs/flutter-apk/app-release.apk EasyLesson.apk
       - uses: actions/upload-artifact@v4
         with:
@@ -86,7 +86,7 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build web --release
+      - run: flutter build web --release --dart-define=EL_TAG=${{ github.ref_name }}
       - run: cd build/web && zip -r ../../EasyLesson-Web.zip .
       - uses: actions/upload-artifact@v4
         with:

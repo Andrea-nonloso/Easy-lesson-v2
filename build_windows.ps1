@@ -6,7 +6,8 @@
 # Prima volta: eseguire .\setup.ps1
 param(
   [string]$Version,        # es. 2.0.1 (default: quella in pubspec.yaml)
-  [int]$BuildNumber = 1
+  [int]$BuildNumber = 1,
+  [string]$Tag = ""        # es. v2.5.0-beta.1: passato alla CI via --dart-define=EL_TAG
 )
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
@@ -15,7 +16,11 @@ if (-not $Version) {
   $Version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*([^+\s]+)').Matches[0].Groups[1].Value
 }
 Write-Host "Versione $Version"
-flutter build windows --release --build-name=$Version --build-number=$BuildNumber
+if ($Tag) {
+  flutter build windows --release --build-name=$Version --build-number=$BuildNumber "--dart-define=EL_TAG=$Tag"
+} else {
+  flutter build windows --release --build-name=$Version --build-number=$BuildNumber
+}
 if ($LASTEXITCODE -ne 0) { throw "flutter build windows non riuscito" }
 
 $rel = "build\windows\x64\runner\Release"
