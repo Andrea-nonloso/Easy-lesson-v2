@@ -108,4 +108,5 @@ jobs:
           name: Easy Lesson ${{ github.ref_name }}
           body_path: RELEASE_NOTES.md
           generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: out/*
