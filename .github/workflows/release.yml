@@ -81,17 +81,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - id: v
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then echo "name=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else echo "name=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)" >> "$GITHUB_OUTPUT"; fi
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
       - run: flutter pub get
       - run: flutter build web --release --dart-define=EL_TAG=${{ github.ref_name }}
-      - run: cd build/web && zip -r ../../EasyLesson-Web.zip .
+      - run: cd build/web && zip -r ../../Easy-Lesson-v${{ steps.v.outputs.name }}-Web.zip .
       - uses: actions/upload-artifact@v4
         with:
           name: web
-          path: EasyLesson-Web.zip
+          path: Easy-Lesson-v*-Web.zip
 
   release:
     if: startsWith(github.ref, 'refs/tags/')

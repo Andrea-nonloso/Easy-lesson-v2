@@ -1,10 +1,4 @@
-## ⚠️ VERSIONE BETA — NON CONSIGLIATA
-
-Questa è una **versione di prova del canale Beta**: contiene tante novità ma potrebbe avere difetti. Per l'uso quotidiano scarica sempre l'ultima release stabile.
-
-Serve soprattutto per provare su Android: silenzioso a scuola, widget, riquadro nella tendina, QR, notifiche e le funzioni qui sotto. Se qualcosa non va, segnalalo.
-
-## Cosa c'è di nuovo in questa beta
+## Cosa c'è di nuovo in Easy Lesson 2.5.0
 
 ### 🏫 Vita scolastica
 
@@ -38,7 +32,7 @@ Serve soprattutto per provare su Android: silenzioso a scuola, widget, riquadro 
 
 ### 📦 Download
 
-- **EasyLesson-Setup-2.5.0-beta.1.exe** — installer Windows;
-- **EasyLesson-Windows.zip** — Windows portabile;
-- **EasyLesson.apk** — Android;
-- **EasyLesson-Web.zip** — web.
+- **Easy-Lesson-v2.5.0-Setup.exe** — installer Windows;
+- **Easy-Lesson-v2.5.0-Windows.zip** — Windows portatile;
+- **Easy-Lesson-v2.5.0.apk** — Android;
+- **Easy-Lesson-v2.5.0-Web.zip** — web.

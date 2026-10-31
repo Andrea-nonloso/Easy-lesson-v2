@@ -33,7 +33,7 @@ foreach ($dll in "msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll") {
 }
 
 New-Item -ItemType Directory -Force dist | Out-Null
-$zip = "dist\EasyLesson-Windows.zip"
+$zip = "dist\Easy-Lesson-v$Version-Windows.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path "$rel\*" -DestinationPath $zip
 Write-Host "Versione portatile: $zip"
