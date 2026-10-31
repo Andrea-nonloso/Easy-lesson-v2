@@ -26,7 +26,23 @@ class ThemesPage extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Temi')),
+      appBar: AppBar(
+        title: const Text('Temi'),
+        actions: [
+          IconButton(
+            tooltip: 'Importa tema da codice',
+            onPressed: () => importThemeDialog(context),
+            icon: const Icon(Icons.download_rounded),
+          ),
+          if (store.hasCustomTheme)
+            IconButton(
+              tooltip: 'Condividi il tuo tema',
+              onPressed: () => shareThemeDialog(context),
+              icon: const Icon(Icons.share_rounded),
+            ),
+          const SizedBox(width: 4),
+        ],
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 900),

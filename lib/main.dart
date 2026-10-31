@@ -1,6 +1,7 @@
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'log.dart';
 import 'store.dart';
@@ -41,6 +42,10 @@ class EasyLessonApp extends StatelessWidget {
           return MaterialApp(
           title: 'Easy Lesson',
           debugShowCheckedModeBanner: false,
+          // Calendario, orologio e testi dei componenti in italiano.
+          locale: const Locale('it'),
+          supportedLocales: const [Locale('it'), Locale('en')],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
           themeMode: switch (spec.brightness) {
             Brightness.light => ThemeMode.light,
             Brightness.dark => ThemeMode.dark,

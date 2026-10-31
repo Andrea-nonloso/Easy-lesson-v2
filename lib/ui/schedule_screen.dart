@@ -2,11 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../agenda.dart';
 import '../models.dart';
 import '../store.dart';
+import 'agenda_page.dart';
 import 'app_menu.dart';
+import 'compare_page.dart';
 import 'export_calendar.dart';
 import 'fun.dart';
+import 'schedule_image.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -177,6 +181,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               ),
             if (cached != null)
               AppMenuItem(Icons.event_rounded, 'Esporta nel calendario', () => exportToCalendar(context, cached)),
+            if (cached != null)
+              AppMenuItem(Icons.image_outlined, 'Salva come immagine', () => saveScheduleImage(context, cached)),
+            AppMenuItem(Icons.compare_arrows_rounded, 'Confronta con…', () => openCompare(context, widget.ref)),
             if (wide)
               AppMenuItem(
                 store.preferGrid ? Icons.view_day_outlined : Icons.calendar_view_week_outlined,
@@ -545,6 +552,7 @@ class DayList extends StatelessWidget {
             child: LessonTile(
               group: groups[i],
               slots: slots,
+              dayIndex: dayIndex,
               active: nowIdx != null && nowIdx >= groups[i].from && nowIdx <= groups[i].to,
             ),
           ),
@@ -725,9 +733,12 @@ class NowCard extends StatelessWidget {
 }
 
 class LessonTile extends StatelessWidget {
-  const LessonTile({super.key, required this.group, required this.slots, required this.active});
+  const LessonTile({super.key, required this.group, required this.slots, required this.active, this.dayIndex});
 
   final LessonGroup group;
+
+  /// Giorno della lezione (0 = lunedì): se c'è, toccandola si apre la scheda con l'agenda.
+  final int? dayIndex;
   final List<TimeSlot> slots;
   final bool active;
 
@@ -784,6 +795,9 @@ class LessonTile extends StatelessWidget {
     } else {
       final c = SubjectColors.of(l.title, theme.brightness);
       final dark = theme.brightness == Brightness.dark;
+      final notes = dayIndex == null
+          ? const <AgendaItem>[]
+          : StoreScope.of(context).agendaOn(nextDateFor(dayIndex!, DateTime.now(), endMinutes: to?.end), l.title);
       card = Container(
         constraints: BoxConstraints(minHeight: cardH),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -826,6 +840,10 @@ class LessonTile extends StatelessWidget {
                   const SizedBox(width: 6),
                   CompresenzaBadge(teacherCount(l)),
                 ],
+                if (notes.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  Tooltip(message: notes.map((a) => a.summary).join('\n'), child: Text(notes.first.emoji)),
+                ],
                 const SizedBox(width: 6),
                 if (active)
                   const _NowBadge()
@@ -849,6 +867,19 @@ class LessonTile extends StatelessWidget {
       );
     }
 
+    if (dayIndex != null && !l.isEmpty) {
+      card = InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => showLessonSheet(
+          context,
+          lesson: l,
+          dayIndex: dayIndex!,
+          hoursLabel: hoursLabel,
+          endMinutes: to?.end,
+        ),
+        child: card,
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [time, const SizedBox(width: 12), Expanded(child: card)],
@@ -1136,14 +1167,14 @@ class WeekGrid extends StatelessWidget {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 3),
-              child: _dayColumn(i, from, to, today, nowIdx, breaks),
+              child: _dayColumn(context, i, from, to, today, nowIdx, breaks),
             ),
           ),
       ],
     );
   }
 
-  Widget _dayColumn(int dayIdx, int from, int to, int today, int? nowIdx, List<BreakSlot> breaks) {
+  Widget _dayColumn(BuildContext context, int dayIdx, int from, int to, int today, int? nowIdx, List<BreakSlot> breaks) {
     final day = week.days[dayIdx];
     final groups = groupLessons(day.lessons, breaks);
     final startAt = {for (final g in groups) g.from: g};
@@ -1158,9 +1189,21 @@ class WeekGrid extends StatelessWidget {
           padding: EdgeInsets.only(bottom: bottom),
           child: SizedBox(
             height: h,
-            child: _GridCell(
-              group: g,
-              active: dayIdx == today && nowIdx != null && nowIdx >= g.from && nowIdx <= g.to,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: g.lesson.isEmpty
+                  ? null
+                  : () => showLessonSheet(
+                        context,
+                        lesson: g.lesson,
+                        dayIndex: dayIdx,
+                        hoursLabel: g.hours > 1 ? '${g.from + 1}ª–${g.to + 1}ª ora' : '${g.from + 1}ª ora',
+                        endMinutes: g.to < slots.length ? slots[g.to].end : null,
+                      ),
+              child: _GridCell(
+                group: g,
+                active: dayIdx == today && nowIdx != null && nowIdx >= g.from && nowIdx <= g.to,
+              ),
             ),
           ),
         ));

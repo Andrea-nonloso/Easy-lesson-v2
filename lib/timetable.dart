@@ -149,6 +149,62 @@ class Timetable {
     return out;
   }
 
+  // ------------------------------------------------------------------ chi c'è dove
+
+  late final Map<int, List<TimetableEntry>> _at = () {
+    final m = <int, List<TimetableEntry>>{};
+    for (final e in entries) {
+      (m[e.day * 100 + e.hour] ??= []).add(e);
+    }
+    return m;
+  }();
+
+  List<TimetableEntry> _entriesAt(int day, int hour) => _at[day * 100 + hour] ?? const [];
+
+  /// Nome della classe come scritto nel file ("3B BS"), o il valore così com'è.
+  String className(String value) =>
+      value.toUpperCase() == 'POT' ? 'Potenziamento' : (_classNames[classKey(value)] ?? value);
+
+  /// Laboratori presenti nel file, in ordine alfabetico.
+  late final List<String> labs = {
+    for (final e in entries)
+      if (e.section == Section.laboratori) e.name,
+  }.toList()
+    ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+  /// Classi in un laboratorio a quell'ora (vuoto = libero).
+  List<String> labUse(String lab, int day, int hour) => [
+        for (final e in _entriesAt(day, hour))
+          if (e.section == Section.laboratori && e.name == lab) className(e.value),
+      ];
+
+  /// Dove si trova un docente a quell'ora: classi e laboratori (vuoto = non è in classe).
+  ({List<String> classes, List<String> labs}) teacherAt(String teacher, int day, int hour) {
+    final here = _entriesAt(day, hour).where((e) => e.name == teacher && e.section != Section.laboratori);
+    final classes = <String>[];
+    final keys = <String>{};
+    for (final e in here) {
+      final c = className(e.value);
+      if (!classes.contains(c)) classes.add(c);
+      keys.add(classKey(e.value));
+    }
+    final labs = <String>{
+      for (final e in _entriesAt(day, hour))
+        if (e.section == Section.laboratori && keys.contains(classKey(e.value))) e.name,
+    }.toList();
+    return (classes: classes, labs: labs);
+  }
+
+  /// Ore (0 = prima) in cui il docente ha lezione in quel giorno.
+  List<int> teacherHours(String teacher, int day) {
+    final hs = <int>{
+      for (final e in _byTeacher[teacher] ?? const <TimetableEntry>[])
+        if (e.day == day) e.hour,
+    }.toList()
+      ..sort();
+    return hs;
+  }
+
   bool has(ScheduleRef ref) => ref.prof ? _byTeacher.containsKey(ref.name) : _byClass.containsKey(classKey(ref.name));
 
   // ------------------------------------------------------------------ orari

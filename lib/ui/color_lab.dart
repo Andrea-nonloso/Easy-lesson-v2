@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -502,4 +503,109 @@ class _ThemeLabPageState extends State<ThemeLabPage> {
       ),
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Condividere un tema con un codice
+
+const _codePrefix = 'EL1-';
+
+/// Codice del tema personalizzato, da mandare a un compagno (es. "EL1-eyJu…").
+String themeCodeOf(AppStore s) {
+  final json = jsonEncode({
+    'n': s.customName,
+    's': s.customSeed,
+    'm': s.customMode,
+    'o': s.customOled,
+    'b': s.customBg,
+    'c': s.customCard,
+    'v': s.customNav,
+  });
+  return _codePrefix + base64Url.encode(utf8.encode(json)).replaceAll('=', '');
+}
+
+/// Applica un codice tema. Restituisce false se il codice non è valido.
+Future<bool> applyThemeCode(AppStore store, String code) async {
+  try {
+    var t = code.trim().replaceAll(RegExp(r'\s+'), '');
+    if (t.startsWith(_codePrefix)) t = t.substring(_codePrefix.length);
+    t = t.padRight((t.length + 3) ~/ 4 * 4, '=');
+    final m = jsonDecode(utf8.decode(base64Url.decode(t))) as Map<String, dynamic>;
+    final seed = m['s'] as int;
+    final mode = m['m'] as String? ?? 'system';
+    if (!const ['system', 'light', 'dark'].contains(mode)) return false;
+    await store.setCustomTheme(
+      name: m['n'] as String? ?? 'Tema condiviso',
+      seed: seed,
+      mode: mode,
+      oled: m['o'] == true,
+    );
+    await store.setCustomColors(background: m['b'] as int?, card: m['c'] as int?, nav: m['v'] as int?);
+    AppLog.i('tema', 'Tema importato da codice');
+    return true;
+  } catch (e) {
+    AppLog.w('tema', 'Codice tema non valido: $e');
+    return false;
+  }
+}
+
+Future<void> shareThemeDialog(BuildContext context) {
+  final store = StoreScope.read(context);
+  final code = themeCodeOf(store);
+  return showDialog<void>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: const Text('Condividi il tuo tema'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Manda questo codice a un compagno: lo incolla in Temi → Importa tema.'),
+          const SizedBox(height: 12),
+          SelectableText(code, style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5)),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Chiudi')),
+        FilledButton.icon(
+          icon: const Icon(Icons.copy_rounded),
+          label: const Text('Copia'),
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: code));
+            Navigator.pop(c);
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Codice copiato')));
+          },
+        ),
+      ],
+    ),
+  );
+}
+
+Future<void> importThemeDialog(BuildContext context) async {
+  final store = StoreScope.read(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final ctrl = TextEditingController();
+  final code = await showDialog<String>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: const Text('Importa un tema'),
+      content: TextField(
+        controller: ctrl,
+        autofocus: true,
+        minLines: 1,
+        maxLines: 4,
+        decoration: const InputDecoration(hintText: 'Incolla il codice (EL1-…)'),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annulla')),
+        FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: const Text('Importa')),
+      ],
+    ),
+  );
+  ctrl.dispose();
+  if (code == null || code.trim().isEmpty) return;
+  final ok = await applyThemeCode(store, code);
+  messenger.showSnackBar(SnackBar(
+    content: Text(ok ? 'Tema importato e attivato 🎨' : 'Codice non valido'),
+  ));
 }

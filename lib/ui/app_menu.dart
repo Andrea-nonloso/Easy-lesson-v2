@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'agenda_page.dart';
+import 'now_page.dart';
 import 'settings_sheet.dart';
 import 'themes_page.dart';
 
@@ -21,6 +23,8 @@ class AppMenuButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final all = [
       ...items,
+      AppMenuItem(Icons.event_note_rounded, 'Agenda', () => openAgenda(context)),
+      AppMenuItem(Icons.person_search_rounded, 'Adesso a scuola', () => openNowAtSchool(context)),
       AppMenuItem(Icons.palette_outlined, 'Temi', () => openThemesPage(context)),
       AppMenuItem(Icons.settings_outlined, 'Impostazioni', () => showSettingsSheet(context)),
     ];

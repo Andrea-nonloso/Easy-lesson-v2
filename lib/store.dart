@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'agenda.dart';
 import 'api.dart';
 import 'log.dart';
 import 'models.dart';
@@ -88,6 +89,7 @@ class AppStore extends ChangeNotifier {
   static const _kSubjects = 'el.subjects';
   static const _kTeacherSubjects = 'el.teacherSubjects';
   static const _kDevMode = 'el.devMode';
+  static const _kAgenda = 'el.agenda';
   static const _maxRecents = 8;
 
   ThemeMode themeMode = ThemeMode.system;
@@ -112,6 +114,9 @@ class AppStore extends ChangeNotifier {
   int? customBg;
   int? customCard;
   int? customNav;
+
+  /// Compiti, verifiche e promemoria (vedi agenda.dart).
+  final List<AgendaItem> agenda = [];
 
   /// Opzioni sviluppatore sbloccate (7 tocchi sulla foglia nelle impostazioni).
   bool devMode = false;
@@ -139,6 +144,9 @@ class AppStore extends ChangeNotifier {
   String? excelUrl;
 
   bool get usingExcel => _timetable != null;
+
+  /// Il file Excel importato, per le ricerche "chi c'è dove" (null = si usa il server).
+  Timetable? get timetable => _timetable;
 
   /// Il foglio Excel importato così com'è (per vederlo nelle opzioni sviluppatore).
   List<List<String>>? excelGrid;
@@ -199,6 +207,15 @@ class AppStore extends ChangeNotifier {
     username = (u != null && u.trim().isNotEmpty) ? u.trim() : null;
     setupDone = _prefs.getBool(_kSetupDone) ?? false;
     devMode = _prefs.getBool(_kDevMode) ?? false;
+    try {
+      agenda
+        ..clear()
+        ..addAll((jsonDecode(_prefs.getString(_kAgenda) ?? '[]') as List)
+            .map(AgendaItem.fromJson)
+            .whereType<AgendaItem>());
+    } catch (e) {
+      AppLog.w('agenda', 'Agenda non leggibile: $e');
+    }
     final custom = _prefs.getString(_kCustomTheme);
     if (custom != null) {
       try {
@@ -585,6 +602,58 @@ class AppStore extends ChangeNotifier {
       }),
     );
     await _prefs.setString(_kThemeId, themeId);
+  }
+
+  // ---------------------------------------------------------------- agenda
+
+  /// Elementi da [from] in poi (solo date), ordinati per data.
+  List<AgendaItem> agendaFrom(DateTime from, {bool includeDone = false, int? days}) {
+    final start = dateOnly(from);
+    final end = days == null ? null : start.add(Duration(days: days));
+    return agenda
+        .where((a) =>
+            !a.date.isBefore(start) && (end == null || a.date.isBefore(end)) && (includeDone || !a.done))
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+  }
+
+  /// Elementi di una materia in un certo giorno.
+  List<AgendaItem> agendaOn(DateTime date, String subject) =>
+      agenda.where((a) => !a.done && a.date == dateOnly(date) && a.sameSubject(subject)).toList();
+
+  Future<void> addAgenda({
+    required DateTime date,
+    required String kind,
+    required String subject,
+    required String text,
+  }) async {
+    agenda.add(AgendaItem(
+      id: '${DateTime.now().microsecondsSinceEpoch}',
+      date: dateOnly(date),
+      kind: kind,
+      subject: subject.trim(),
+      text: text.trim(),
+    ));
+    AppLog.i('agenda', 'Aggiunto $kind · $subject');
+    await _saveAgenda();
+  }
+
+  Future<void> toggleAgendaDone(AgendaItem item) async {
+    item.done = !item.done;
+    await _saveAgenda();
+  }
+
+  Future<void> removeAgenda(AgendaItem item) async {
+    agenda.removeWhere((a) => a.id == item.id);
+    await _saveAgenda();
+  }
+
+  Future<void> _saveAgenda() async {
+    // Le cose fatte da più di 60 giorni si tolgono da sole.
+    final old = DateTime.now().subtract(const Duration(days: 60));
+    agenda.removeWhere((a) => a.done && a.date.isBefore(old));
+    notifyListeners();
+    await _prefs.setString(_kAgenda, jsonEncode(agenda.map((a) => a.toJson()).toList()));
   }
 
   Future<void> setDevMode(bool v) async {

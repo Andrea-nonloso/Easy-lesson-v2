@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../store.dart';
+import '../agenda.dart';
+import 'agenda_page.dart';
 import 'fun.dart';
+import 'now_page.dart';
 import 'search_page.dart';
 import 'settings_sheet.dart';
 import 'theme.dart';
@@ -292,6 +295,7 @@ class _HomeExtras extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final peek = _peekFor(store, now);
+    final todo = store.agendaFrom(now, days: 7);
     final mine = store.myRef?.key;
     final others = [...store.favorites, ...store.recents].where((s) => s.ref.key != mine).toList();
 
@@ -299,6 +303,7 @@ class _HomeExtras extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (todo.isNotEmpty) ...[_AgendaPeek(items: todo, max: 5), const SizedBox(height: 16)],
           if (peek != null && peek.items.isNotEmpty) _DayPeek(peek: peek, max: peek.items.length, onOpen: onOpenMine),
           if (peek != null && peek.items.isNotEmpty && others.isNotEmpty) const SizedBox(height: 16),
           if (others.isNotEmpty) _Recents(items: others, max: 5),
@@ -310,8 +315,15 @@ class _HomeExtras extends StatelessWidget {
       builder: (context, box) {
         var h = box.maxHeight;
         final children = <Widget>[];
+        // Prima i compiti e le verifiche in arrivo (max 3), poi le lezioni, poi i recenti.
+        if (todo.isNotEmpty && h >= _peekTitle + _peekPad + _peekRow) {
+          final k = math.min(math.min(todo.length, 3), ((h - _peekTitle - _peekPad) / _peekRow).floor());
+          children.add(_AgendaPeek(items: todo, max: k));
+          h -= _peekTitle + _peekPad + _peekRow * k + 16;
+        }
         if (peek != null && peek.items.isNotEmpty && h >= _peekTitle + _peekPad + _peekRow) {
           final k = math.min(peek.items.length, ((h - _peekTitle - _peekPad) / _peekRow).floor());
+          if (children.isNotEmpty) children.add(const SizedBox(height: 16));
           children.add(_DayPeek(peek: peek, max: k, onOpen: onOpenMine));
           h -= _peekTitle + _peekPad + _peekRow * k + 16;
         }
@@ -332,11 +344,14 @@ class _HomeExtras extends StatelessWidget {
 }
 
 class _PeekItem {
-  const _PeekItem(this.hours, this.time, this.lesson, {this.now = false});
+  const _PeekItem(this.hours, this.time, this.lesson, {this.now = false, this.note});
   final String hours;
   final String time;
   final Lesson lesson;
   final bool now;
+
+  /// Emoji del compito / verifica di quel giorno per questa materia.
+  final String? note;
 }
 
 class _Peek {
@@ -361,6 +376,7 @@ _Peek? _peekFor(AppStore store, DateTime now) {
 
   int? dayIdx;
   var title = '';
+  var date = dateOnly(now);
   if (ti >= 0 && !days[ti].isEmpty) {
     final lessons = days[ti].lessons;
     final left = [for (var k = 0; k < lessons.length; k++) if (!lessons[k].isEmpty && !finished(k)) k];
@@ -375,6 +391,7 @@ _Peek? _peekFor(AppStore store, DateTime now) {
       if (wd < days.length && !days[wd].isEmpty) {
         dayIdx = wd;
         title = off == 1 ? 'Domani' : dayNames[wd];
+        date = DateTime(now.year, now.month, now.day + off);
         break;
       }
     }
@@ -393,16 +410,107 @@ _Peek? _peekFor(AppStore store, DateTime now) {
       j++;
     }
     if (!l.isEmpty && !(today && finished(j))) {
+      final notes = store.agendaOn(date, l.title);
       items.add(_PeekItem(
         j > i ? '${i + 1}ª–${j + 1}ª' : '${i + 1}ª',
         i < slots.length ? slots[i].startText : '',
         l,
         now: cur != null && cur >= i && cur <= j,
+        note: notes.isEmpty ? null : notes.first.emoji,
       ));
     }
     i = j + 1;
   }
   return _Peek(title, items);
+}
+
+/// Compiti e verifiche dei prossimi giorni, in cima alla parte bassa della home.
+class _AgendaPeek extends StatelessWidget {
+  const _AgendaPeek({required this.items, required this.max});
+
+  final List<AgendaItem> items;
+  final int max;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final now = DateTime.now();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 34,
+          child: Row(
+            children: [
+              Text('In arrivo', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(width: 8),
+              Text(
+                '${items.length} in agenda',
+                style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => openAgenda(context),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, 30),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('Agenda'),
+              ),
+            ],
+          ),
+        ),
+        Material(
+          color: cardColor(context),
+          borderRadius: BorderRadius.circular(18),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => openAgenda(context),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Column(
+                children: [
+                  for (final a in items.take(max))
+                    SizedBox(
+                      height: 36,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Row(
+                          children: [
+                            SizedBox(width: 28, child: Text(a.emoji)),
+                            SizedBox(
+                              width: 74,
+                              child: Text(
+                                friendlyDate(a.date, now),
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: dateOnly(a.date) == dateOnly(now) ? scheme.error : scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                [a.subject, a.text].where((t) => t.isNotEmpty).join(' · '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _DayPeek extends StatelessWidget {
@@ -485,6 +593,7 @@ class _DayPeek extends StatelessWidget {
                             ),
                           ),
                         ),
+                        if (it.note != null) Padding(padding: const EdgeInsets.only(left: 4), child: Text(it.note!)),
                         if (it.lesson.lab.isNotEmpty)
                           Tooltip(message: it.lesson.lab, child: Text(labInfo(it.lesson.lab).emoji)),
                       ],
@@ -787,7 +896,6 @@ class _QuickSwitch extends StatelessWidget {
   Widget build(BuildContext context) {
     final mine = store.myRef;
     final others = store.favorites.where((s) => mine == null || s.ref.key != mine.key).take(6).toList();
-    if (mine == null && others.isEmpty) return const SizedBox.shrink();
 
     Widget chip(String label, IconData icon, VoidCallback onTap, {bool selected = false}) => Padding(
           padding: const EdgeInsets.only(right: 8),
@@ -814,6 +922,9 @@ class _QuickSwitch extends StatelessWidget {
                 () => openSchedule(context, s.ref),
               ),
             chip('Docenti e classi', Icons.swap_horiz_rounded, onSearch),
+            if (store.usingExcel) chip('Dov\'è il prof', Icons.person_search_rounded, () => openNowAtSchool(context)),
+            if (store.usingExcel) chip('Lab liberi', Icons.science_outlined, () => openNowAtSchool(context, labs: true)),
+            chip('Agenda', Icons.event_note_rounded, () => openAgenda(context)),
           ],
         ),
       ),
