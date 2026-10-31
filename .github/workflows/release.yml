@@ -71,11 +71,11 @@ jobs:
           echo "::warning::APK firmato con chiave di debug, gli aggiornamenti non si installeranno sopra la versione precedente."
       - run: flutter pub get
       - run: flutter build apk --release --build-name=${{ steps.v.outputs.name }} --build-number=$((100 + ${{ github.run_number }})) --dart-define=EL_TAG=${{ github.ref_name }}
-      - run: cp build/app/outputs/flutter-apk/app-release.apk EasyLesson.apk
+      - run: cp build/app/outputs/flutter-apk/app-release.apk "Easy-Lesson-v${{ steps.v.outputs.name }}.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: android
-          path: EasyLesson.apk
+          path: Easy-Lesson-v*.apk
 
   web:
     runs-on: ubuntu-latest
