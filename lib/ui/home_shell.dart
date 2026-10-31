@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show timeDilation;
 import 'package:flutter/services.dart';
@@ -5,7 +7,9 @@ import 'package:flutter/services.dart';
 import '../native.dart';
 import '../store.dart';
 import '../updater.dart';
+import 'achievements.dart';
 import 'agenda_page.dart';
+import 'desktop.dart';
 import 'app_menu.dart';
 import 'home_page.dart';
 import 'now_page.dart';
@@ -13,6 +17,7 @@ import 'saved_page.dart';
 import 'schedule_screen.dart';
 import 'search_page.dart';
 import 'settings_sheet.dart';
+import 'share_qr.dart';
 import 'themes_page.dart';
 import 'widgets.dart';
 
@@ -59,6 +64,10 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       _store = store;
       store.addListener(_onStoreChanged);
       NativeBridge.scheduleSync(store);
+      DesktopBridge.init(store);
+      _achTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) checkAchievements(context);
+      });
       NativeBridge.listen(_openShortcut);
       final s = await NativeBridge.takeShortcut();
       if (s != null && mounted) _openShortcut(s);
@@ -69,6 +78,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _store?.removeListener(_onStoreChanged);
+    _achTimer?.cancel();
     super.dispose();
   }
 
@@ -82,12 +92,29 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     }
   }
 
+  Timer? _achTimer;
+
   void _onStoreChanged() {
     if (_store != null) NativeBridge.scheduleSync(_store!);
+    // Obiettivi: si controllano un attimo dopo l'ultimo cambiamento.
+    _achTimer?.cancel();
+    _achTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) checkAchievements(context);
+    });
   }
 
-  void _openShortcut(String s) {
+  Future<void> _openShortcut(String s) async {
     if (!mounted) return;
+    // Codice condiviso con il QR (la fotocamera apre easylesson://import?d=...).
+    if (s.startsWith('easylesson://import')) {
+      final messenger = ScaffoldMessenger.of(context);
+      try {
+        messenger.showSnackBar(SnackBar(content: Text(await importShared(StoreScope.read(context), s))));
+      } catch (e) {
+        messenger.showSnackBar(SnackBar(content: Text(e is FormatException ? e.message : '$e')));
+      }
+      return;
+    }
     switch (s) {
       case 'mine':
         _go(1);

@@ -4,4 +4,7 @@
     <string name="sc_mine">Il mio orario</string>
     <string name="sc_prof">Dov\'è il prof</string>
     <string name="sc_agenda">Agenda</string>
+    <string name="next_widget_description">Solo la prossima ora, piccolo</string>
+    <string name="agenda_widget_description">Compiti e verifiche dei prossimi giorni</string>
+    <string name="tile_label">Prossima ora</string>
 </resources>

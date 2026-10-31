@@ -5,6 +5,8 @@ import '../models.dart';
 import '../store.dart';
 import 'app_menu.dart';
 import 'fun.dart';
+import 'photos_page.dart';
+import 'school_life_pages.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -174,6 +176,25 @@ Future<void> showLessonSheet(
               icon: const Icon(Icons.add_rounded),
               label: Text('Aggiungi per ${friendlyDate(next, now).toLowerCase()}'),
               onPressed: () => addAgendaDialog(c, subject: lesson.title, date: next),
+            ),
+            const SectionLabel('Foto della lezione'),
+            PhotoStrip(subject: lesson.title),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ActionChip(
+                  avatar: const Icon(Icons.grade_outlined, size: 18),
+                  label: const Text('Segna un voto'),
+                  onPressed: () => addGradeDialog(c, subject: lesson.title),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.timer_outlined, size: 18),
+                  label: const Text('Studia questa materia'),
+                  onPressed: () => openStudyTimer(c, subject: lesson.title),
+                ),
+              ],
             ),
           ],
         ),

@@ -67,6 +67,19 @@ object Reminders {
         prefs.edit().putString("ids", ids.joinToString(",")).putString("json", json).apply()
     }
 
+    /** Una notifica sola a un'ora precisa (timer di studio). */
+    fun one(context: Context, id: Int, at: Long, title: String, body: String) {
+        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val pi = pending(context, id, title, body, "giorno")
+        if (Build.VERSION.SDK_INT >= 23) am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+        else am.set(AlarmManager.RTC_WAKEUP, at, pi)
+    }
+
+    fun cancelOne(context: Context, id: Int) {
+        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        am.cancel(pending(context, id, null, null, "giorno"))
+    }
+
     /** Dopo un riavvio del telefono le sveglie spariscono: si rimettono. */
     fun restore(context: Context) {
         val json = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("json", null) ?: return
@@ -126,10 +139,13 @@ class ReminderReceiver : BroadcastReceiver() {
         when (intent.action) {
             Intent.ACTION_BOOT_COMPLETED, "android.intent.action.MY_PACKAGE_REPLACED" -> {
                 Reminders.restore(context)
+                SchoolSilence.restore(context)
                 LessonWidget.updateAll(context)
                 UpdateCheck.ensureScheduled(context)
             }
-            else -> Reminders.show(
+            else -> if (SchoolSilence.isAction(intent)) {
+                SchoolSilence.apply(context, intent.getBooleanExtra("on", false))
+            } else Reminders.show(
                 context,
                 intent.getIntExtra("id", 0),
                 intent.getStringExtra("title") ?: "Easy Lesson",

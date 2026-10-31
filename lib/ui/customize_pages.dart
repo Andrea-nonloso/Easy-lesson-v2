@@ -649,6 +649,35 @@ class NotificationsPage extends StatelessWidget {
           ),
         sw('n.holiday', Icons.beach_access_outlined, 'Giorni senza scuola',
             'La sera prima di vacanze, feste e ponti'),
+        const SectionLabel('A scuola'),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          secondary: Icon(Icons.do_not_disturb_on_outlined, color: scheme.primary),
+          title: const Text('Silenzioso a scuola'),
+          subtitle: const Text('Non disturbare dalla prima all\'ultima ora (con entrate e uscite), poi torna normale'),
+          value: store.opt('silence', false),
+          onChanged: (v) async {
+            if (v && !await NativeBridge.silenceAllowed()) {
+              if (!context.mounted) return;
+              final go = await showDialog<bool>(
+                context: context,
+                builder: (c) => AlertDialog(
+                  title: const Text('Serve un permesso'),
+                  content: const Text(
+                    'Android chiede di dare a Easy Lesson l\'"Accesso a Non disturbare". '
+                    'Si apre la pagina giusta: attiva Easy Lesson e torna qui.',
+                  ),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
+                    FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Apri')),
+                  ],
+                ),
+              );
+              if (go == true) await NativeBridge.openSilenceSettings();
+            }
+            await store.setOpt('silence', v ? true : null);
+          },
+        ),
         const SectionLabel('App'),
         sw('n.updates', Icons.system_update_outlined, 'Nuove versioni',
             'Controlla GitHub ogni qualche ora, anche ad app chiusa',

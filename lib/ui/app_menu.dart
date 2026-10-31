@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'agenda_page.dart';
 import 'now_page.dart';
+import 'school_life_pages.dart';
 import 'settings_sheet.dart';
 import 'themes_page.dart';
 
@@ -25,6 +26,9 @@ class AppMenuButton extends StatelessWidget {
       ...items,
       AppMenuItem(Icons.event_note_rounded, 'Agenda', () => openAgenda(context)),
       AppMenuItem(Icons.person_search_rounded, 'Adesso a scuola', () => openNowAtSchool(context)),
+      AppMenuItem(Icons.grade_outlined, 'Voti', () => openGrades(context)),
+      AppMenuItem(Icons.event_busy_outlined, 'Assenze e permessi', () => openAbsences(context)),
+      AppMenuItem(Icons.timer_outlined, 'Timer per studiare', () => openStudyTimer(context)),
       AppMenuItem(Icons.palette_outlined, 'Temi', () => openThemesPage(context)),
       AppMenuItem(Icons.settings_outlined, 'Impostazioni', () => showSettingsSheet(context)),
     ];

@@ -6,10 +6,12 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../store.dart';
 import '../agenda.dart';
+import 'achievements.dart';
 import 'agenda_page.dart';
 import 'bag_page.dart';
 import 'fun.dart';
 import 'now_page.dart';
+import 'school_life_pages.dart';
 import 'search_page.dart';
 import 'settings_sheet.dart';
 import 'theme.dart';
@@ -79,6 +81,14 @@ class HomePage extends StatelessWidget {
                   store.username != null ? 'Ciao, ${store.username}!' : 'Ciao!',
                   style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
+                // Sorprese del giorno (ultimo giorno di scuola, notte fonda, feste…).
+                if (easterMessage(store, now) case final egg?)
+                  Text(
+                    egg,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(color: scheme.primary, fontWeight: FontWeight.w600),
+                  ),
               ],
             ),
           ),
@@ -1115,6 +1125,10 @@ class _QuickSwitch extends StatelessWidget {
             if (store.usingExcel) chip('Lab liberi', Icons.science_outlined, () => openNowAtSchool(context, labs: true)),
             chip('Agenda', Icons.event_note_rounded, () => openAgenda(context)),
             chip('Zaino', Icons.backpack_outlined, () => openBag(context)),
+            chip('Voti', Icons.grade_outlined, () => openGrades(context)),
+            chip('Assenze', Icons.event_busy_outlined, () => openAbsences(context)),
+            chip('Studia', Icons.timer_outlined, () => openStudyTimer(context)),
+            chip('Obiettivi', Icons.emoji_events_outlined, () => openAchievements(context)),
           ],
         ),
       ),

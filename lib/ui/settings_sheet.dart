@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -7,11 +8,15 @@ import '../models.dart';
 import '../native.dart';
 import '../store.dart';
 import '../updater.dart';
+import 'achievements.dart';
 import 'bag_page.dart';
 import 'calendar_page.dart';
 import 'customize_pages.dart';
 import 'dev_page.dart';
 import 'fun.dart';
+import 'photos_page.dart';
+import 'school_life_pages.dart';
+import 'share_qr.dart';
 import 'subjects_page.dart';
 import 'theme.dart';
 import 'themes_page.dart';
@@ -185,6 +190,53 @@ class SettingsSheet extends StatelessWidget {
           const SectionLabel('Scuola'),
           ListTile(
             contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.event_busy_outlined, color: theme.colorScheme.primary),
+            title: const Text('Assenze e permessi'),
+            subtitle: Text(store.absences.isEmpty
+                ? 'Ore perse, limite del 25%, entrate e uscite fuori orario'
+                : '${store.absences.length} segnate · entrate e uscite cambiano notifiche e widget'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => openAbsences(context),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.grade_outlined, color: theme.colorScheme.primary),
+            title: const Text('Voti e medie'),
+            subtitle: Text(store.grades.isEmpty ? 'E quanto ti serve alla prossima verifica' : '${store.grades.length} voti'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => openGrades(context),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.timer_outlined, color: theme.colorScheme.primary),
+            title: const Text('Timer per studiare'),
+            subtitle: const Text('Pomodoro 25/5, con le materie delle verifiche'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => openStudyTimer(context),
+          ),
+          if (!kIsWeb)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.photo_library_outlined, color: theme.colorScheme.primary),
+              title: const Text('Foto delle lezioni'),
+              subtitle: Text(store.photos.isEmpty
+                  ? 'Lavagna e appunti: tocca una lezione per fotografarla'
+                  : '${store.photos.length} foto'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => openPhotos(context),
+            ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.swap_vert_circle_outlined, color: theme.colorScheme.primary),
+            title: const Text('Settimana A/B'),
+            subtitle: Text(store.altRef == null
+                ? 'Se l\'orario cambia a settimane alterne'
+                : 'Settimana B: ${store.altRef!.displayName}'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => abWeekDialog(context),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
             leading: Icon(Icons.schedule_rounded, color: theme.colorScheme.primary),
             title: const Text('Orari delle campanelle'),
             subtitle: Text(store.customBells == null
@@ -314,6 +366,38 @@ class SettingsSheet extends StatelessWidget {
             subtitle: const Text('Copia tutte le impostazioni e i dati, o rimettili su un altro dispositivo'),
             onTap: () => _backupSheet(context, store),
           ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.qr_code_2_rounded),
+            title: const Text('Condividi con un QR'),
+            subtitle: const Text('Il tuo orario, il tema o i soprannomi a un amico'),
+            onTap: () => showShareQr(context),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.qr_code_scanner_rounded),
+            title: const Text('Importa un codice'),
+            subtitle: const Text('Incolla il codice che ti hanno mandato'),
+            onTap: () => importCodeDialog(context),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.emoji_events_outlined),
+            title: const Text('Obiettivi'),
+            subtitle: Text('${unlockedIds(store).length} su ${achievements.length} sbloccati'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => openAchievements(context),
+          ),
+          if (kIsWeb)
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.install_desktop_rounded),
+              title: Text('Installa come app'),
+              subtitle: Text(
+                'Chrome/Edge: icona di installazione nella barra degli indirizzi. '
+                'iPhone: Condividi → Aggiungi alla schermata Home. Poi funziona anche offline.',
+              ),
+            ),
           const SectionLabel('Info'),
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -413,6 +497,7 @@ Future<void> _backupSheet(BuildContext context, AppStore store) async {
   );
   if (choice == 'copy') {
     await Clipboard.setData(ClipboardData(text: store.backup()));
+    await store.setOpt('ach.backup', true);
     messenger.showSnackBar(const SnackBar(content: Text('Backup copiato negli appunti')));
   } else if (choice == 'paste') {
     final data = await Clipboard.getData(Clipboard.kTextPlain);

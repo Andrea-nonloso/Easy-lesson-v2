@@ -31,6 +31,16 @@ class NativeBridge {
     }
   }
 
+  /// Una notifica sola a un'ora precisa (timer di studio). [id] tra 7000 e 7099.
+  static Future<void> scheduleOne(int id, DateTime at, String title, String body) =>
+      _call<bool>('scheduleOne', jsonEncode({'id': id, 'at': at.millisecondsSinceEpoch, 'title': title, 'body': body}));
+
+  static Future<void> cancelOne(int id) => _call<bool>('cancelOne', id);
+
+  /// "Non disturbare" a scuola: serve il permesso speciale di Android.
+  static Future<bool> silenceAllowed() async => await _call<bool>('silenceAllowed') ?? false;
+  static Future<void> openSilenceSettings() => _call<bool>('openSilenceSettings');
+
   /// Mostra subito una notifica (per provarle dalle opzioni sviluppatore).
   static Future<void> testNotification(String title, String body, {String channel = 'lezioni'}) =>
       _call<bool>('testNotification', jsonEncode({'title': title, 'body': body, 'ch': channel}));
@@ -74,6 +84,7 @@ class NativeBridge {
   static String? _lastNotify;
   static String? _lastWidget;
   static String? _lastUpdates;
+  static String? _lastSilence;
   static String? _version;
 
   /// Da chiamare quando cambia qualcosa nello store: dopo un attimo aggiorna
@@ -98,6 +109,11 @@ class NativeBridge {
       _lastUpdates = upd;
       await configureUpdates(
           enabled: store.opt('n.updates', true), beta: store.betaUpdates, current: _version ?? '');
+    }
+    final silence = jsonEncode(store.opt('silence', false) ? silenceWindows(store, now) : const []);
+    if (silence != _lastSilence) {
+      _lastSilence = silence;
+      await _call<bool>('scheduleSilence', silence);
     }
     final notify = jsonEncode(reminders(store, now));
     if (notify != _lastNotify) {
@@ -130,6 +146,16 @@ class NativeBridge {
 
   static String _place(Lesson l) => l.lab.isEmpty ? '' : '${labInfo(l.lab).emoji} ${l.lab}';
 
+  /// Gruppi di ore del mio orario nel giorno [d], tenendo conto di entrate e uscite.
+  static List<({int from, int to, Lesson lesson})> groupsOn(AppStore store, DateTime d) {
+    final days = store.myScheduleOn(d)?.week.days;
+    final wd = d.weekday - 1;
+    if (days == null || wd >= days.length || store.calendar.closureOn(d) != null) return const [];
+    final range = store.attendedOn(d, days[wd].lessons.length);
+    if (range == null) return const [];
+    return _groups(days[wd], store.slots).where((g) => g.to >= range.$1 && g.from <= range.$2).toList();
+  }
+
   /// Dati per il widget (formato in LessonWidget.kt).
   static Map<String, dynamic> widgetData(AppStore store) {
     final ref = store.myRef;
@@ -147,7 +173,29 @@ class NativeBridge {
       final c = cal.closureOn(d);
       if (c != null && d.weekday <= cached.week.days.length) off.add([iso(d), iso(d), '${c.emoji} ${c.name}']);
     }
+    // Prossimi compiti e verifiche (per il widget agenda).
+    final agenda = [
+      for (final a in store.agendaFrom(now, days: 14).take(8)) [iso(a.date), a.summary],
+    ];
+    // Entrate/uscite già note: il widget mostra solo le ore in cui ci sei.
+    final skip = <List<Object>>[];
+    for (var k = 0; k < 14; k++) {
+      final d = DateTime(now.year, now.month, now.day + k);
+      final wd = d.weekday - 1;
+      if (wd >= cached.week.days.length) continue;
+      final n = cached.week.days[wd].lessons.length;
+      final r = store.attendedOn(d, n);
+      if (r == null) {
+        skip.add([iso(d), 0, -1]);
+      } else if (r.$1 > 0 || r.$2 < n - 1) {
+        final s0 = r.$1 < slots.length ? slots[r.$1].start : null;
+        final e0 = r.$2 < slots.length ? slots[r.$2].end : null;
+        if (s0 != null && e0 != null) skip.add([iso(d), s0, e0]);
+      }
+    }
     return {
+      'agenda': agenda,
+      'only': skip,
       'name': ref.displayName,
       'days': [
         for (final day in cached.week.days)
@@ -165,11 +213,33 @@ class NativeBridge {
     };
   }
 
+  /// Intervalli in cui stare in silenzioso: dall'inizio della prima ora alla fine dell'ultima
+  /// (con entrate/uscite), per le prossime 3 settimane. [[inizio, fine], ...] in millisecondi.
+  static List<List<int>> silenceWindows(AppStore store, DateTime now) {
+    final slots = store.slots;
+    final cal = store.calendar;
+    final out = <List<int>>[];
+    for (var k = 0; k < 21; k++) {
+      final d = DateTime(now.year, now.month, now.day + k);
+      final days = store.myScheduleOn(d)?.week.days;
+      final wd = d.weekday - 1;
+      if (days == null || wd >= days.length || !cal.isSchoolDay(d, daysPerWeek: days.length)) continue;
+      final range = store.attendedOn(d, days[wd].lessons.length);
+      if (range == null) continue;
+      final groups = _groups(days[wd], slots).where((g) => g.to >= range.$1 && g.from <= range.$2).toList();
+      if (groups.isEmpty) continue;
+      final s = slots[groups.first.from].start!;
+      final e = slots[groups.last.to].end!;
+      final a = DateTime(d.year, d.month, d.day, s ~/ 60, s % 60);
+      final b = DateTime(d.year, d.month, d.day, e ~/ 60, e % 60);
+      if (b.isAfter(now)) out.add([a.millisecondsSinceEpoch, b.millisecondsSinceEpoch]);
+    }
+    return out;
+  }
+
   /// Notifiche delle prossime 3 settimane (senza vacanze): lezioni, riepiloghi, ricreazione...
   static List<Map<String, Object>> reminders(AppStore store, DateTime now) {
-    final ref = store.myRef;
-    final cached = ref == null ? null : store.cached(ref);
-    if (cached == null) return const [];
+    if (store.myScheduleOn(now) == null) return const [];
     final before = store.notifyMinutes;
     final evening = store.opt('n.evening', false);
     final eveningAt = store.opt('n.eveningAt', 20 * 60);
@@ -181,7 +251,6 @@ class NativeBridge {
     final lastHour = store.opt('n.last', false);
     if (before == null && !evening && !morning && !breaks && !end && !holiday && !lastHour) return const [];
     final slots = store.slots;
-    final days = cached.week.days;
     final cal = store.calendar;
     final out = <Map<String, Object>>[];
     DateTime at(DateTime d, int minutes) => DateTime(d.year, d.month, d.day, minutes ~/ 60, minutes % 60);
@@ -194,6 +263,8 @@ class NativeBridge {
     for (var k = 0; k < 22 && out.length < 250; k++) {
       final d = DateTime(now.year, now.month, now.day + k);
       final wd = d.weekday - 1;
+      final days = store.myScheduleOn(d)?.week.days;
+      if (days == null) continue;
       final school = wd < days.length && cal.isSchoolDay(d, daysPerWeek: days.length);
       final prev = DateTime(d.year, d.month, d.day - 1);
 
@@ -208,7 +279,10 @@ class NativeBridge {
         }
       }
       if (!school) continue;
-      final groups = _groups(days[wd], slots);
+      // Entrate posticipate e uscite anticipate: si tengono solo le ore in cui ci sono.
+      final range = store.attendedOn(d, days[wd].lessons.length);
+      if (range == null) continue;
+      final groups = _groups(days[wd], slots).where((g) => g.to >= range.$1 && g.from <= range.$2).toList();
       if (groups.isEmpty) continue;
       final first = groups.first;
       final last = groups.last;

@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Per rimettere le notifiche dopo il riavvio del telefono -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- "Silenzioso a scuola": Non disturbare durante le lezioni (permesso dato dall'utente) -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
     <application
         android:label="Easy Lesson"
@@ -22,6 +24,13 @@
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
+            <!-- Codici condivisi con il QR: la fotocamera apre easylesson://import?d=... -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="easylesson" android:host="import" />
+            </intent-filter>
         </activity>
 
         <!-- Icone dell'app a scelta (vedi AppIcons.kt): se ne accende una sola. -->
@@ -130,6 +139,42 @@
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
         </activity-alias>
+
+        <!-- Widget piccolo e widget agenda (in LessonWidget.kt) -->
+        <receiver
+            android:name=".NextWidget"
+            android:exported="false"
+            android:label="Prossima ora">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/next_widget_info" />
+        </receiver>
+        <receiver
+            android:name=".AgendaWidget"
+            android:exported="false"
+            android:label="Agenda">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/agenda_widget_info" />
+        </receiver>
+
+        <!-- Riquadro "Prossima ora" nelle impostazioni rapide (LessonTile.kt) -->
+        <service
+            android:name=".LessonTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile"
+            android:label="@string/tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
 
         <!-- Controllo aggiornamenti in background (vedi UpdateCheck.kt) -->
         <service

@@ -12,6 +12,7 @@ import 'bag.dart';
 import 'log.dart';
 import 'models.dart';
 import 'school_calendar.dart';
+import 'school_life.dart';
 import 'timetable.dart';
 import 'ui/theme.dart';
 import 'xlsx.dart';
@@ -104,6 +105,10 @@ class AppStore extends ChangeNotifier {
   static const _kBells = 'el.bells';
   static const _kLaunches = 'el.launches';
   static const _kFirstRun = 'el.firstRun';
+  static const _kAbsences = 'el.absences';
+  static const _kGrades = 'el.grades';
+  static const _kPhotos = 'el.photos';
+  static const _kStudy = 'el.study';
   static const _maxRecents = 8;
 
   ThemeMode themeMode = ThemeMode.system;
@@ -218,7 +223,49 @@ class AppStore extends ChangeNotifier {
 
   // ---------------------------------------------------------------- getters
 
-  ScheduleRef? get myRef => _mineKey == null ? null : ScheduleRef.fromKey(_mineKey!);
+  /// Il mio orario di questa settimana (con la settimana A/B, quello giusto).
+  /// Nel weekend vale la settimana che inizia lunedì.
+  ScheduleRef? get myRef => myRefOn(DateTime.now());
+
+  /// Il mio orario "A" (quello scelto con "il mio orario").
+  ScheduleRef? get myMainRef => _mineKey == null ? null : ScheduleRef.fromKey(_mineKey!);
+
+  /// Il mio orario per il giorno [d]: nelle settimane B quello alternativo, se impostato.
+  ScheduleRef? myRefOn(DateTime d) {
+    final main = myMainRef;
+    final alt = altRef;
+    final anchor = DateTime.tryParse(opt('ab.anchor', ''));
+    if (main == null || alt == null || anchor == null || cached(alt) == null) return main;
+    final day = d.weekday > 5 ? d.add(Duration(days: 8 - d.weekday)) : d;
+    return isWeekB(day, anchor) ? alt : main;
+  }
+
+  /// Orario della settimana B (null = niente settimane alternate).
+  ScheduleRef? get altRef {
+    final k = opt('ab.alt', '');
+    return k.isEmpty ? null : ScheduleRef.fromKey(k);
+  }
+
+  /// Orario salvato da usare per il giorno [d].
+  CachedSchedule? myScheduleOn(DateTime d) {
+    final r = myRefOn(d);
+    return r == null ? null : cached(r);
+  }
+
+  /// Assenze, entrate posticipate e uscite anticipate (anche future, se già si sanno).
+  final List<AbsenceEntry> absences = [];
+
+  /// Voti.
+  final List<Grade> grades = [];
+
+  /// Foto attaccate alle lezioni.
+  final List<LessonPhoto> photos = [];
+
+  /// Minuti di studio per materia (timer).
+  final Map<String, int> studyMinutes = {};
+
+  /// Ore in cui sono a scuola quel giorno (indici), dopo entrate e uscite. null = assente.
+  (int, int)? attendedOn(DateTime day, int count) => attendedRange(absences, day, count);
 
   bool isMine(ScheduleRef ref) => ref.key == _mineKey;
 
@@ -353,6 +400,31 @@ class AppStore extends ChangeNotifier {
         ..clear()
         ..addAll(Map<String, Object?>.from(jsonDecode(_prefs.getString(_kExtras) ?? '{}') as Map));
     } catch (_) {/* opzioni non leggibili: si usano quelle predefinite */}
+    List<T> readList<T>(String key, T? Function(dynamic) f) {
+      try {
+        return (jsonDecode(_prefs.getString(key) ?? '[]') as List).map(f).whereType<T>().toList();
+      } catch (e) {
+        AppLog.w('prefs', '$key non leggibile: $e');
+        return [];
+      }
+    }
+
+    absences
+      ..clear()
+      ..addAll(readList(_kAbsences, AbsenceEntry.fromJson));
+    grades
+      ..clear()
+      ..addAll(readList(_kGrades, Grade.fromJson));
+    photos
+      ..clear()
+      ..addAll(readList(_kPhotos, LessonPhoto.fromJson));
+    try {
+      studyMinutes
+        ..clear()
+        ..addAll(Map<String, int>.from(jsonDecode(_prefs.getString(_kStudy) ?? '{}') as Map));
+    } catch (_) {
+      studyMinutes.clear();
+    }
     launches = _prefs.getInt(_kLaunches) ?? 0;
     firstRun = DateTime.tryParse(_prefs.getString(_kFirstRun) ?? '');
     listsUpdatedAt = DateTime.tryParse(_prefs.getString(_kListsAt) ?? '');
@@ -951,6 +1023,74 @@ class AppStore extends ChangeNotifier {
     excelUrl = null;
     _load();
     notifyListeners();
+  }
+
+  // ---------------------------------------------------------------- assenze, voti, foto, studio
+
+  String _newId() => '${DateTime.now().microsecondsSinceEpoch}';
+
+  Future<void> addAbsence({required DateTime date, required String kind, int hour = 1, String note = ''}) async {
+    absences.add(AbsenceEntry(id: _newId(), date: dateOnly(date), kind: kind, hour: hour, note: note.trim()));
+    absences.sort((a, b) => b.date.compareTo(a.date));
+    AppLog.i('assenze', '$kind ${dayKey(date)} ora $hour');
+    await _saveList(_kAbsences, absences.map((a) => a.toJson()));
+  }
+
+  Future<void> removeAbsence(AbsenceEntry a) async {
+    absences.removeWhere((x) => x.id == a.id);
+    await _saveList(_kAbsences, absences.map((a) => a.toJson()));
+  }
+
+  Future<void> addGrade({
+    required DateTime date,
+    required String subject,
+    required double value,
+    double weight = 1,
+    String kind = 'scritto',
+    String note = '',
+  }) async {
+    grades.add(Grade(
+      id: _newId(),
+      date: dateOnly(date),
+      subject: subject.trim(),
+      value: value,
+      weight: weight,
+      kind: kind,
+      note: note.trim(),
+    ));
+    grades.sort((a, b) => b.date.compareTo(a.date));
+    AppLog.i('voti', '$subject ${Grade.format(value)}');
+    await _saveList(_kGrades, grades.map((g) => g.toJson()));
+  }
+
+  Future<void> removeGrade(Grade g) async {
+    grades.removeWhere((x) => x.id == g.id);
+    await _saveList(_kGrades, grades.map((g) => g.toJson()));
+  }
+
+  Future<void> addPhoto({required DateTime date, required String subject, required String path}) async {
+    photos.add(LessonPhoto(id: _newId(), date: dateOnly(date), subject: subject, path: path));
+    photos.sort((a, b) => b.date.compareTo(a.date));
+    await _saveList(_kPhotos, photos.map((p) => p.toJson()));
+  }
+
+  Future<void> removePhoto(LessonPhoto p) async {
+    photos.removeWhere((x) => x.id == p.id);
+    await _saveList(_kPhotos, photos.map((p) => p.toJson()));
+  }
+
+  Future<void> addStudy(String subject, int minutes) async {
+    if (minutes <= 0) return;
+    final k = subject.trim().isEmpty ? 'Studio libero' : subject.trim();
+    studyMinutes[k] = (studyMinutes[k] ?? 0) + minutes;
+    AppLog.i('studio', '$k +$minutes min');
+    notifyListeners();
+    await _prefs.setString(_kStudy, jsonEncode(studyMinutes));
+  }
+
+  Future<void> _saveList(String key, Iterable<Map<String, dynamic>> items) async {
+    notifyListeners();
+    await _prefs.setString(key, jsonEncode(items.toList()));
   }
 
   Future<void> setBetaUpdates(bool v) async {

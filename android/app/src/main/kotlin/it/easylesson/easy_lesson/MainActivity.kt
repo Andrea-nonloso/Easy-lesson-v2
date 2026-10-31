@@ -51,6 +51,24 @@ class MainActivity : FlutterActivity() {
                         )
                         result.success(true)
                     }
+                    "scheduleOne" -> {
+                        val o = JSONObject(call.arguments as? String ?: "{}")
+                        Reminders.one(this, o.getInt("id"), o.getLong("at"), o.optString("title"), o.optString("body"))
+                        result.success(true)
+                    }
+                    "cancelOne" -> {
+                        Reminders.cancelOne(this, (call.arguments as? Int) ?: 7000)
+                        result.success(true)
+                    }
+                    "silenceAllowed" -> result.success(SchoolSilence.allowed(this))
+                    "openSilenceSettings" -> {
+                        SchoolSilence.openSettings(this)
+                        result.success(true)
+                    }
+                    "scheduleSilence" -> {
+                        SchoolSilence.schedule(this, call.arguments as? String ?: "[]")
+                        result.success(true)
+                    }
                     "getAppIcon" -> result.success(AppIcons.current(this))
                     "setAppIcon" -> {
                         AppIcons.set(this, call.arguments as? String ?: "default")
@@ -92,6 +110,8 @@ class MainActivity : FlutterActivity() {
 
     private fun shortcutOf(intent: Intent?): String? {
         val data = intent?.data ?: return null
-        return if (data.scheme == "easylesson") data.host else null
+        if (data.scheme != "easylesson") return null
+        // I codici condivisi con il QR arrivano interi (easylesson://import?d=...).
+        return if (data.host == "import") data.toString() else data.host
     }
 }

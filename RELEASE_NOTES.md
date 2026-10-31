@@ -1,43 +1,44 @@
-## Cosa c'è di nuovo in Easy Lesson 2.4.0
+## ⚠️ VERSIONE BETA — NON CONSIGLIATA
 
-### 🔔 Notifiche complete
+Questa è una **versione di prova del canale Beta**: contiene tante novità ma potrebbe avere difetti. Per l'uso quotidiano scarica sempre l'ultima release stabile.
 
-Nuova pagina Notifiche in Impostazioni: avviso prima di ogni lezione (con materia, aula, prof ed eventuale verifica), ultima ora, ricreazione, "Scuola finita! 🎉", buongiorno prima di entrare e "Domani niente scuola" la sera prima di vacanze e ponti. C'è anche il **riepilogo serale** all'ora che scegli: le ore di domani, le verifiche e cosa mettere nello zaino. Su Android si ripristinano anche dopo il riavvio.
+Serve soprattutto per provare su Android: silenzioso a scuola, widget, riquadro nella tendina, QR, notifiche e le funzioni qui sotto. Se qualcosa non va, segnalalo.
 
-### 🆕 Aggiornamenti in background e canale Beta
+## Cosa c'è di nuovo in questa beta
 
-L'app controlla GitHub ogni 6 ore anche da chiusa: se esce un aggiornamento ti arriva la notifica e, toccandola, scarichi l'APK. In **Impostazioni → Info** puoi scegliere il **canale**: Stabile (solo release vere) o Beta 🧪 (anche le prove). Le versioni si confrontano correttamente, quindi dalla beta torni alla stabile quando esce.
+### 🏫 Vita scolastica
 
-### ✏️ Soprannomi ed emoji
+- **Assenze e permessi**: segna quando manchi o entri ed esci fuori orario; l'app conta le ore perse in tutto e per materia, con una barra verso il limite del 25%. Il monte ore è una stima basata sul tuo orario per 33 settimane.
+- **Entrate posticipate e uscite anticipate**: scrivi "domani entro alla 2ª" e si adattano da sole notifiche, widget, riepilogo serale e silenzioso. Se segni un'assenza, quel giorno non arriva niente.
+- **Voti e medie**: scrivi i voti come 7, 6½, 6+, 8- o 6/7. Media per materia e generale; "Quanto mi serve?" ti dice il voto minimo alla prossima prova per arrivare alla media che vuoi.
+- **Settimana A/B**: scegli un secondo orario salvato da usare nelle settimane B.
 
-In Impostazioni → Aspetto puoi rinominare materie, prof e classi: "Matematica" diventa "🧮 Mate". Si vedono ovunque — orario, home, widget e notifiche — e lo zaino continua a riconoscere la materia.
+### 📱 Android
 
-### 🏫 Scuola
+- **Silenzioso a scuola**: il telefono va in Non disturbare dalla prima all'ultima ora, e torna normale all'uscita. La prima volta Android chiede un permesso speciale (la pagina giusta si apre da sola).
+- **Widget nuovi**: uno piccolo 1×1 con la prossima ora e la sua aula, e uno con l'agenda dei prossimi giorni.
+- **Riquadro "Prossima ora"** nelle impostazioni rapide della tendina.
+- **Scorciatoie e icona** come nella stabile.
 
-- **Orari delle campanelle** modificabili: cambia un'ora, aggiungine o toglile, sposta tutto di ±5 minuti. La ricreazione compare da sola nei buchi.
-- **Calendario scolastico 2026/27** con vacanze e ponti (quelli della scuola li aggiungi a mano). Nei giorni di vacanza la Home dice "Oggi niente scuola · si torna giovedì 7/1".
-- **Dov'è la classe**: in "Adesso a scuola" anche per le classi, con materia e prof.
-- **Conti alla rovescia** in Home: ricreazione, ultima campanella, weekend, feste e fine della scuola.
+### 📸 Condivisione e studio
 
-### 📱 Widget e scorciatoie (Android)
+- **Condividi con un QR**: il tuo orario, il tema, i soprannomi o un backup piccolo. Un amico lo inquadra con la fotocamera e si apre Easy Lesson (oppure "Importa un codice").
+- **Foto della lezione**: tocchi una lezione e scatti o scegli una foto della lavagna, con galleria e zoom. Sul web non c'è.
+- **Timer per studiare**: pomodoro 25/5, oppure 15/3, 45/10 o 60/15. Propone per prime le materie con una verifica in arrivo, conta i minuti studiati per materia e ti avvisa a fine giro anche ad app chiusa.
 
-Widget "Easy Lesson" per la schermata home con la lezione di adesso, la prossima e il laboratorio. Premendo a lungo l'icona dell'app escono le scorciatoie "Il mio orario", "Dov'è il prof" e "Agenda". E puoi cambiare il **colore dell'icona** (7 colori).
+### 💻 Windows e web
 
-### 🎒 Zaino
+- **Notifiche su Windows** (mentre l'app è aperta o ridotta a icona) e **icona vicino all'orologio** con la lezione di adesso e le prossime, con "Chiudi".
+- **Web**: dopo la prima apertura funziona anche offline, e nelle impostazioni c'è la spiegazione per installarla come app (PWA).
 
-Dopo le lezioni la Home ti dice cosa portare il giorno di scuola successivo: libri, camice, tuta, calcolatrice… più compiti e verifiche, con le spunte. Le regole sono tue e si modificano dalla pagina Zaino.
+### 🎮 Divertimento
 
-### 📊 Statistiche e backup
-
-Dal menu ⋮ di un orario: ore per materia, giorno più pesante, ore di laboratorio. In Impostazioni → Dati: **copia di sicurezza** per trasferire tutto su un altro telefono.
-
-### 🛠️ Opzioni sviluppatore ancora più piene
-
-Log, Excel, export .xlsx, laboratorio colori, statistiche d'uso, notifiche programmate, dati del widget, "fai finta di essere vecchio", risposta grezza di GitHub, memoria, rifai setup, test di connessione, grafico prestazioni, vista accessibilità, animazioni al rallentatore e errore finto per il log.
+- **Obiettivi**: 22 medaglie ("Gufo", "DIECI!", "Topo di biblioteca", "Hacker"…) con avviso quando le sblocchi.
+- **Sorprese**: messaggi speciali sotto il "Ciao!" di notte, il primo e l'ultimo giorno di scuola, negli ultimi 10 giorni, a Natale, il primo aprile, ad Halloween, il venerdì pomeriggio e il lunedì mattina. E se prendi 10, l'app festeggia.
 
 ### 📦 Download
 
-- **EasyLesson-Setup-2.4.0.exe** — installer per Windows;
-- **EasyLesson-Windows.zip** — Windows senza installazione;
-- **EasyLesson.apk** — Android (firmato: gli aggiornamenti si installano sopra);
-- **EasyLesson-Web.zip** — versione web.
+- **EasyLesson-Setup-2.5.0-beta.1.exe** — installer Windows;
+- **EasyLesson-Windows.zip** — Windows portabile;
+- **EasyLesson.apk** — Android;
+- **EasyLesson-Web.zip** — web.
