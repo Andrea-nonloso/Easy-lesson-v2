@@ -95,6 +95,9 @@ class DesktopBridge with TrayListener {
 
   @override
   void onTrayMenuItemClick(MenuItem menuItem) {
-    if (menuItem.key == 'exit') exit(0);
+    if (menuItem.key == 'exit') {
+      _timer?.cancel();
+      exit(0);
+    }
   }
 }

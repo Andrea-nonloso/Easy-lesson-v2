@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../models.dart';
@@ -101,40 +99,6 @@ class CompresenzaBadge extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Easter egg
 
-const _battute = [
-  'Il prof di matematica ha un problema. Anzi, ne ha 40 da assegnare per domani.',
-  'La ricreazione dura 10 minuti. La fila alle macchinette 11.',
-  'Il lab di chimica: dove le cose esplodono "per scopi didattici". 🧪',
-  'Fisica nucleare? Qui al massimo spacchiamo i capelli in quattro. ⚛️',
-  'Nessun orario è stato maltrattato durante lo sviluppo di questa app.',
-  'Se stai leggendo questo, la 7ª ora non è ancora finita. Coraggio.',
-];
-
-/// La vecchia sorpresa: una battuta a caso (ora nelle opzioni sviluppatore).
-void showRandomJoke(BuildContext context) {
-  final battuta = _battute[math.Random().nextInt(_battute.length)];
-  showDialog<void>(
-    context: context,
-    builder: (c) => AlertDialog(
-      title: const Text('🎉 Easter egg'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('🧪 ⚛️ 🔬 💻 ⚡ 🏀 📐 ⚙️', style: TextStyle(fontSize: 26)),
-          const SizedBox(height: 14),
-          Text(battuta),
-          const SizedBox(height: 14),
-          const Text('Passa in 1A IT e dì la parola d\'ordine: "Easy Lesson".'),
-        ],
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Ahah, ok')),
-      ],
-    ),
-  );
-}
-
 /// Firma in fondo alle impostazioni. 7 tocchi sulla foglia = opzioni sviluppatore.
 class CreditsFooter extends StatefulWidget {
   const CreditsFooter({super.key, required this.version});
@@ -194,7 +158,7 @@ class _CreditsFooterState extends State<CreditsFooter> {
           ),
           const SizedBox(height: 2),
           Text(
-            'Venite in 1A IT a farmi i complimenti 😎',
+            'Venite in 1A IT a farmi i complimenti',
             textAlign: TextAlign.center,
             style: theme.textTheme.bodySmall?.copyWith(color: muted),
           ),

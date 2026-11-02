@@ -10,6 +10,7 @@ import '../models.dart';
 import '../native.dart';
 import '../store.dart';
 import '../updater.dart';
+import 'achievements.dart';
 import 'widgets.dart';
 
 /// Strumenti in più delle opzioni sviluppatore (notifiche, widget, memoria, rete, interfaccia).
@@ -142,9 +143,39 @@ List<Widget> devExtraTiles(
             'Lingua: ${Localizations.localeOf(context)}',
       ));
     }),
+    const SectionLabel('Diagnostica'),
     tile(Icons.bug_report_outlined, 'Provoca un errore', 'Per vedere se finisce nel log', () {
       AppLog.e('prova', StateError('Errore di prova dalle opzioni sviluppatore'), StackTrace.current);
       toast('Errore scritto nel log');
+    }),
+    const SectionLabel('Memoria'),
+    tile(Icons.refresh_rounded, 'Rileggi tutto dalla memoria', 'Come chiudere e riaprire l\'app', () {
+      store.reload();
+      toast('Riletto');
+    }),
+    tile(Icons.sync_problem_rounded, 'Aggiorna il mio orario adesso', 'E controlla se è cambiato', () async {
+      final changed = await store.refreshMine(olderThan: Duration.zero);
+      toast(changed ? 'L\'orario è cambiato: guarda la home' : 'Nessun cambiamento');
+    }),
+    const SectionLabel('Obiettivi e sorprese'),
+    tile(Icons.compare_arrows_rounded, 'Simula "l\'orario è cambiato"', 'Mostra l\'avviso nella home con due modifiche finte',
+        () {
+      store.simulateScheduleChanges();
+      toast('Guarda la home');
+    }),
+    tile(
+      Icons.celebration_outlined,
+      'Sorpresa di oggi',
+      easterMessage(store, DateTime.now()) ?? 'Oggi nessuna sorpresa nella home',
+      null,
+    ),
+    tile(Icons.lock_open_rounded, 'Sblocca tutti gli obiettivi', '${unlockedIds(store).length}/${achievements.length} sbloccati',
+        () => store.setOpt('ach.done', achievements.map((a) => a.id).join(','))),
+    tile(Icons.restart_alt_rounded, 'Azzera obiettivi e sorprese', 'Si risbloccano man mano', () async {
+      for (final k in ['ach.done', 'ach.qr', 'ach.backup', 'ach.exam', 'ach.pdf', 'egg.night', 'egg.lastDay', 'egg.firstDay']) {
+        await store.setOpt(k, null);
+      }
+      toast('Azzerati');
     }),
   ];
 }

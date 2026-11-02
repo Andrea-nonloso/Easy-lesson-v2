@@ -4,17 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../i18n.dart';
 import '../models.dart';
 import '../native.dart';
 import '../store.dart';
 import '../updater.dart';
 import 'achievements.dart';
+import 'agenda_page.dart' show openAgenda;
 import 'bag_page.dart';
 import 'calendar_page.dart';
 import 'customize_pages.dart';
 import 'dev_page.dart';
 import 'fun.dart';
+import 'more_pages.dart';
 import 'photos_page.dart';
+import 'report_pdf.dart';
 import 'school_life_pages.dart';
 import 'share_qr.dart';
 import 'subjects_page.dart';
@@ -105,28 +109,446 @@ Future<void> showSettingsSheet(BuildContext context) => showModalBottomSheet<voi
       builder: (_) => const SettingsSheet(),
     );
 
-class SettingsSheet extends StatelessWidget {
-  const SettingsSheet({super.key});
+/// Una voce delle impostazioni (cercabile).
+class _Item {
+  const _Item(this.icon, this.title, this.subtitle, this.onTap, {this.keywords = '', this.external = false});
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+  final String keywords;
+  final bool external;
+}
 
-  Future<void> _confirmClear(BuildContext context, AppStore store) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Cancellare gli orari salvati?'),
-        content: const Text('Verranno rimossi tutti gli orari salvati sul dispositivo, compreso il tuo.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Cancella')),
+/// Un gruppo delle impostazioni: si apre in una pagina sua.
+class _Group {
+  const _Group(this.id, this.icon, this.title, this.summary, this.items, {this.extra = const [], this.color});
+  final String id;
+  final IconData icon;
+  final String title;
+  final String summary;
+  final List<_Item> items;
+
+  /// Widget in più in fondo alla pagina del gruppo (non cercabili).
+  final List<Widget> extra;
+  final Color? color;
+}
+
+Future<void> _confirmClear(BuildContext context, AppStore store) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: const Text('Cancellare gli orari salvati?'),
+      content: const Text('Verranno rimossi tutti gli orari salvati sul dispositivo, compreso il tuo.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
+        FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Cancella')),
+      ],
+    ),
+  );
+  if (ok == true) await store.clearAll();
+}
+
+Future<void> _confirmResetOptions(BuildContext context, AppStore store) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: const Text('Ripristinare le opzioni?'),
+      content: const Text(
+        'Home, notifiche, lingua, accessibilità e opzioni varie tornano come appena installata. '
+        'Orari, agenda, voti, assenze, soprannomi e tema restano.',
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
+        FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Ripristina')),
+      ],
+    ),
+  );
+  if (ok == true) await store.resetOptions();
+}
+
+void _open(BuildContext context, Widget page) =>
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
+
+/// Tutte le impostazioni, divise in gruppi.
+List<_Group> _settingsGroups(BuildContext context, AppStore store) {
+  final theme = Theme.of(context);
+  final scheme = theme.colorScheme;
+  final android = NativeBridge.supported;
+  return [
+    _Group(
+      'aspetto',
+      Icons.palette_outlined,
+      tr('Aspetto', 'Appearance'),
+      '${themeById(store.themeId).name} · soprannomi · icona',
+      [
+        _Item(Icons.palette_outlined, tr('Tema', 'Theme'), themeById(store.themeId).name, () => openThemesPage(context),
+            keywords: 'colori scuro chiaro oled sfondo'),
+        _Item(
+          Icons.emoji_emotions_outlined,
+          tr('Soprannomi ed emoji', 'Nicknames and emoji'),
+          nicknames.isEmpty && subjectEmojis.isEmpty
+              ? 'Chiama le materie e i prof come vuoi tu'
+              : '${{...nicknames.keys, ...subjectEmojis.keys}.length} nomi personalizzati',
+          () => openNicknames(context),
+          keywords: 'nomi materie prof rinomina',
+        ),
+        if (android)
+          _Item(Icons.apps_rounded, tr('Icona dell\'app', 'App icon'), 'Verde, blu, viola, rossa, nera…',
+              () => pickAppIcon(context), keywords: 'launcher colore'),
+        _Item(Icons.dashboard_customize_outlined, tr('Home e pagina iniziale', 'Home and start page'),
+            'Cosa vedere nella home, emoji dei laboratori, vibrazione', () => openHomeOptions(context),
+            keywords: 'sezioni scorciatoie conto alla rovescia recenti'),
+        _Item(Icons.translate_rounded, tr('Lingua', 'Language'), store.opt('lang', 'it') == 'en' ? 'English (beta)' : 'Italiano',
+            () => openHomeOptions(context), keywords: 'inglese english'),
+        _Item(
+          Icons.accessibility_new_rounded,
+          tr('Accessibilità', 'Accessibility'),
+          'Testo ${store.opt('a11y.text', 100)}%'
+              '${store.opt('a11y.contrast', false) ? ' · alto contrasto' : ''}'
+              '${store.opt('a11y.font', false) ? ' · font leggibile' : ''}'
+              '${store.opt('a11y.motion', false) ? ' · animazioni ridotte' : ''}',
+          () => openHomeOptions(context),
+          keywords: 'testo grande contrasto dislessia font animazioni',
+        ),
+      ],
+      color: scheme.primary,
+    ),
+    _Group(
+      'notifiche',
+      Icons.notifications_active_outlined,
+      tr('Notifiche', 'Notifications'),
+      android ? _notifySummary(store) : 'Sul telefono Android',
+      [
+        if (android) ...[
+          _Item(Icons.notifications_active_outlined, tr('Notifiche', 'Notifications'), _notifySummary(store),
+              () => openNotifications(context),
+              keywords: 'lezione riepilogo sera buongiorno ricreazione compiti piano studio vacanze'),
+          _Item(Icons.do_not_disturb_on_outlined, 'Silenzioso a scuola',
+              store.opt('silence', false) ? 'Attivo' : 'Non disturbare durante le lezioni', () => openNotifications(context),
+              keywords: 'non disturbare silenzio'),
+          _Item(Icons.notifications_paused_outlined, 'Impostazioni di Android',
+              'Suono e importanza di ogni tipo di notifica', () => NativeBridge.openNotificationSettings(),
+              keywords: 'canali suono vibrazione'),
         ],
+      ],
+      extra: [
+        if (!android)
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Text('Le notifiche si impostano dall\'app Android. Su Windows arrivano le stesse mentre l\'app è aperta.'),
+          ),
+      ],
+      color: Colors.orange,
+    ),
+    _Group(
+      'scuola',
+      Icons.school_outlined,
+      tr('Scuola e orario', 'School and timetable'),
+      'Campanelle, calendario, settimana A/B, prof, zaino',
+      [
+        _Item(
+          Icons.schedule_rounded,
+          tr('Orari delle campanelle', 'Bell times'),
+          store.customBells == null ? 'Quelli della scuola · ${store.slots.length} ore' : 'Scelti da te · ${store.slots.length} ore',
+          () => openBells(context),
+          keywords: 'ricreazione ore inizio fine',
+        ),
+        _Item(
+          Icons.event_busy_outlined,
+          tr('Calendario scolastico', 'School calendar'),
+          store.extraClosures.isEmpty
+              ? 'Vacanze e feste, aggiungi i ponti della scuola'
+              : 'Vacanze e feste · ${store.extraClosures.length} giorni aggiunti da te',
+          () => openSchoolCalendar(context),
+          keywords: 'vacanze ponti feste natale pasqua',
+        ),
+        _Item(
+          Icons.swap_vert_circle_outlined,
+          'Settimana A/B',
+          store.altRef == null ? 'Se l\'orario cambia a settimane alterne' : 'Settimana B: ${store.altRef!.displayName}',
+          () => abWeekDialog(context),
+          keywords: 'alternata',
+        ),
+        _Item(
+          Icons.contact_mail_outlined,
+          tr('I miei prof', 'My teachers'),
+          store.teachers.isEmpty ? 'Ricevimento, email e note' : '${store.teachers.length} con informazioni',
+          () => openTeachers(context),
+          keywords: 'docenti ricevimento email',
+        ),
+        _Item(Icons.backpack_outlined, tr('Zaino', 'Backpack'), 'Regole: camice, tuta, calcolatrice…', () => openBag(context),
+            keywords: 'portare'),
+        _Item(Icons.library_books_outlined, tr('Libri e materiale', 'Books and supplies'),
+            'Per materia e "ogni martedì porta…"', () => openMaterials(context), keywords: 'libri quaderni zaino'),
+        _Item(
+          Icons.badge_outlined,
+          'Materie e codici docenti',
+          subjectOverrides.isEmpty && teacherSubjectOverrides.isEmpty
+              ? 'Es. A026 = Matematica'
+              : '${subjectOverrides.length + teacherSubjectOverrides.length} personalizzazioni',
+          () => _open(context, const SubjectsPage()),
+          keywords: 'classe di concorso',
+        ),
+      ],
+      color: Colors.teal,
+    ),
+    _Group(
+      'studio',
+      Icons.menu_book_outlined,
+      tr('Studio, voti e assenze', 'Study, grades and absences'),
+      '${store.grades.length} voti · ${store.absences.length} assenze',
+      [
+        _Item(Icons.grade_outlined, tr('Voti e medie', 'Grades'),
+            store.grades.isEmpty ? 'E quanto ti serve alla prossima verifica' : '${store.grades.length} voti',
+            () => openGrades(context), keywords: 'media pagella trimestre quadrimestre'),
+        _Item(Icons.event_busy_outlined, tr('Assenze e permessi', 'Absences'),
+            store.absences.isEmpty ? 'Ore perse e limite del 25%' : '${store.absences.length} segnate', () => openAbsences(context),
+            keywords: 'entrata uscita ritardo'),
+        _Item(Icons.menu_book_outlined, tr('Piano di studio', 'Study plan'), 'Il ripasso diviso sui giorni prima',
+            () => openStudyPlan(context), keywords: 'ripasso verifica'),
+        _Item(Icons.timer_outlined, tr('Timer per studiare', 'Study timer'), 'Pomodoro 25/5', () => openStudyTimer(context),
+            keywords: 'pomodoro'),
+        _Item(Icons.hourglass_bottom_rounded, tr('Modalità verifica', 'Exam mode'), 'Conto alla rovescia a tutto schermo',
+            () => openExamMode(context)),
+        _Item(Icons.show_chart_rounded, tr('Grafici', 'Charts'), 'Andamento dei voti e studio per settimana',
+            () => openCharts(context)),
+        _Item(Icons.workspace_premium_outlined, tr('Crediti scolastici', 'School credits'), 'Dal 3º anno',
+            () => openCredits(context), keywords: 'maturità'),
+        if (!kIsWeb)
+          _Item(Icons.photo_library_outlined, tr('Foto delle lezioni', 'Lesson photos'),
+              store.photos.isEmpty ? 'Lavagna e appunti' : '${store.photos.length} foto', () => openPhotos(context),
+              keywords: 'lavagna appunti'),
+      ],
+      color: Colors.indigo,
+    ),
+    _Group(
+      'organizza',
+      Icons.event_note_outlined,
+      tr('Agenda e calendario', 'Planner and calendar'),
+      '${store.agendaFrom(DateTime.now()).length} cose in agenda · ${store.countdowns.length} conti alla rovescia',
+      [
+        _Item(Icons.event_note_rounded, 'Agenda', 'Compiti, verifiche, interrogazioni', () => openAgenda(context),
+            keywords: 'compiti verifiche'),
+        _Item(Icons.calendar_month_outlined, tr('Calendario del mese', 'Monthly calendar'), 'Tutto in un colpo d\'occhio',
+            () => openMonth(context)),
+        _Item(Icons.hourglass_top_rounded, tr('Conti alla rovescia', 'Countdowns'),
+            store.countdowns.isEmpty ? 'Gita, compleanno…' : '${store.countdowns.length} in corso', () => openCountdowns(context),
+            keywords: 'gita compleanno'),
+        _Item(Icons.emoji_events_outlined, tr('Obiettivi', 'Achievements'),
+            '${unlockedIds(store).length} su ${achievements.length} sbloccati', () => openAchievements(context),
+            keywords: 'medaglie'),
+      ],
+      color: Colors.pink,
+    ),
+    _Group(
+      'fonte',
+      Icons.cloud_outlined,
+      tr('Fonte dell\'orario', 'Timetable source'),
+      store.usingExcel ? 'File Excel · ${store.excelName ?? ''}' : 'Server Easy Lesson',
+      [
+        if (!store.usingExcel)
+          _Item(Icons.sync_rounded, 'Aggiorna gli elenchi',
+              store.listsUpdatedAt == null ? 'Mai scaricati' : 'Aggiornati ${relativeTime(store.listsUpdatedAt!)}',
+              () => store.refreshLists(), keywords: 'server classi docenti'),
+        _Item(Icons.upload_file_rounded, store.usingExcel ? 'Importa un altro file Excel' : 'Importa file Excel (.xlsx)',
+            'Il file dell\'orario della scuola: poi funziona tutto offline', () => pickAndImportExcel(context),
+            keywords: 'xlsx offline'),
+        _Item(Icons.link_rounded, 'Scarica Excel da un link', 'Ideale nelle app (Android, Windows)', () => askExcelUrl(context)),
+        if (store.usingExcel)
+          _Item(Icons.cloud_outlined, 'Torna al server Easy Lesson', null, () => store.removeExcel()),
+      ],
+      extra: [
+        if (store.usingExcel)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.table_view_rounded, color: scheme.primary),
+            title: Text(store.excelName ?? 'File Excel'),
+            subtitle: Text(
+              '${store.classi.length} classi · ${store.docenti.length} docenti'
+              '${store.excelAt != null ? ' · importato ${relativeTime(store.excelAt!)}' : ''}'
+              '${store.excelUrl != null ? '\nSi aggiorna dal link' : '\nFunziona tutto offline'}',
+            ),
+            isThreeLine: true,
+            trailing: store.listsLoading
+                ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : (store.excelUrl != null
+                    ? IconButton(tooltip: 'Riscarica', onPressed: () => store.refreshLists(), icon: const Icon(Icons.sync_rounded))
+                    : null),
+          ),
+        if (!store.usingExcel && store.listsLoading) const LinearProgressIndicator(),
+      ],
+      color: Colors.blueGrey,
+    ),
+    _Group(
+      'dati',
+      Icons.save_alt_rounded,
+      tr('Dati e condivisione', 'Data and sharing'),
+      'Backup, QR, resoconto PDF',
+      [
+        _Item(Icons.save_alt_rounded, tr('Copia di sicurezza', 'Backup'), 'Copia tutto o rimettilo su un altro dispositivo',
+            () => _backupSheet(context, store), keywords: 'backup ripristina'),
+        _Item(Icons.qr_code_2_rounded, tr('Condividi con un QR', 'Share with a QR'), 'Il tuo orario, il tema o i soprannomi',
+            () => showShareQr(context), keywords: 'amico'),
+        _Item(Icons.qr_code_scanner_rounded, tr('Importa un codice', 'Import a code'), 'Incolla il codice che ti hanno mandato',
+            () => importCodeDialog(context)),
+        _Item(Icons.picture_as_pdf_outlined, tr('Resoconto PDF', 'PDF report'), 'Voti, medie e assenze per i genitori',
+            () => exportReport(context), keywords: 'genitori stampa'),
+        _Item(Icons.delete_outline_rounded, 'Cancella orari salvati',
+            '${store.favorites.length} salvati · ${store.recents.length} recenti', () => _confirmClear(context, store)),
+        _Item(Icons.settings_backup_restore_rounded, 'Ripristina le opzioni',
+            'Home, notifiche, lingua e accessibilità come appena installata', () => _confirmResetOptions(context, store),
+            keywords: 'reset predefinite'),
+      ],
+      color: Colors.green,
+    ),
+    _Group(
+      'aggiornamenti',
+      Icons.system_update_outlined,
+      tr('Aggiornamenti', 'Updates'),
+      store.betaUpdates ? 'Canale Beta 🧪' : 'Canale Stabile',
+      [
+        _Item(Icons.new_releases_outlined, tr('Novità', 'What\'s new'), 'Le note di ogni versione su GitHub',
+            () => launchUrl(Uri.parse('https://github.com/$githubRepo/releases'), mode: LaunchMode.externalApplication),
+            external: true, keywords: 'changelog versione'),
+      ],
+      extra: [
+        const _UpdateTile(),
+        if (Updater.supported) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Expanded(child: Text('Canale aggiornamenti')),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(value: false, label: Text('Stabile')),
+                  ButtonSegment(value: true, label: Text('Beta 🧪')),
+                ],
+                selected: {store.betaUpdates},
+                onSelectionChanged: (sel) => store.setBetaUpdates(sel.first),
+              ),
+            ],
+          ),
+          if (store.betaUpdates)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Con Beta ricevi le versioni di prova prima degli altri: possono avere qualche difetto.',
+                style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ),
+        ],
+        if (android)
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Avvisami delle nuove versioni'),
+            subtitle: const Text('Controlla GitHub ogni qualche ora, anche ad app chiusa'),
+            value: store.opt('n.updates', true),
+            onChanged: (v) => store.setOpt('n.updates', v ? null : false),
+          ),
+        if (kIsWeb)
+          const ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.install_desktop_rounded),
+            title: Text('Installa come app'),
+            subtitle: Text(
+              'Chrome/Edge: icona di installazione nella barra degli indirizzi. '
+              'iPhone: Condividi → Aggiungi alla schermata Home. Poi funziona anche offline.',
+            ),
+          ),
+      ],
+      color: Colors.deepPurple,
+    ),
+    _Group(
+      'info',
+      Icons.info_outline_rounded,
+      'Info',
+      'Privacy, progetto, segnala un problema',
+      [
+        _Item(Icons.bug_report_outlined, tr('Segnala un problema', 'Report a problem'), 'Apre una segnalazione su GitHub',
+            () => launchUrl(Uri.parse('https://github.com/$githubRepo/issues/new'), mode: LaunchMode.externalApplication),
+            external: true, keywords: 'bug errore idea'),
+        _Item(Icons.code_rounded, 'Easy Lesson 2 su GitHub', 'Il codice di questa versione',
+            () => launchUrl(Uri.parse('https://github.com/$githubRepo'), mode: LaunchMode.externalApplication), external: true),
+        _Item(Icons.history_edu_rounded, 'Progetto originale su GitHub', "Easy Lesson di Daniele D'Alonzo",
+            () => launchUrl(Uri.parse(_githubUrl), mode: LaunchMode.externalApplication), external: true),
+        _Item(Icons.privacy_tip_outlined, 'Privacy policy', null,
+            () => launchUrl(Uri.parse(_privacyUrl), mode: LaunchMode.externalApplication), external: true),
+      ],
+      color: Colors.grey,
+    ),
+    if (store.devMode)
+      _Group(
+        'dev',
+        Icons.science_outlined,
+        tr('Opzioni sviluppatore', 'Developer options'),
+        'Log, notifiche, memoria, rete, interfaccia',
+        [_Item(Icons.science_outlined, tr('Opzioni sviluppatore', 'Developer options'), null, () => openDevPage(context))],
+        color: Colors.red,
+      ),
+  ];
+}
+
+Widget _itemTile(BuildContext context, _Item it) => ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(it.icon, color: Theme.of(context).colorScheme.primary),
+      title: Text(it.title),
+      subtitle: it.subtitle == null || it.subtitle!.isEmpty ? null : Text(it.subtitle!),
+      trailing: Icon(it.external ? Icons.open_in_new_rounded : Icons.chevron_right_rounded, size: it.external ? 18 : null),
+      onTap: it.onTap,
+    );
+
+/// Pagina di un gruppo: si ricostruisce da sola quando cambia qualcosa.
+class _GroupPage extends StatelessWidget {
+  const _GroupPage(this.id);
+  final String id;
+
+  @override
+  Widget build(BuildContext context) {
+    final store = StoreScope.of(context);
+    final g = _settingsGroups(context, store).where((g) => g.id == id).firstOrNull;
+    if (g == null) return const Scaffold();
+    return Scaffold(
+      appBar: AppBar(title: Text(g.title)),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+            children: [
+              for (final it in g.items) _itemTile(context, it),
+              ...g.extra,
+            ],
+          ),
+        ),
       ),
     );
-    if (ok == true) await store.clearAll();
   }
+}
+
+class SettingsSheet extends StatefulWidget {
+  const SettingsSheet({super.key});
+
+  @override
+  State<SettingsSheet> createState() => _SettingsSheetState();
+}
+
+class _SettingsSheetState extends State<SettingsSheet> {
+  String _q = '';
 
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final theme = Theme.of(context);
+    final groups = _settingsGroups(context, store);
+    final q = normalizeSearch(_q);
+    final results = q.isEmpty
+        ? const <(_Group, _Item)>[]
+        : [
+            for (final g in groups)
+              for (final it in g.items)
+                if (normalizeSearch('${it.title} ${it.subtitle ?? ''} ${it.keywords} ${g.title}').contains(q)) (g, it),
+          ];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -141,9 +563,10 @@ class SettingsSheet extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Easy Lesson', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(tr('Impostazioni', 'Settings'),
+                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                     Text(
-                      "L'orario delle lezioni, sempre in tasca",
+                      tr("L'orario delle lezioni, sempre in tasca", 'Your timetable, always in your pocket'),
                       style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                   ],
@@ -151,301 +574,50 @@ class SettingsSheet extends StatelessWidget {
               ),
             ],
           ),
-          const SectionLabel('Aspetto'),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.palette_outlined, color: theme.colorScheme.primary),
-            title: const Text('Tema'),
-            subtitle: Text(themeById(store.themeId).name),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => openThemesPage(context),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.emoji_emotions_outlined, color: theme.colorScheme.primary),
-            title: const Text('Soprannomi ed emoji'),
-            subtitle: Text(nicknames.isEmpty && subjectEmojis.isEmpty
-                ? 'Chiama le materie e i prof come vuoi tu'
-                : '${{...nicknames.keys, ...subjectEmojis.keys}.length} nomi personalizzati'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => openNicknames(context),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.dashboard_customize_outlined, color: theme.colorScheme.primary),
-            title: const Text('Home e app'),
-            subtitle: const Text('Pagina iniziale, cosa vedere nella home, emoji, vibrazione'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => openHomeOptions(context),
-          ),
-          if (NativeBridge.supported)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.apps_rounded, color: theme.colorScheme.primary),
-              title: const Text("Icona dell'app"),
-              subtitle: const Text('Verde, blu, viola, rossa, nera…'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => pickAppIcon(context),
+          const SizedBox(height: 14),
+          TextField(
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search_rounded),
+              hintText: tr('Cerca un\'impostazione…', 'Search settings…'),
+              isDense: true,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(28)),
             ),
-          const SectionLabel('Scuola'),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.event_busy_outlined, color: theme.colorScheme.primary),
-            title: const Text('Assenze e permessi'),
-            subtitle: Text(store.absences.isEmpty
-                ? 'Ore perse, limite del 25%, entrate e uscite fuori orario'
-                : '${store.absences.length} segnate · entrate e uscite cambiano notifiche e widget'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => openAbsences(context),
+            onChanged: (v) => setState(() => _q = v),
           ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.grade_outlined, color: theme.colorScheme.primary),
-            title: const Text('Voti e medie'),
-            subtitle: Text(store.grades.isEmpty ? 'E quanto ti serve alla prossima verifica' : '${store.grades.length} voti'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => openGrades(context),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.timer_outlined, color: theme.colorScheme.primary),
-            title: const Text('Timer per studiare'),
-            subtitle: const Text('Pomodoro 25/5, con le materie delle verifiche'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => openStudyTimer(context),
-          ),
-          if (!kIsWeb)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.photo_library_outlined, color: theme.colorScheme.primary),
-              title: const Text('Foto delle lezioni'),
-              subtitle: Text(store.photos.isEmpty
-                  ? 'Lavagna e appunti: tocca una lezione per fotografarla'
-                  : '${store.photos.length} foto'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => openPhotos(context),
-            ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.swap_vert_circle_outlined, color: theme.colorScheme.primary),
-            title: const Text('Settimana A/B'),
-            subtitle: Text(store.altRef == null
-                ? 'Se l\'orario cambia a settimane alterne'
-                : 'Settimana B: ${store.altRef!.displayName}'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => abWeekDialog(context),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.schedule_rounded, color: theme.colorScheme.primary),
-            title: const Text('Orari delle campanelle'),
-            subtitle: Text(store.customBells == null
-                ? 'Quelli della scuola · ${store.slots.length} ore'
-                : 'Scelti da te · ${store.slots.length} ore'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => openBells(context),
-          ),
-          if (NativeBridge.supported)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.notifications_active_outlined, color: theme.colorScheme.primary),
-              title: const Text('Notifiche'),
-              subtitle: Text(_notifySummary(store)),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => openNotifications(context),
-            ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.backpack_outlined, color: theme.colorScheme.primary),
-            title: const Text('Zaino'),
-            subtitle: const Text('Cosa portare domani: camice, tuta, calcolatrice…'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => openBag(context),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.event_busy_outlined, color: theme.colorScheme.primary),
-            title: const Text('Calendario scolastico'),
-            subtitle: Text(store.extraClosures.isEmpty
-                ? 'Vacanze e feste, aggiungi i ponti della scuola'
-                : 'Vacanze e feste · ${store.extraClosures.length} giorni aggiunti da te'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => openSchoolCalendar(context),
-          ),
-          const SectionLabel("Fonte dell'orario"),
-          if (store.usingExcel) ...[
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.table_view_rounded, color: theme.colorScheme.primary),
-              title: Text(store.excelName ?? 'File Excel'),
-              subtitle: Text(
-                '${store.classi.length} classi · ${store.docenti.length} docenti'
-                '${store.excelAt != null ? ' · importato ${relativeTime(store.excelAt!)}' : ''}'
-                '${store.excelUrl != null ? '\nSi aggiorna dal link' : '\nFunziona tutto offline'}',
+          const SizedBox(height: 8),
+          if (q.isNotEmpty) ...[
+            if (results.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(tr('Nessuna impostazione trovata', 'Nothing found'), textAlign: TextAlign.center),
               ),
-              isThreeLine: true,
-              trailing: store.listsLoading
-                  ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : (store.excelUrl != null
-                      ? IconButton(
-                          tooltip: 'Riscarica',
-                          onPressed: () => store.refreshLists(),
-                          icon: const Icon(Icons.sync_rounded),
-                        )
-                      : null),
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.upload_file_rounded),
-              title: const Text('Importa un altro file Excel'),
-              onTap: () => pickAndImportExcel(context),
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.cloud_outlined),
-              title: const Text('Torna al server Easy Lesson'),
-              onTap: () => store.removeExcel(),
-            ),
-          ] else ...[
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.cloud_done_outlined, color: theme.colorScheme.primary),
-              title: const Text('Server Easy Lesson'),
-              subtitle: Text(store.listsUpdatedAt == null
-                  ? 'Elenchi mai scaricati'
-                  : 'Elenchi aggiornati ${relativeTime(store.listsUpdatedAt!)}'),
-              trailing: store.listsLoading
-                  ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : IconButton(
-                      tooltip: 'Aggiorna elenchi',
-                      onPressed: () => store.refreshLists(),
-                      icon: const Icon(Icons.sync_rounded),
-                    ),
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.upload_file_rounded),
-              title: const Text('Importa file Excel (.xlsx)'),
-              subtitle: const Text("Il file dell'orario della scuola: poi funziona tutto offline"),
-              onTap: () => pickAndImportExcel(context),
-            ),
-          ],
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.link_rounded),
-            title: const Text('Scarica Excel da un link'),
-            subtitle: const Text('Ideale nelle app (Android, Windows); dal browser alcuni siti lo bloccano'),
-            onTap: () => askExcelUrl(context),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.badge_outlined),
-            title: const Text('Materie e codici docenti'),
-            subtitle: Text(
-              subjectOverrides.isEmpty && teacherSubjectOverrides.isEmpty
-                  ? 'Es. A026 = Matematica'
-                  : '${subjectOverrides.length + teacherSubjectOverrides.length} personalizzazioni',
-            ),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const SubjectsPage()),
-            ),
-          ),
-          const SectionLabel('Dati'),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.delete_outline_rounded),
-            title: const Text('Cancella orari salvati'),
-            subtitle: Text('${store.favorites.length} salvati · ${store.recents.length} recenti'),
-            onTap: () => _confirmClear(context, store),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.save_alt_rounded),
-            title: const Text('Copia di sicurezza'),
-            subtitle: const Text('Copia tutte le impostazioni e i dati, o rimettili su un altro dispositivo'),
-            onTap: () => _backupSheet(context, store),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.qr_code_2_rounded),
-            title: const Text('Condividi con un QR'),
-            subtitle: const Text('Il tuo orario, il tema o i soprannomi a un amico'),
-            onTap: () => showShareQr(context),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.qr_code_scanner_rounded),
-            title: const Text('Importa un codice'),
-            subtitle: const Text('Incolla il codice che ti hanno mandato'),
-            onTap: () => importCodeDialog(context),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.emoji_events_outlined),
-            title: const Text('Obiettivi'),
-            subtitle: Text('${unlockedIds(store).length} su ${achievements.length} sbloccati'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => openAchievements(context),
-          ),
-          if (kIsWeb)
-            const ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.install_desktop_rounded),
-              title: Text('Installa come app'),
-              subtitle: Text(
-                'Chrome/Edge: icona di installazione nella barra degli indirizzi. '
-                'iPhone: Condividi → Aggiungi alla schermata Home. Poi funziona anche offline.',
+            for (final r in results)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(r.$2.icon, color: theme.colorScheme.primary),
+                title: Text(r.$2.title),
+                subtitle: Text(r.$1.title),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: r.$2.onTap,
               ),
-            ),
-          const SectionLabel('Info'),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.privacy_tip_outlined),
-            title: const Text('Privacy policy'),
-            trailing: const Icon(Icons.open_in_new_rounded, size: 18),
-            onTap: () => launchUrl(Uri.parse(_privacyUrl), mode: LaunchMode.externalApplication),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.code_rounded),
-            title: const Text('Progetto originale su GitHub'),
-            subtitle: const Text("Easy Lesson di Daniele D'Alonzo"),
-            trailing: const Icon(Icons.open_in_new_rounded, size: 18),
-            onTap: () => launchUrl(Uri.parse(_githubUrl), mode: LaunchMode.externalApplication),
-          ),
-          const _UpdateTile(),
-          if (Updater.supported)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  const Expanded(child: Text('Canale aggiornamenti')),
-                  SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment(value: false, label: Text('Stabile')),
-                      ButtonSegment(value: true, label: Text('Beta 🧪')),
-                    ],
-                    selected: {store.betaUpdates},
-                    onSelectionChanged: (sel) => store.setBetaUpdates(sel.first),
+          ] else
+            for (final g in groups)
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(vertical: 2),
+                leading: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: (g.color ?? theme.colorScheme.primary).withAlpha(36),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                ],
+                  child: Icon(g.icon, color: g.color ?? theme.colorScheme.primary),
+                ),
+                title: Text(g.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(g.summary, maxLines: 1, overflow: TextOverflow.ellipsis),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => g.items.length == 1 && g.extra.isEmpty ? g.items.first.onTap() : _open(context, _GroupPage(g.id)),
               ),
-            ),
-          if (Updater.supported && store.betaUpdates)
-            Text(
-              'Con Beta ricevi le versioni di prova prima degli altri: possono avere qualche difetto.',
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          if (store.devMode)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.science_outlined, color: theme.colorScheme.primary),
-              title: const Text('Opzioni sviluppatore'),
-              subtitle: const Text('Log, file Excel, esportazioni, laboratorio colori'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => openDevPage(context),
-            ),
           FutureBuilder<String>(
             future: Updater.currentVersion(),
             builder: (context, snap) => CreditsFooter(version: snap.data ?? ''),

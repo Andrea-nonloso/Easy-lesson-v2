@@ -164,6 +164,18 @@
                 android:resource="@xml/agenda_widget_info" />
         </receiver>
 
+        <receiver
+            android:name=".GradesWidget"
+            android:exported="false"
+            android:label="Voti">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/grades_widget_info" />
+        </receiver>
+
         <!-- Riquadro "Prossima ora" nelle impostazioni rapide (LessonTile.kt) -->
         <service
             android:name=".LessonTile"

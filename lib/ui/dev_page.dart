@@ -9,7 +9,6 @@ import '../updater.dart';
 import '../xlsx_write.dart';
 import 'color_lab.dart';
 import 'dev_tools.dart';
-import 'fun.dart';
 import 'save_file_io.dart' if (dart.library.js_interop) 'save_file_web.dart';
 import 'widgets.dart';
 
@@ -40,8 +39,8 @@ class DevPage extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 640),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-            children: [
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+            children: _grouped(context, [
               const SectionLabel('Diagnostica'),
               ValueListenableBuilder<int>(
                 valueListenable: AppLog.revision,
@@ -92,7 +91,6 @@ class DevPage extends StatelessWidget {
                 () => openThemeLab(context),
               ),
               const SectionLabel('Altro'),
-              tile(Icons.sentiment_very_satisfied_rounded, 'Una battuta a caso', null, () => showRandomJoke(context)),
               tile(
                 Icons.lock_outline_rounded,
                 'Disattiva opzioni sviluppatore',
@@ -102,12 +100,64 @@ class DevPage extends StatelessWidget {
                   Navigator.of(context).pop();
                 },
               ),
-            ],
+            ]),
           ),
         ),
       ),
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Schede apribili, nell'ordine giusto
+
+/// Ordine e icona delle schede; i nomi a sinistra vengono uniti in quella a destra.
+const _devOrder = [
+  ('Diagnostica', Icons.monitor_heart_outlined),
+  ('Notifiche e widget', Icons.notifications_active_outlined),
+  ('Aggiornamenti', Icons.system_update_outlined),
+  ('Dati e memoria', Icons.storage_rounded),
+  ('Rete', Icons.network_check_rounded),
+  ('Interfaccia e temi', Icons.brush_outlined),
+  ('Obiettivi e sorprese', Icons.emoji_events_outlined),
+  ('Altro', Icons.more_horiz_rounded),
+];
+
+const _devMerge = {'Memoria': 'Dati e memoria', 'Excel': 'Dati e memoria', 'Interfaccia': 'Interfaccia e temi', 'Temi': 'Interfaccia e temi'};
+
+/// Trasforma la lista piatta (divisa da SectionLabel) in schede apribili.
+List<Widget> _grouped(BuildContext context, List<Widget> flat) {
+  final groups = <String, List<Widget>>{};
+  var current = 'Diagnostica';
+  for (final w in flat) {
+    if (w is SectionLabel) {
+      current = _devMerge[w.text] ?? w.text;
+      continue;
+    }
+    (groups[current] ??= []).add(w);
+  }
+  final scheme = Theme.of(context).colorScheme;
+  final names = [
+    for (final o in _devOrder) if (groups.containsKey(o.$1)) o.$1,
+    for (final k in groups.keys) if (!_devOrder.any((o) => o.$1 == k)) k,
+  ];
+  return [
+    for (final name in names)
+      Card(
+        margin: const EdgeInsets.symmetric(vertical: 5),
+        clipBehavior: Clip.antiAlias,
+        child: ExpansionTile(
+          key: PageStorageKey('dev-$name'),
+          initiallyExpanded: name == 'Diagnostica',
+          leading: Icon(_devOrder.firstWhere((o) => o.$1 == name, orElse: () => (name, Icons.tune_rounded)).$2,
+              color: scheme.primary),
+          title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+          subtitle: Text('${groups[name]!.length} strumenti'),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          children: groups[name]!,
+        ),
+      ),
+  ];
 }
 
 // ---------------------------------------------------------------------------

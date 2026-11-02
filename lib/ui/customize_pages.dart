@@ -467,6 +467,44 @@ class HomeOptionsPage extends StatelessWidget {
         sw('home.next', Icons.view_agenda_outlined, 'Lezioni del giorno', null),
         sw('home.recents', Icons.history_rounded, 'Orari salvati e recenti', null),
         sw('home.shortcuts', Icons.bolt_rounded, 'Scorciatoie rapide', 'Dov\'è il prof, Agenda, Zaino…'),
+        const SectionLabel('Lingua'),
+        SegmentedButton<String>(
+          segments: const [
+            ButtonSegment(value: 'it', label: Text('🇮🇹 Italiano')),
+            ButtonSegment(value: 'en', label: Text('🇬🇧 English (beta)')),
+          ],
+          selected: {store.opt('lang', 'it')},
+          onSelectionChanged: (s) => store.setLanguage(s.first),
+        ),
+        if (store.opt('lang', 'it') == 'en')
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              'Menus, days, dates and main screens are in English; some pages are still in Italian.',
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+            ),
+          ),
+        const SectionLabel('Accessibilità'),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.format_size_rounded, color: scheme.primary),
+          title: const Text('Dimensione del testo'),
+          subtitle: Slider(
+            value: store.opt('a11y.text', 100).toDouble(),
+            min: 85,
+            max: 160,
+            divisions: 15,
+            label: '${store.opt('a11y.text', 100)}%',
+            onChanged: (v) => store.setOpt('a11y.text', v.round() == 100 ? null : v.round()),
+          ),
+          trailing: Text('${store.opt('a11y.text', 100)}%'),
+        ),
+        sw('a11y.contrast', Icons.contrast_rounded, 'Alto contrasto', 'Testi grigi più scuri e bordi più marcati', def: false),
+        sw('a11y.motion', Icons.animation_rounded, 'Riduci le animazioni', 'Meno movimento negli sfondi e nei passaggi',
+            def: false),
+        sw('a11y.font', Icons.font_download_outlined, 'Font ad alta leggibilità',
+            'Lexend, con più spazio tra lettere e righe: aiuta con la dislessia (la prima volta serve internet)',
+            def: false),
         const SectionLabel('Orario'),
         sw('ui.emoji', Icons.emoji_emotions_outlined, 'Emoji dei laboratori', '🧪 Chimica, 💻 Informatica…'),
         sw('ui.haptic', Icons.vibration_rounded, 'Vibrazione', 'Un piccolo tocco quando cambi pagina', def: false),
@@ -649,6 +687,34 @@ class NotificationsPage extends StatelessWidget {
           ),
         sw('n.holiday', Icons.beach_access_outlined, 'Giorni senza scuola',
             'La sera prima di vacanze, feste e ponti'),
+        sw('n.homework', Icons.assignment_late_outlined, 'Compiti non fatti',
+            'Il pomeriggio prima, se in agenda ci sono compiti per domani non ancora spuntati'),
+        if (store.opt('n.homework', false))
+          ListTile(
+            contentPadding: const EdgeInsets.only(left: 56),
+            title: const Text('Ora dell\'avviso'),
+            trailing: TextButton(
+              onPressed: () async {
+                final v = await _pickTime(context, store.opt('n.homeworkAt', 18 * 60), help: 'Compiti non fatti');
+                if (v != null) await store.setOpt('n.homeworkAt', v == 18 * 60 ? null : v);
+              },
+              child: Text(_hhmm(store.opt('n.homeworkAt', 18 * 60))),
+            ),
+          ),
+        sw('n.plan', Icons.menu_book_outlined, 'Piano di studio',
+            'Ogni pomeriggio cosa ripassare per le verifiche in arrivo'),
+        if (store.opt('n.plan', false))
+          ListTile(
+            contentPadding: const EdgeInsets.only(left: 56),
+            title: const Text('Ora del ripasso'),
+            trailing: TextButton(
+              onPressed: () async {
+                final v = await _pickTime(context, store.opt('n.planAt', 16 * 60), help: 'Piano di studio');
+                if (v != null) await store.setOpt('n.planAt', v == 16 * 60 ? null : v);
+              },
+              child: Text(_hhmm(store.opt('n.planAt', 16 * 60))),
+            ),
+          ),
         const SectionLabel('A scuola'),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,

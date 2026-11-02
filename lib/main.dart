@@ -2,6 +2,7 @@ import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'log.dart';
 import 'store.dart';
@@ -24,11 +25,30 @@ class EasyLessonApp extends StatelessWidget {
 
   static final Map<String, ThemeData> _themes = {};
 
-  static ThemeData _theme(AppThemeSpec spec, Brightness b) =>
+  static ThemeData _theme(AppThemeSpec spec, Brightness b, {bool contrast = false, bool readable = false}) =>
       _themes.putIfAbsent(
         '${spec.id}-${spec.seed.toARGB32()}-${spec.background?.toARGB32()}-${spec.card?.toARGB32()}'
-        '-${spec.nav?.toARGB32()}-${spec.pureBlack}-${b.name}',
-        () => buildTheme(b, spec),
+        '-${spec.nav?.toARGB32()}-${spec.pureBlack}-${b.name}-$contrast-$readable',
+        () {
+          var t = buildTheme(b, spec);
+          // Accessibilità: testi secondari e bordi più marcati.
+          if (contrast) {
+            final c = t.colorScheme;
+            t = t.copyWith(
+              colorScheme: c.copyWith(onSurfaceVariant: c.onSurface, outline: c.onSurface, outlineVariant: c.onSurfaceVariant),
+            );
+          }
+          // Font ad alta leggibilità (Lexend), più spazio tra lettere e righe.
+          if (readable) {
+            TextTheme spaced(TextTheme x) => GoogleFonts.lexendTextTheme(x).apply(fontSizeFactor: 1.0).copyWith(
+                  bodyLarge: GoogleFonts.lexend(textStyle: x.bodyLarge?.copyWith(letterSpacing: 0.4, height: 1.5)),
+                  bodyMedium: GoogleFonts.lexend(textStyle: x.bodyMedium?.copyWith(letterSpacing: 0.4, height: 1.5)),
+                  bodySmall: GoogleFonts.lexend(textStyle: x.bodySmall?.copyWith(letterSpacing: 0.4, height: 1.5)),
+                );
+            t = t.copyWith(textTheme: spaced(t.textTheme), primaryTextTheme: spaced(t.primaryTextTheme));
+          }
+          return t;
+        },
       );
 
   @override
@@ -46,7 +66,7 @@ class EasyLessonApp extends StatelessWidget {
           showPerformanceOverlay: store.opt('dev.perf', false),
           showSemanticsDebugger: store.opt('dev.semantics', false),
           // Calendario, orologio e testi dei componenti in italiano.
-          locale: const Locale('it'),
+          locale: Locale(store.opt('lang', 'it')),
           supportedLocales: const [Locale('it'), Locale('en')],
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
           themeMode: switch (spec.brightness) {
@@ -54,10 +74,23 @@ class EasyLessonApp extends StatelessWidget {
             Brightness.dark => ThemeMode.dark,
             null => ThemeMode.system,
           },
-          theme: _theme(spec, spec.brightness ?? Brightness.light),
-          darkTheme: _theme(spec, spec.brightness ?? Brightness.dark),
-          // Sfondo del tema (anche animato) dietro a tutte le schermate
-          builder: (context, child) => AppBackdrop(child: child ?? const SizedBox()),
+          theme: _theme(spec, spec.brightness ?? Brightness.light,
+              contrast: store.opt('a11y.contrast', false), readable: store.opt('a11y.font', false)),
+          darkTheme: _theme(spec, spec.brightness ?? Brightness.dark,
+              contrast: store.opt('a11y.contrast', false), readable: store.opt('a11y.font', false)),
+          // Sfondo del tema (anche animato) dietro a tutte le schermate, con la dimensione del testo scelta.
+          builder: (context, child) {
+            final mq = MediaQuery.of(context);
+            final scale = store.opt('a11y.text', 100) / 100;
+            return MediaQuery(
+              data: mq.copyWith(
+                textScaler: scale == 1 ? mq.textScaler : TextScaler.linear(mq.textScaler.scale(1) * scale),
+                highContrast: mq.highContrast || store.opt('a11y.contrast', false),
+                disableAnimations: mq.disableAnimations || store.opt('a11y.motion', false),
+              ),
+              child: AppBackdrop(child: child ?? const SizedBox()),
+            );
+          },
           scrollBehavior: const _AppScrollBehavior(),
           home: store.setupDone ? const HomeShell() : const OnboardingPage(),
           );

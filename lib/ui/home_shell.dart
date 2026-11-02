@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show timeDilation;
 import 'package:flutter/services.dart';
 
+import '../i18n.dart';
 import '../native.dart';
 import '../store.dart';
 import '../updater.dart';
@@ -15,6 +16,7 @@ import 'home_page.dart';
 import 'now_page.dart';
 import 'saved_page.dart';
 import 'schedule_screen.dart';
+import 'school_life_pages.dart';
 import 'search_page.dart';
 import 'settings_sheet.dart';
 import 'share_qr.dart';
@@ -46,12 +48,12 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     timeDilation = store.opt('dev.slow', false) ? 5.0 : 1.0;
   }
 
-  static const _destinations = [
-    (icon: Icons.home_outlined, selected: Icons.home_rounded, label: 'Home'),
-    (icon: Icons.today_outlined, selected: Icons.today_rounded, label: 'Orario'),
-    (icon: Icons.search_rounded, selected: Icons.search_rounded, label: 'Cerca'),
-    (icon: Icons.bookmark_border_rounded, selected: Icons.bookmark_rounded, label: 'Salvati'),
-  ];
+  static List<({IconData icon, IconData selected, String label})> get _destinations => [
+        (icon: Icons.home_outlined, selected: Icons.home_rounded, label: 'Home'),
+        (icon: Icons.today_outlined, selected: Icons.today_rounded, label: tr('Orario', 'Timetable')),
+        (icon: Icons.search_rounded, selected: Icons.search_rounded, label: tr('Cerca', 'Search')),
+        (icon: Icons.bookmark_border_rounded, selected: Icons.bookmark_rounded, label: tr('Salvati', 'Saved')),
+      ];
 
   @override
   void initState() {
@@ -65,6 +67,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       store.addListener(_onStoreChanged);
       NativeBridge.scheduleSync(store);
       DesktopBridge.init(store);
+      _checkScheduleChanges();
       _achTimer = Timer(const Duration(seconds: 3), () {
         if (mounted) checkAchievements(context);
       });
@@ -86,6 +89,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && _store != null) {
       NativeBridge.scheduleSync(_store!);
+      _checkScheduleChanges();
       // Si ricontrolla GitHub quando si torna nell'app (al massimo ogni 3 ore).
       final last = Updater.lastCheck;
       if (last == null || DateTime.now().difference(last) > const Duration(hours: 3)) _checkUpdates();
@@ -122,6 +126,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         openNowAtSchool(context);
       case 'agenda':
         openAgenda(context);
+      case 'grades':
+        openGrades(context);
     }
   }
 
@@ -135,6 +141,20 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       content: Text('È disponibile Easy Lesson ${info.version}${info.prerelease ? ' (beta)' : ''}'),
       action: SnackBarAction(label: 'Aggiorna', onPressed: () => Updater.open(info)),
     ));
+  }
+
+  /// Riscarica il mio orario (se vecchio di 6 ore) e avvisa se è cambiato.
+  Future<void> _checkScheduleChanges() async {
+    final store = _store;
+    if (store == null) return;
+    if (await store.refreshMine()) {
+      final list = store.scheduleChanges ?? const [];
+      await NativeBridge.notifyNow(
+        'L\'orario è cambiato! 🔄',
+        list.length == 1 ? list.first : '${list.length} modifiche: ${list.take(3).join(' · ')}',
+      );
+      DesktopBridge.notify('L\'orario è cambiato! 🔄', list.take(3).join('\n'));
+    }
   }
 
   void _go(int i) {

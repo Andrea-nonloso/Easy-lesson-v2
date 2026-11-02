@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -58,6 +59,26 @@ class MainActivity : FlutterActivity() {
                     }
                     "cancelOne" -> {
                         Reminders.cancelOne(this, (call.arguments as? Int) ?: 7000)
+                        result.success(true)
+                    }
+                    "openNotificationSettings" -> {
+                        val i = if (Build.VERSION.SDK_INT >= 26) {
+                            Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName)
+                        } else {
+                            Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                .setData(android.net.Uri.parse("package:$packageName"))
+                        }
+                        startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        result.success(true)
+                    }
+                    "keepScreenOn" -> {
+                        if (call.arguments == true) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        result.success(true)
+                    }
+                    "silenceNow" -> {
+                        SchoolSilence.apply(this, call.arguments == true)
                         result.success(true)
                     }
                     "silenceAllowed" -> result.success(SchoolSilence.allowed(this))

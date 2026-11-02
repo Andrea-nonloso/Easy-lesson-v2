@@ -2,7 +2,7 @@ name: easy_lesson
 description: Easy Lesson 2 - l'orario delle lezioni dell'IIS Rosselli, su telefono, tablet e web. Funziona anche offline.
 publish_to: 'none'
 
-version: 2.5.0+27
+version: 2.6.0+28
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -24,6 +24,9 @@ dependencies:
   path_provider: ^2.1.4
   local_notifier: '>=0.1.6 <1.0.0'
   tray_manager: '>=0.2.3 <1.0.0'
+  # 2.6.0: resoconto PDF, font ad alta leggibilità
+  pdf: ^3.11.1
+  google_fonts: '>=6.2.1 <8.0.0'
 
 dev_dependencies:
   flutter_test:

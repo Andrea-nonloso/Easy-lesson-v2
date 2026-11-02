@@ -12,7 +12,9 @@ import 'bag.dart';
 import 'log.dart';
 import 'models.dart';
 import 'school_calendar.dart';
+import 'school_extra.dart';
 import 'school_life.dart';
+import 'i18n.dart';
 import 'timetable.dart';
 import 'ui/theme.dart';
 import 'xlsx.dart';
@@ -109,6 +111,12 @@ class AppStore extends ChangeNotifier {
   static const _kGrades = 'el.grades';
   static const _kPhotos = 'el.photos';
   static const _kStudy = 'el.study';
+  static const _kStudyLog = 'el.studyLog';
+  static const _kTeachers = 'el.teachers';
+  static const _kMaterials = 'el.materials';
+  static const _kWeekly = 'el.weekly';
+  static const _kCountdowns = 'el.countdowns';
+  static const _kChanges = 'el.changes';
   static const _maxRecents = 8;
 
   ThemeMode themeMode = ThemeMode.system;
@@ -263,6 +271,25 @@ class AppStore extends ChangeNotifier {
 
   /// Minuti di studio per materia (timer).
   final Map<String, int> studyMinutes = {};
+
+  /// Minuti di studio per giorno ("2026-11-3" -> minuti), per i grafici.
+  final Map<String, int> studyLog = {};
+
+  /// Ricevimento, email e note dei prof (nome come nell'orario -> info).
+  final Map<String, TeacherInfo> teachers = {};
+
+  /// Libri e materiale per materia (nome originale -> cose da portare).
+  final Map<String, List<String>> materials = {};
+
+  /// Cose da portare ogni settimana in un certo giorno.
+  final List<WeeklyItem> weeklyItems = [];
+
+  /// Conti alla rovescia personali (gita, compleanno…).
+  final List<CountdownEvent> countdowns = [];
+
+  /// Ultime modifiche trovate nel mio orario (null = nessuna da mostrare).
+  List<String>? scheduleChanges;
+  DateTime? scheduleChangesAt;
 
   /// Ore in cui sono a scuola quel giorno (indici), dopo entrate e uscite. null = assente.
   (int, int)? attendedOn(DateTime day, int count) => attendedRange(absences, day, count);
@@ -425,6 +452,35 @@ class AppStore extends ChangeNotifier {
     } catch (_) {
       studyMinutes.clear();
     }
+    Map<String, dynamic> readMapJson(String key) {
+      try {
+        return Map<String, dynamic>.from(jsonDecode(_prefs.getString(key) ?? '{}') as Map);
+      } catch (_) {
+        return {};
+      }
+    }
+
+    studyLog
+      ..clear()
+      ..addAll({for (final e in readMapJson(_kStudyLog).entries) e.key: (e.value as num).toInt()});
+    teachers
+      ..clear()
+      ..addAll({for (final e in readMapJson(_kTeachers).entries) e.key: TeacherInfo.fromJson(e.value)});
+    materials
+      ..clear()
+      ..addAll({
+        for (final e in readMapJson(_kMaterials).entries) e.key: [for (final x in e.value as List) '$x'],
+      });
+    weeklyItems
+      ..clear()
+      ..addAll(readList(_kWeekly, WeeklyItem.fromJson));
+    countdowns
+      ..clear()
+      ..addAll(readList(_kCountdowns, CountdownEvent.fromJson));
+    final ch = readMapJson(_kChanges);
+    scheduleChanges = ch['list'] is List ? [for (final x in ch['list'] as List) '$x'] : null;
+    scheduleChangesAt = DateTime.tryParse('${ch['at']}');
+    appEnglish = opt('lang', 'it') == 'en';
     launches = _prefs.getInt(_kLaunches) ?? 0;
     firstRun = DateTime.tryParse(_prefs.getString(_kFirstRun) ?? '');
     listsUpdatedAt = DateTime.tryParse(_prefs.getString(_kListsAt) ?? '');
@@ -507,6 +563,16 @@ class AppStore extends ChangeNotifier {
     }
     final old = _schedules[ref.key];
     final now = DateTime.now();
+    // Il mio orario è cambiato? Si confronta con quello salvato.
+    if (old != null && ref == myMainRef) {
+      final diff = scheduleDiff(old.week, WeekSchedule.fromJson(raw, prof: ref.prof));
+      if (diff.isNotEmpty) {
+        scheduleChanges = diff;
+        scheduleChangesAt = now;
+        AppLog.i('orario', 'Il mio orario è cambiato: ${diff.length} differenze');
+        await _prefs.setString(_kChanges, jsonEncode({'list': diff, 'at': now.toIso8601String()}));
+      }
+    }
     _schedules[ref.key] = CachedSchedule(
       ref: ref,
       raw: raw,
@@ -1083,9 +1149,99 @@ class AppStore extends ChangeNotifier {
     if (minutes <= 0) return;
     final k = subject.trim().isEmpty ? 'Studio libero' : subject.trim();
     studyMinutes[k] = (studyMinutes[k] ?? 0) + minutes;
+    final day = isoDay(DateTime.now());
+    studyLog[day] = (studyLog[day] ?? 0) + minutes;
+    await _prefs.setString(_kStudyLog, jsonEncode(studyLog));
     AppLog.i('studio', '$k +$minutes min');
     notifyListeners();
     await _prefs.setString(_kStudy, jsonEncode(studyMinutes));
+  }
+
+  /// Riscarica il mio orario se è vecchio (per accorgersi dei cambiamenti). true = cambiato.
+  Future<bool> refreshMine({Duration olderThan = const Duration(hours: 6)}) async {
+    final ref = myMainRef;
+    final c = ref == null ? null : cached(ref);
+    if (ref == null || c == null || DateTime.now().difference(c.updatedAt) < olderThan) return false;
+    final before = scheduleChangesAt;
+    try {
+      await fetchSchedule(ref);
+    } catch (e) {
+      AppLog.w('orario', 'Aggiornamento automatico non riuscito: $e');
+      return false;
+    }
+    return scheduleChangesAt != before;
+  }
+
+  Future<void> dismissScheduleChanges() async {
+    scheduleChanges = null;
+    notifyListeners();
+    await _prefs.remove(_kChanges);
+  }
+
+  Future<void> setTeacherInfo(String name, TeacherInfo info) async {
+    if (info.isEmpty) {
+      teachers.remove(name);
+    } else {
+      teachers[name] = info;
+    }
+    notifyListeners();
+    await _prefs.setString(_kTeachers, jsonEncode({for (final e in teachers.entries) e.key: e.value.toJson()}));
+  }
+
+  Future<void> setMaterials(String subject, List<String> items) async {
+    final clean = items.map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    if (clean.isEmpty) {
+      materials.remove(subject);
+    } else {
+      materials[subject] = clean;
+    }
+    notifyListeners();
+    await _prefs.setString(_kMaterials, jsonEncode(materials));
+  }
+
+  Future<void> addWeeklyItem(int weekday, String item) async {
+    if (item.trim().isEmpty) return;
+    weeklyItems.add(WeeklyItem(weekday, item.trim()));
+    await _saveList(_kWeekly, weeklyItems.map((w) => w.toJson()));
+  }
+
+  Future<void> removeWeeklyItem(WeeklyItem w) async {
+    weeklyItems.remove(w);
+    await _saveList(_kWeekly, weeklyItems.map((w) => w.toJson()));
+  }
+
+  Future<void> addCountdown(String name, DateTime date, String emoji) async {
+    countdowns.add(CountdownEvent(id: _newId(), name: name.trim(), date: dateOnly(date), emoji: emoji));
+    countdowns.sort((a, b) => a.date.compareTo(b.date));
+    await _saveList(_kCountdowns, countdowns.map((c) => c.toJson()));
+  }
+
+  Future<void> removeCountdown(CountdownEvent c) async {
+    countdowns.removeWhere((x) => x.id == c.id);
+    await _saveList(_kCountdowns, countdowns.map((c) => c.toJson()));
+  }
+
+  /// Opzioni sviluppatore: finge che l'orario sia cambiato (per vedere avviso e notifica).
+  void simulateScheduleChanges() {
+    scheduleChanges = ['Martedì 3ª ora: Fisica → Chimica (prova)', 'Venerdì 5ª ora: libera → Inglese (prova)'];
+    scheduleChangesAt = DateTime.now();
+    notifyListeners();
+  }
+
+  /// Rimette le opzioni come appena installata (non tocca orari, agenda, voti, tema, soprannomi).
+  Future<void> resetOptions() async {
+    const keep = ['ach.', 'egg.', 'ab.', 'credits.'];
+    _extras.removeWhere((k, _) => !keep.any(k.startsWith));
+    appEnglish = false;
+    await setNotifyMinutes(null);
+    AppLog.i('opzioni', 'Opzioni ripristinate');
+    notifyListeners();
+    await _prefs.setString(_kExtras, jsonEncode(_extras));
+  }
+
+  Future<void> setLanguage(String lang) async {
+    appEnglish = lang == 'en';
+    await setOpt('lang', lang == 'it' ? null : lang);
   }
 
   Future<void> _saveList(String key, Iterable<Map<String, dynamic>> items) async {

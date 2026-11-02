@@ -6,10 +6,13 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../store.dart';
 import '../agenda.dart';
+import '../i18n.dart';
+import '../school_extra.dart';
 import 'achievements.dart';
 import 'agenda_page.dart';
 import 'bag_page.dart';
 import 'fun.dart';
+import 'more_pages.dart';
 import 'now_page.dart';
 import 'school_life_pages.dart';
 import 'search_page.dart';
@@ -78,7 +81,7 @@ class HomePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  store.username != null ? 'Ciao, ${store.username}!' : 'Ciao!',
+                  store.username != null ? tr('Ciao, ${store.username}!', 'Hi, ${store.username}!') : tr('Ciao!', 'Hi!'),
                   style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 // Sorprese del giorno (ultimo giorno di scuola, notte fonda, feste…).
@@ -124,6 +127,7 @@ class HomePage extends StatelessWidget {
         ),
       ),
       if (store.opt('home.shortcuts', true)) _QuickSwitch(store: store, onOpenMine: onOpenMine, onSearch: onSearch),
+      const ScheduleChangedBanner(),
       SizedBox(height: tight ? 10 : 16),
       _TodayCard(store: store, now: now, onOpenMine: onOpenMine, onSearch: onSearch),
       if (!tight && store.opt('home.countdown', true)) ...[const SizedBox(height: 10), _Countdowns(store: store)],
@@ -323,7 +327,7 @@ class _HomeExtras extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (todo.isNotEmpty) ...[_AgendaPeek(items: todo, max: 5), const SizedBox(height: 16)],
-          if (showBag) ...[_BagPeek(plan: plan!), const SizedBox(height: 16)],
+          if (showBag) ...[_BagPeek(plan: plan), const SizedBox(height: 16)],
           if (peek != null && peek.items.isNotEmpty) _DayPeek(peek: peek, max: peek.items.length, onOpen: onOpenMine),
           if (peek != null && peek.items.isNotEmpty && others.isNotEmpty) const SizedBox(height: 16),
           if (others.isNotEmpty) _Recents(items: others, max: 5),
@@ -343,7 +347,7 @@ class _HomeExtras extends StatelessWidget {
         }
         if (showBag && h >= _peekTitle + _peekPad + _peekRow) {
           if (children.isNotEmpty) children.add(const SizedBox(height: 16));
-          children.add(_BagPeek(plan: plan!));
+          children.add(_BagPeek(plan: plan));
           h -= _peekTitle + _peekPad + _peekRow + 16;
         }
         if (peek != null && peek.items.isNotEmpty && h >= _peekTitle + _peekPad + _peekRow) {
@@ -766,6 +770,12 @@ class _CountdownsState extends State<_Countdowns> {
     } else if (wd == 5) {
       out.add('🎉 Domani è sabato!');
     }
+    // Conti alla rovescia personali (gita, compleanno…), poi vacanze e feste.
+    for (final e in store.countdowns) {
+      final left = daysBetweenDates(now, e.date);
+      if (left < 0 || left > 60) continue;
+      out.add(left == 0 ? '${e.emoji} ${e.name}: è oggi!' : '${e.emoji} ${e.name} tra $left ${left == 1 ? 'giorno' : 'giorni'}');
+    }
     for (final c in cal.countdowns(now, max: 2)) {
       out.add('${c.emoji} ${c.name} tra ${c.days} ${c.days == 1 ? 'giorno' : 'giorni'}');
     }
@@ -1125,10 +1135,13 @@ class _QuickSwitch extends StatelessWidget {
             if (store.usingExcel) chip('Lab liberi', Icons.science_outlined, () => openNowAtSchool(context, labs: true)),
             chip('Agenda', Icons.event_note_rounded, () => openAgenda(context)),
             chip('Zaino', Icons.backpack_outlined, () => openBag(context)),
-            chip('Voti', Icons.grade_outlined, () => openGrades(context)),
+            chip(tr('Calendario', 'Calendar'), Icons.calendar_month_outlined, () => openMonth(context)),
+            chip(tr('Voti', 'Grades'), Icons.grade_outlined, () => openGrades(context)),
+            chip(tr('Ripasso', 'Study plan'), Icons.menu_book_outlined, () => openStudyPlan(context)),
             chip('Assenze', Icons.event_busy_outlined, () => openAbsences(context)),
             chip('Studia', Icons.timer_outlined, () => openStudyTimer(context)),
-            chip('Obiettivi', Icons.emoji_events_outlined, () => openAchievements(context)),
+            chip(tr('Verifica', 'Exam'), Icons.hourglass_bottom_rounded, () => openExamMode(context)),
+            chip(tr('Obiettivi', 'Achievements'), Icons.emoji_events_outlined, () => openAchievements(context)),
           ],
         ),
       ),

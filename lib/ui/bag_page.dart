@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../agenda.dart';
 import '../bag.dart';
 import '../models.dart';
+import '../school_extra.dart';
 import '../store.dart';
 import 'app_menu.dart';
 import 'theme.dart';
@@ -37,7 +38,11 @@ BagPlan? bagPlanFor(AppStore store, DateTime now) {
   final day = days[wd];
   final subjects = subjectsOfDay(day);
   final agenda = store.agendaFrom(next, days: 1);
-  return BagPlan(next, subjects, bagItems(day, store.bagRules), agenda);
+  final items = [...bagItems(day, store.bagRules)];
+  for (final x in extraBagItems(day, next.weekday, store.materials, store.weeklyItems)) {
+    if (!items.contains(x)) items.add(x);
+  }
+  return BagPlan(next, subjects, items, agenda);
 }
 
 class BagPage extends StatelessWidget {

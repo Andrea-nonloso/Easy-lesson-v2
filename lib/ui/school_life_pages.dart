@@ -5,10 +5,13 @@ import 'package:flutter/material.dart';
 import '../agenda.dart';
 import '../models.dart';
 import '../native.dart';
+import '../school_extra.dart';
 import '../school_life.dart';
 import '../store.dart';
 import 'agenda_page.dart' show mySubjects;
 import 'desktop.dart';
+import 'more_pages.dart' show openCharts, openCredits;
+import 'report_pdf.dart';
 import 'widgets.dart';
 
 void openAbsences(BuildContext context) =>
@@ -378,15 +381,43 @@ class GradesPage extends StatelessWidget {
     final store = StoreScope.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    // Periodo: 0 = tutto l'anno, 1 = trimestre/1º quadrimestre, 2 = pentamestre/2º.
+    final mode = store.opt('periods', 'tri');
+    final view = store.opt('grades.view', 0);
+    final shown = store.grades.where((g) => view == 0 || gradePeriod(g.date, mode: mode) == view).toList();
     final bySubject = <String, List<Grade>>{};
-    for (final g in store.grades) {
+    for (final g in shown) {
       (bySubject[g.subject] ??= []).add(g);
     }
     final subjects = bySubject.keys.toList()..sort();
     final avgs = [for (final s in subjects) average(bySubject[s]!)!];
     final overall = avgs.isEmpty ? null : avgs.reduce((a, b) => a + b) / avgs.length;
     return Scaffold(
-      appBar: AppBar(title: const Text('Voti')),
+      appBar: AppBar(
+        title: const Text('Voti'),
+        actions: [
+          IconButton(tooltip: 'Grafici', onPressed: () => openCharts(context), icon: const Icon(Icons.show_chart_rounded)),
+          PopupMenuButton<String>(
+            onSelected: (v) {
+              switch (v) {
+                case 'pdf':
+                  exportReport(context);
+                case 'credits':
+                  openCredits(context);
+                case 'tri':
+                case 'quad':
+                  store.setOpt('periods', v == 'tri' ? null : v);
+              }
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'pdf', child: Text('📄 Resoconto PDF per i genitori')),
+              const PopupMenuItem(value: 'credits', child: Text('🎓 Crediti scolastici')),
+              CheckedPopupMenuItem(value: 'tri', checked: mode == 'tri', child: const Text('Trimestre e pentamestre')),
+              CheckedPopupMenuItem(value: 'quad', checked: mode == 'quad', child: const Text('Due quadrimestri')),
+            ],
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => addGradeDialog(context),
         icon: const Icon(Icons.add_rounded),
@@ -410,7 +441,7 @@ class GradesPage extends StatelessWidget {
                           color: overall == null ? null : gradeColor(context, overall),
                         ),
                       ),
-                      Text('${store.grades.length} voti · ${subjects.length} materie',
+                      Text('${shown.length} voti · ${subjects.length} materie',
                           style: TextStyle(color: scheme.onSurfaceVariant)),
                     ],
                   ),
@@ -419,6 +450,16 @@ class GradesPage extends StatelessWidget {
               ],
             ),
           ),
+        ),
+        const SizedBox(height: 8),
+        SegmentedButton<int>(
+          segments: [
+            const ButtonSegment(value: 0, label: Text('Tutto l\'anno')),
+            ButtonSegment(value: 1, label: Text(periodName(1, mode: mode))),
+            ButtonSegment(value: 2, label: Text(periodName(2, mode: mode))),
+          ],
+          selected: {view},
+          onSelectionChanged: (s) => store.setOpt('grades.view', s.first == 0 ? null : s.first),
         ),
         if (subjects.isEmpty)
           const Padding(
@@ -432,9 +473,16 @@ class GradesPage extends StatelessWidget {
             child: ListTile(
               title: Text(subjects[i], style: const TextStyle(fontWeight: FontWeight.w600)),
               subtitle: Text(bySubject[subjects[i]]!.take(8).map((g) => Grade.format(g.value)).join('  ')),
-              trailing: Text(
-                avgs[i].toStringAsFixed(2),
-                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800, color: gradeColor(context, avgs[i])),
+              trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    avgs[i].toStringAsFixed(2),
+                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800, color: gradeColor(context, avgs[i])),
+                  ),
+                  Text('pagella: ${reportCardMark(avgs[i])}', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+                ],
               ),
               onTap: () => _subjectSheet(context, subjects[i]),
             ),

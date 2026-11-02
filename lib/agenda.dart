@@ -1,3 +1,6 @@
+import 'i18n.dart';
+import 'models.dart' show dayShort;
+
 /// Compiti, verifiche e promemoria legati a una materia e a un giorno.
 /// Salvati solo sul dispositivo.
 class AgendaItem {
@@ -87,10 +90,10 @@ DateTime nextDateFor(int dayIndex, DateTime now, {int? endMinutes}) {
 
 /// "Oggi", "Domani", "Lun 3/11"
 String friendlyDate(DateTime d, DateTime now) {
-  const days = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+  final days = dayShort;
   final diff = DateTime.utc(d.year, d.month, d.day).difference(DateTime.utc(now.year, now.month, now.day)).inDays;
-  if (diff == 0) return 'Oggi';
-  if (diff == 1) return 'Domani';
-  if (diff == -1) return 'Ieri';
+  if (diff == 0) return tr('Oggi', 'Today');
+  if (diff == 1) return tr('Domani', 'Tomorrow');
+  if (diff == -1) return tr('Ieri', 'Yesterday');
   return '${days[d.weekday - 1]} ${d.day}/${d.month}';
 }

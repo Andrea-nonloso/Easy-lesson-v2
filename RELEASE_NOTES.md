@@ -1,38 +1,33 @@
-## Cosa c'è di nuovo in Easy Lesson 2.5.0
+## Cosa c'è di nuovo in Easy Lesson 2.6.0
 
-### 🏫 Vita scolastica
+### 🏫 Scuola
+- **"L'orario è cambiato!"**: l'app riscarica il tuo orario ogni tanto e, se la scuola lo cambia, ti avvisa con una notifica e ti mostra cosa è cambiato ("Martedì 3ª ora: Fisica → Chimica").
+- **Calendario del mese**: verifiche, compiti, assenze, voti, vacanze e conti alla rovescia in un colpo d'occhio.
+- **Piano di studio**: il ripasso di ogni verifica diviso sui giorni prima, con notifica ogni pomeriggio.
+- **Trimestre/pentamestre o quadrimestri**: medie separate e voto in pagella simulato.
+- **Crediti scolastici**: la fascia di crediti dalla tua media (3º, 4º e 5º anno) e il totale verso i 40.
+- **I miei prof**: ricevimento, email e note per ogni docente.
 
-- **Assenze e permessi**: segna quando manchi o entri ed esci fuori orario; l'app conta le ore perse in tutto e per materia, con una barra verso il limite del 25%. Il monte ore è una stima basata sul tuo orario per 33 settimane.
-- **Entrate posticipate e uscite anticipate**: scrivi "domani entro alla 2ª" e si adattano da sole notifiche, widget, riepilogo serale e silenzioso. Se segni un'assenza, quel giorno non arriva niente.
-- **Voti e medie**: scrivi i voti come 7, 6½, 6+, 8- o 6/7. Media per materia e generale; "Quanto mi serve?" ti dice il voto minimo alla prossima prova per arrivare alla media che vuoi.
-- **Settimana A/B**: scegli un secondo orario salvato da usare nelle settimane B.
+### 🎒 Organizzazione
+- **Libri e materiale** per materia e **promemoria settimanali** ("ogni martedì porta…"): finiscono nello zaino e nel riepilogo della sera.
+- **Avviso compiti non fatti** il pomeriggio prima.
+- **Conti alla rovescia personali** (gita, compleanno…) nella home.
+- **Cerca in tutto**: prof, classi, materie, agenda, voti, assenze.
 
-### 📱 Android
+### 📊 Report
+- **Resoconto PDF** per i genitori: medie per periodo, voti, assenze.
+- **Grafici**: andamento della media voto dopo voto e minuti di studio per settimana.
+- **Widget dei voti** su Android.
 
-- **Silenzioso a scuola**: il telefono va in Non disturbare dalla prima all'ultima ora, e torna normale all'uscita. La prima volta Android chiede un permesso speciale (la pagina giusta si apre da sola).
-- **Widget nuovi**: uno piccolo 1×1 con la prossima ora e la sua aula, e uno con l'agenda dei prossimi giorni.
-- **Riquadro "Prossima ora"** nelle impostazioni rapide della tendina.
-- **Scorciatoie e icona** come nella stabile.
-
-### 📸 Condivisione e studio
-
-- **Condividi con un QR**: il tuo orario, il tema, i soprannomi o un backup piccolo. Un amico lo inquadra con la fotocamera e si apre Easy Lesson (oppure "Importa un codice").
-- **Foto della lezione**: tocchi una lezione e scatti o scegli una foto della lavagna, con galleria e zoom. Sul web non c'è.
-- **Timer per studiare**: pomodoro 25/5, oppure 15/3, 45/10 o 60/15. Propone per prime le materie con una verifica in arrivo, conta i minuti studiati per materia e ti avvisa a fine giro anche ad app chiusa.
-
-### 💻 Windows e web
-
-- **Notifiche su Windows** (mentre l'app è aperta o ridotta a icona) e **icona vicino all'orologio** con la lezione di adesso e le prossime, con "Chiudi".
-- **Web**: dopo la prima apertura funziona anche offline, e nelle impostazioni c'è la spiegazione per installarla come app (PWA).
-
-### 🎮 Divertimento
-
-- **Obiettivi**: 22 medaglie ("Gufo", "DIECI!", "Topo di biblioteca", "Hacker"…) con avviso quando le sblocchi.
-- **Sorprese**: messaggi speciali sotto il "Ciao!" di notte, il primo e l'ultimo giorno di scuola, negli ultimi 10 giorni, a Natale, il primo aprile, ad Halloween, il venerdì pomeriggio e il lunedì mattina. E se prendi 10, l'app festeggia.
+### ♿ Accessibilità e altro
+- **Testo più grande**, **alto contrasto** e **font ad alta leggibilità** (Lexend).
+- **English (beta)**: menù, giorni e schermate principali in inglese.
+- **Modalità verifica**: conto alla rovescia a tutto schermo, schermo sempre acceso e Non disturbare.
+- 5 obiettivi nuovi.
 
 ### 📦 Download
 
-- **Easy-Lesson-v2.5.0-Setup.exe** — installer Windows;
-- **Easy-Lesson-v2.5.0-Windows.zip** — Windows portatile;
-- **Easy-Lesson-v2.5.0.apk** — Android;
-- **Easy-Lesson-v2.5.0-Web.zip** — web.
+- **Easy-Lesson-v2.6.0-Setup.exe** — installer Windows;
+- **Easy-Lesson-v2.6.0-Windows.zip** — Windows portatile;
+- **Easy-Lesson-v2.6.0.apk** — Android;
+- **Easy-Lesson-v2.6.0-Web.zip** — web.

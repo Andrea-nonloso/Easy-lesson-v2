@@ -64,6 +64,7 @@ class LessonWidget : AppWidgetProvider() {
             if (ids.isNotEmpty()) render(context, manager, ids)
             NextWidget.updateAll(context)
             AgendaWidget.updateAll(context)
+            GradesWidget.updateAll(context)
             scheduleNext(context, compute(context, Calendar.getInstance()).nextChange, Calendar.getInstance())
         }
 
@@ -297,6 +298,43 @@ class AgendaWidget : AppWidgetProvider() {
                 // dati non leggibili: si mostra il messaggio vuoto
             }
             views.setTextViewText(R.id.agenda_list, if (sb.isEmpty()) "Niente in programma 🎉" else sb.toString())
+            manager.updateAppWidget(ids, views)
+        }
+    }
+}
+
+/** Widget dei voti: media generale e medie per materia. */
+class GradesWidget : AppWidgetProvider() {
+    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) = render(context, manager, ids)
+
+    companion object {
+        fun updateAll(context: Context) {
+            val manager = AppWidgetManager.getInstance(context)
+            val ids = manager.getAppWidgetIds(ComponentName(context, GradesWidget::class.java))
+            if (ids.isNotEmpty()) render(context, manager, ids)
+        }
+
+        private fun render(context: Context, manager: AppWidgetManager, ids: IntArray) {
+            val views = RemoteViews(context.packageName, R.layout.grades_widget)
+            views.setOnClickPendingIntent(R.id.grades_root, LessonWidget.openApp(context, 4, "easylesson://grades"))
+            val sb = StringBuilder()
+            var avg = ""
+            try {
+                val o = LessonWidget.data(context)
+                avg = o?.optString("gradesAvg", "") ?: ""
+                val list = o?.optJSONArray("grades")
+                if (list != null) {
+                    for (k in 0 until list.length()) {
+                        val r = list.getJSONArray(k)
+                        if (sb.isNotEmpty()) sb.append('\n')
+                        sb.append(r.getString(1)).append("  ").append(r.getString(0))
+                    }
+                }
+            } catch (e: Exception) {
+                // dati non leggibili
+            }
+            views.setTextViewText(R.id.grades_avg, if (avg.isEmpty()) "—" else avg)
+            views.setTextViewText(R.id.grades_list, if (sb.isEmpty()) "Nessun voto: aggiungili dall'app" else sb.toString())
             manager.updateAppWidget(ids, views)
         }
     }

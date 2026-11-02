@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'i18n.dart';
+
 /// Classe o docente di cui si vuole l'orario.
 class ScheduleRef {
   const ScheduleRef(this.name, {required this.prof});
@@ -360,8 +362,14 @@ Map<String, dynamic> decodeOrario(String body) {
   throw const FormatException('Orario non trovato');
 }
 
-const dayNames = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
-const dayShort = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+const _dayNamesIt = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+const _dayShortIt = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+const _dayNamesEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const _dayShortEn = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/// Nomi dei giorni nella lingua dell'app.
+List<String> get dayNames => appEnglish ? _dayNamesEn : _dayNamesIt;
+List<String> get dayShort => appEnglish ? _dayShortEn : _dayShortIt;
 
 /// Indice del giorno corrente nella settimana scolastica, -1 se non c'è scuola.
 int todayIndex(DateTime now, int days) => now.weekday <= days ? now.weekday - 1 : -1;

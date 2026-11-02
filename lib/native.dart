@@ -4,10 +4,13 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'agenda.dart' show dateOnly;
 import 'bag.dart';
 import 'log.dart';
 import 'models.dart';
 import 'school_calendar.dart';
+import 'school_extra.dart';
+import 'school_life.dart';
 import 'store.dart';
 import 'updater.dart';
 import 'ui/fun.dart' show labInfo;
@@ -38,6 +41,18 @@ class NativeBridge {
   static Future<void> cancelOne(int id) => _call<bool>('cancelOne', id);
 
   /// "Non disturbare" a scuola: serve il permesso speciale di Android.
+  /// Notifica subito (es. "l'orario è cambiato").
+  static Future<void> notifyNow(String title, String body) => testNotification(title, body, channel: 'giorno');
+
+  /// Schermo sempre acceso (modalità verifica).
+  static Future<void> keepScreenOn(bool on) => _call<bool>('keepScreenOn', on);
+
+  /// Non disturbare subito (modalità verifica), se c'è il permesso.
+  static Future<void> silenceNow(bool on) => _call<bool>('silenceNow', on);
+
+  /// Apre le impostazioni delle notifiche dell'app in Android.
+  static Future<void> openNotificationSettings() => _call<bool>('openNotificationSettings');
+
   static Future<bool> silenceAllowed() async => await _call<bool>('silenceAllowed') ?? false;
   static Future<void> openSilenceSettings() => _call<bool>('openSilenceSettings');
 
@@ -193,7 +208,17 @@ class NativeBridge {
         if (s0 != null && e0 != null) skip.add([iso(d), s0, e0]);
       }
     }
+    // Medie per il widget dei voti.
+    final bySubject = <String, List<Grade>>{};
+    for (final g in store.grades) {
+      (bySubject[g.subject] ??= []).add(g);
+    }
+    final avgs = [for (final e in bySubject.entries) [e.key, average(e.value)!.toStringAsFixed(2)]]
+      ..sort((a, b) => a[0].compareTo(b[0]));
+    final all = bySubject.values.map((l) => average(l)!).toList();
     return {
+      'grades': avgs,
+      'gradesAvg': all.isEmpty ? '' : (all.reduce((a, b) => a + b) / all.length).toStringAsFixed(2),
       'agenda': agenda,
       'only': skip,
       'name': ref.displayName,
@@ -249,7 +274,10 @@ class NativeBridge {
     final end = store.opt('n.end', false);
     final holiday = store.opt('n.holiday', false);
     final lastHour = store.opt('n.last', false);
-    if (before == null && !evening && !morning && !breaks && !end && !holiday && !lastHour) return const [];
+    if (before == null && !evening && !morning && !breaks && !end && !holiday && !lastHour &&
+        !store.opt('n.homework', false) && !store.opt('n.plan', false)) {
+      return const [];
+    }
     final slots = store.slots;
     final cal = store.calendar;
     final out = <Map<String, Object>>[];
@@ -293,7 +321,10 @@ class NativeBridge {
 
       // Riepilogo della sera prima.
       if (evening) {
-        final items = bagItems(days[wd], store.bagRules);
+        final items = [
+          ...bagItems(days[wd], store.bagRules),
+          ...extraBagItems(days[wd], d.weekday, store.materials, store.weeklyItems),
+        ].toSet().toList();
         add(
           3000 + k * 10 + 6,
           at(prev, eveningAt),
@@ -305,6 +336,20 @@ class NativeBridge {
           ].join('\n'),
           'giorno',
         );
+      }
+
+      // Compiti per domani non ancora fatti (si ricalcola appena li spunti).
+      if (store.opt('n.homework', false)) {
+        final todoHw = todo.where((a) => a.kind == 'compito' && !a.done).toList();
+        if (todoHw.isNotEmpty) {
+          add(
+            3000 + k * 10 + 9,
+            at(prev, store.opt('n.homeworkAt', 18 * 60)),
+            todoHw.length == 1 ? 'Hai ancora un compito per domani 📚' : 'Hai ancora ${todoHw.length} compiti per domani 📚',
+            todoHw.map((a) => a.summary).join('\n'),
+            'giorno',
+          );
+        }
       }
 
       // Buongiorno, prima di entrare.
@@ -380,6 +425,21 @@ class NativeBridge {
             'lezioni',
           );
         }
+      }
+    }
+    // Piano di studio: ogni pomeriggio cosa ripassare per le verifiche in arrivo.
+    if (store.opt('n.plan', false)) {
+      final plan = studyPlan(store.agenda, now, days: store.opt('plan.days', 3));
+      final byDay = <String, List<StudyStep>>{};
+      for (final p in plan) {
+        (byDay[isoDay(p.day)] ??= []).add(p);
+      }
+      for (final e in byDay.entries) {
+        final d = e.value.first.day;
+        final k = daysBetween(dateOnly(now), d);
+        if (k < 0 || k > 21) continue;
+        add(3000 + k * 10 + 8, at(d, store.opt('n.planAt', 16 * 60)), 'Oggi si ripassa 📖',
+            e.value.map((p) => '• ${p.label}').join('\n'), 'giorno');
       }
     }
     out.sort((a, b) => (a['at'] as int).compareTo(b['at'] as int));
