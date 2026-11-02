@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../cloud.dart';
 import '../i18n.dart';
+import '../mission_engine.dart';
 import '../native.dart';
 import '../store.dart';
 import '../updater.dart';
@@ -15,7 +16,7 @@ import 'desktop.dart';
 import 'app_menu.dart';
 import 'home_page.dart';
 import 'now_page.dart';
-import 'profile_page.dart' show checkCodeMemory;
+import 'profile_page.dart' show checkCodeMemory, openAccountLink;
 import 'saved_page.dart';
 import 'schedule_screen.dart';
 import 'school_life_pages.dart';
@@ -69,6 +70,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       store.addListener(_onStoreChanged);
       Cloud.overrideUrl = store.opt<String?>('dev.cloudUrl', null);
       CloudSync.maybeSync(store);
+      Missions.refreshEvents(store);
       // Ogni tanto: "ti ricordi il tuo codice?" (solo con l'account, vedi profile_page.dart).
       Timer(const Duration(seconds: 8), () {
         if (mounted) checkCodeMemory(context);
@@ -127,6 +129,11 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       } catch (e) {
         messenger.showSnackBar(SnackBar(content: Text(e is FormatException ? e.message : '$e')));
       }
+      return;
+    }
+    // QR del codice dell'account (easylesson://login?c=... / recover?r=...).
+    if (s.startsWith('easylesson://login') || s.startsWith('easylesson://recover')) {
+      await openAccountLink(context, s);
       return;
     }
     switch (s) {

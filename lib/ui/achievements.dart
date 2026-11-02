@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../agenda.dart' show dateOnly;
 import '../cloud.dart';
+import '../mission_engine.dart';
 import '../models.dart';
 import '../progress.dart';
 import '../school_calendar.dart';
 import '../school_life.dart' show Grade;
 import '../store.dart';
+import 'missions_page.dart' show openMissions;
 
 /// Categorie degli obiettivi (per la pagina e i filtri).
 const achievementCategories = [
   ('inizio', '🚀', 'Primi passi'),
+  ('missioni', '🚩', 'Missioni'),
   ('costanza', '🔥', 'Costanza'),
   ('orario', '🔭', 'Orario'),
   ('organizza', '🗂️', 'Organizzazione'),
@@ -288,19 +291,157 @@ final achievements = <Achievement>[
       tier: Tier.silver, category: 'segreti', secret: true),
   Achievement('leaf', '🍃', 'Pollice verde', 'Tocca la foglia nelle impostazioni 50 volte', (s) => s.stat('leafTaps') >= 50,
       category: 'segreti', secret: true),
+  // ------------------------------------------------------------ missioni (2.7.0)
+  _count('mis1', '🚩', 'Prima missione', 'Completa una missione', 1, (s) => s.stat('missionsDone'), category: 'missioni'),
+  _count('mis10', '🎯', 'Missionario', 'Completa 10 missioni giornaliere', 10, (s) => s.stat('missionsDone'),
+      tier: Tier.silver, category: 'missioni'),
+  _count('mis50', '🧭', 'Agente speciale', 'Completa 50 missioni giornaliere', 50, (s) => s.stat('missionsDone'),
+      tier: Tier.gold, category: 'missioni'),
+  _count('mis100', '🎖️', 'Veterano delle missioni', 'Completa 100 missioni giornaliere', 100, (s) => s.stat('missionsDone'),
+      tier: Tier.gold, category: 'missioni'),
+  _count('mis250', '🛡️', 'Leggenda delle missioni', 'Completa 250 missioni giornaliere', 250,
+      (s) => s.stat('missionsDone'), tier: Tier.platinum, category: 'missioni'),
+  _count('dayFull1', '⭐', 'Giornata perfetta', 'Completa tutte le missioni di un giorno', 1, (s) => s.stat('dailyFull'),
+      category: 'missioni'),
+  _count('dayFull7', '🌠', 'Sette giorni perfetti', 'Completa tutte le missioni del giorno 7 volte', 7,
+      (s) => s.stat('dailyFull'), tier: Tier.silver, category: 'missioni'),
+  _count('dayFull30', '🌌', 'Un mese perfetto', 'Completa tutte le missioni del giorno 30 volte', 30,
+      (s) => s.stat('dailyFull'), tier: Tier.gold, category: 'missioni'),
+  _count('weekMis5', '📆', 'Settimanale', 'Completa 5 missioni settimanali', 5, (s) => s.stat('weeklyMissionsDone'),
+      tier: Tier.silver, category: 'missioni'),
+  _count('weekFull1', '🏅', 'Settimana perfetta', 'Completa tutte le missioni di una settimana', 1, (s) => s.stat('weeklyFull'),
+      tier: Tier.silver, category: 'missioni'),
+  _count('weekFull4', '🗓️', 'Mese da campione', 'Completa tutte le missioni settimanali 4 volte', 4,
+      (s) => s.stat('weeklyFull'), tier: Tier.gold, category: 'missioni'),
+  _count('weekFull10', '👑', 'Imbattibile', 'Completa tutte le missioni settimanali 10 volte', 10,
+      (s) => s.stat('weeklyFull'), tier: Tier.platinum, category: 'missioni'),
+  _count('event1', '🎉', 'Ospite d\'onore', 'Completa una missione durante un evento speciale', 1,
+      (s) => s.stat('eventMissions'), tier: Tier.silver, category: 'missioni'),
+  _count('event20', '🎊', 'Festaiolo', 'Completa 20 missioni durante gli eventi', 20, (s) => s.stat('eventMissions'),
+      tier: Tier.gold, category: 'missioni'),
+
+  // ------------------------------------------------------------ momenti della giornata
+  _count('break1', '🥪', 'Ricreazione!', 'Apri l\'app durante la ricreazione', 1, (s) => s.stat('breakOpens'),
+      category: 'costanza'),
+  _count('break20', '🍕', 'Merenda fissa', 'Apri l\'app in 20 ricreazioni', 20, (s) => s.stat('breakOpens'),
+      tier: Tier.silver, category: 'costanza'),
+  _count('bell1', '🛎️', 'Prima della campanella', 'Controlla l\'orario nell\'ora prima della prima campanella', 1,
+      (s) => s.stat('beforeBell'), category: 'costanza'),
+  _count('bell30', '⌚', 'Puntualissimo', 'Controlla l\'orario prima della campanella in 30 giorni', 30,
+      (s) => s.stat('beforeBell'), tier: Tier.gold, category: 'costanza'),
+  _count('lastHour', '🏁', 'Conto alla rovescia finale', 'Apri l\'app durante l\'ultima ora', 1,
+      (s) => s.stat('lastHourOpens'), category: 'costanza'),
+  _count('lastHour20', '🚪', 'Con la cartella pronta', 'Apri l\'app all\'ultima ora in 20 giorni', 20,
+      (s) => s.stat('lastHourOpens'), tier: Tier.silver, category: 'costanza'),
+  _count('sessions100', '🔂', 'Sempre qui', 'Apri l\'app 100 volte (anche tornandoci)', 100, (s) => s.stat('sessions'),
+      tier: Tier.silver, category: 'costanza'),
+  _count('sessions1000', '🌀', 'Inseparabili', 'Apri l\'app 1000 volte (anche tornandoci)', 1000, (s) => s.stat('sessions'),
+      tier: Tier.gold, category: 'costanza'),
+  _count('days50', '🗒️', 'Mezzo centinaio', 'Usa l\'app in 50 giorni diversi', 50, (s) => s.stat('days'),
+      tier: Tier.silver, category: 'costanza'),
+  _count('days365', '🎂', 'Un anno intero', 'Usa l\'app in 365 giorni diversi', 365, (s) => s.stat('days'),
+      tier: Tier.platinum, category: 'costanza'),
+  _count('streak14', '🕯️', 'Due settimane di fila', 'Apri l\'app 14 giorni di fila', 14, (s) => s.stat('bestStreak'),
+      tier: Tier.silver, category: 'costanza'),
+  _count('streak60', '💥', 'Due mesi di fila', 'Apri l\'app 60 giorni di fila', 60, (s) => s.stat('bestStreak'),
+      tier: Tier.gold, category: 'costanza'),
+  _count('launches250', '🎫', 'Abbonato', 'Apri l\'app 250 volte', 250, (s) => s.launches, tier: Tier.gold, category: 'costanza'),
+  _count('launches1000', '🏟️', 'Leggendario', 'Apri l\'app 1000 volte', 1000, (s) => s.launches,
+      tier: Tier.platinum, category: 'costanza'),
+
+  // ------------------------------------------------------------ orario
+  _count('views5000', '🌍', 'Leggenda dell\'orario', 'Apri 5000 orari', 5000, (s) => s.stat('views'),
+      tier: Tier.platinum, category: 'orario'),
+  _count('profs40', '📕', 'Enciclopedia dei prof', 'Guarda l\'orario di 40 docenti diversi', 40, (s) => s.stat('profDistinct'),
+      tier: Tier.gold, category: 'orario'),
+  _count('classes40', '🧭', 'Mappa completa', 'Guarda l\'orario di 40 classi diverse', 40, (s) => s.stat('classDistinct'),
+      tier: Tier.gold, category: 'orario'),
+  _count('stalker250', '👤', 'L\'ombra del prof', 'Guarda 250 volte l\'orario dello stesso prof', 250, (s) => s.stat('profTop'),
+      tier: Tier.platinum, category: 'orario'),
+  _count('classTop50', '📣', 'Tifoso della classe', 'Guarda 50 volte l\'orario della stessa classe', 50,
+      (s) => s.stat('classTop'), tier: Tier.silver, category: 'orario'),
+  _count('fav12', '🏛️', 'Biblioteca di orari', 'Salva 12 orari', 12, (s) => s.favorites.length,
+      tier: Tier.gold, category: 'orario'),
+
+  // ------------------------------------------------------------ studio e organizzazione
+  _count('study250', '👨‍🏫', 'Professore honoris causa', 'Studia 250 ore con il timer (minuti)', 15000, _studied,
+      tier: Tier.platinum, category: 'studio'),
+  _count('studyDay4', '🏃', 'Ultramaratona', 'Studia 4 ore in un giorno con il timer (minuti)', 240, _bestStudyDay,
+      tier: Tier.gold, category: 'studio'),
+  _count('grades60', '📜', 'Pagella infinita', 'Segna 60 voti', 60, (s) => s.grades.length, tier: Tier.platinum, category: 'studio'),
+  _count('ten3', '🎆', 'Tripletta', 'Prendi tre 10', 3, (s) => s.grades.where((g) => g.value >= 9.99).length,
+      tier: Tier.gold, category: 'studio'),
+  Achievement('avg7', '👍', 'Promosso con stile', 'Media del 7 con almeno 5 voti',
+      (s) => s.grades.length >= 5 && (_average(s.grades) ?? 0) >= 7, tier: Tier.silver, category: 'studio'),
+  _count('photos50', '🎞️', 'Archivio fotografico', 'Salva 50 foto delle lezioni', 50, (s) => s.photos.length,
+      tier: Tier.gold, category: 'studio'),
+  _count('agenda50', '🗂️', 'Agenda zeppa', 'Scrivi 50 cose in agenda', 50, (s) => s.stat('agendaAdded'),
+      tier: Tier.gold, category: 'organizza'),
+  _count('done300', '🦾', 'Terminator dei compiti', '300 cose fatte in agenda', 300, _doneCount,
+      tier: Tier.platinum, category: 'organizza'),
+  _count('countdown10', '⏲️', 'Sempre in attesa', 'Aggiungi 10 conti alla rovescia', 10, (s) => s.countdowns.length,
+      tier: Tier.silver, category: 'organizza'),
+  _count('teachers10', '🗃️', 'Segreteria', 'Salva le info di 10 prof', 10, (s) => s.teachers.length,
+      tier: Tier.gold, category: 'organizza'),
+  _count('bag50', '🧳', 'Zaino da campione', 'Spunta 50 cose nello zaino', 50, (s) => s.stat('bagTicks'),
+      tier: Tier.silver, category: 'organizza'),
+
+  // ------------------------------------------------------------ sicurezza del codice
+  Achievement('recoverySheet', '🖨️', 'Piano B', 'Salva il foglio di recupero', (s) => _flag(s, 'ach.recoverySheet')),
+  Achievement('codeVerified', '🐘', 'Memoria d\'elefante', 'Ricorda il tuo codice al controllo',
+      (s) => s.opt('cloud.verifiedAt', '') != '', tier: Tier.silver),
+  _count('qrScan', '📷', 'Scanner', 'Scansiona un QR con l\'app', 1, (s) => s.stat('qrScans'), category: 'inizio'),
+
+  // ------------------------------------------------------------ collezione
+  _count('level30', '🏆', 'Livello 30', 'Arriva al livello 30', 30, (s) => levelOf(s).level, tier: Tier.platinum, category: 'stile'),
+  _count('level40', '💠', 'Livello 40', 'Arriva al livello 40', 40, (s) => levelOf(s).level, tier: Tier.platinum, category: 'stile'),
+  _count('collect100', '🎁', 'Cento obiettivi', 'Sblocca 100 obiettivi', 100, (s) => unlockedIds(s).length,
+      tier: Tier.gold, category: 'stile'),
+  _count('collect125', '✨', 'Quasi tutti', 'Sblocca 125 obiettivi', 125, (s) => unlockedIds(s).length,
+      tier: Tier.platinum, category: 'stile'),
+  Achievement('categoryFull', '🧺', 'Categoria completa', 'Sblocca tutti gli obiettivi di una categoria (non i segreti)',
+      _anyCategoryFull, tier: Tier.gold, category: 'stile'),
+  Achievement('secretsAll', '🔍', 'Detective', 'Scopri tutti gli obiettivi segreti (tranne quello degli sviluppatori)',
+      _allSecrets, tier: Tier.gold, category: 'stile'),
+
+  // ------------------------------------------------------------ altri segreti
+  Achievement('over9000', '💪', 'È più di 9000!', 'Supera 9000 XP', (s) => totalXp(s) > 9000,
+      tier: Tier.gold, category: 'segreti', secret: true),
+  Achievement('midnight', '🕛', 'Mezzanotte in punto', 'Apri l\'app esattamente a mezzanotte', (s) => _flag(s, 'egg.midnight'),
+      tier: Tier.silver, category: 'segreti', secret: true),
+  Achievement('piTime', '🥧', 'Ora del pi greco', 'Apri l\'app alle 3:14', (s) => _flag(s, 'egg.piTime'),
+      category: 'segreti', secret: true),
+  Achievement('piDay', '🔢', 'Pi Day', 'Apri l\'app il 14 marzo', (s) => _flag(s, 'egg.piDay'), category: 'segreti', secret: true),
+  Achievement('leapDay', '🐸', 'Giorno bisestile', 'Apri l\'app il 29 febbraio', (s) => _flag(s, 'egg.leap'),
+      tier: Tier.gold, category: 'segreti', secret: true),
 ];
+
+bool _anyCategoryFull(AppStore s) {
+  final done = unlockedIds(s);
+  for (final (id, _, _) in achievementCategories) {
+    if (id == 'segreti') continue;
+    final list = achievements.where((a) => a.category == id && a.id != 'categoryFull');
+    if (list.isNotEmpty && list.every((a) => done.contains(a.id))) return true;
+  }
+  return false;
+}
+
+bool _allSecrets(AppStore s) {
+  final done = unlockedIds(s);
+  return achievements.where((a) => a.secret && a.id != 'deepDev').every((a) => done.contains(a.id));
+}
 
 /// Obiettivi sbloccati.
 Set<String> unlockedIds(AppStore s) => s.opt('ach.done', '').split(',').where((x) => x.isNotEmpty).toSet();
 
-/// XP totali: obiettivi sbloccati + 5 per ogni giorno di utilizzo + bonus.
+/// XP totali: obiettivi sbloccati + 5 per ogni giorno di utilizzo + missioni + bonus.
 int totalXp(AppStore s) {
   final done = unlockedIds(s);
   var xp = 0;
   for (final a in achievements) {
     if (done.contains(a.id)) xp += a.tier.xp;
   }
-  return xp + s.stat('days') * xpPerDay + s.stat('xpBonus');
+  return xp + s.stat('days') * xpPerDay + s.stat('missionXp') + s.stat('xpBonus');
 }
 
 LevelInfo levelOf(AppStore s) => LevelInfo(totalXp(s));
@@ -310,6 +451,15 @@ Future<void> checkAchievements(BuildContext context) async {
   final store = StoreScope.read(context);
   _eggFlags(store);
   final before = levelOf(store).level;
+  // Prima le missioni: danno XP e contatori che servono agli obiettivi.
+  final missionMsgs = await Missions.check(store);
+  if (missionMsgs.isNotEmpty) CloudSync.schedule(store);
+  if (missionMsgs.isNotEmpty && context.mounted) {
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+      content: Text(missionMsgs.join('\n')),
+      action: SnackBarAction(label: 'Missioni', onPressed: () => openMissions(context)),
+    ));
+  }
   final done = unlockedIds(store);
   final fresh = <Achievement>[];
   // Più giri: sbloccare obiettivi fa salire di livello, e questo può sbloccarne altri.
@@ -320,7 +470,11 @@ Future<void> checkAchievements(BuildContext context) async {
     fresh.addAll(now);
     await store.setOpt('ach.done', done.join(','));
   }
-  if (fresh.isEmpty) return;
+  if (fresh.isEmpty) {
+    final after = levelOf(store).level;
+    if (after > before && before > 1 && context.mounted) await showLevelUp(context, after);
+    return;
+  }
   CloudSync.schedule(store);
   if (!context.mounted) return;
   final messenger = ScaffoldMessenger.maybeOf(context);
@@ -607,6 +761,10 @@ void _eggFlags(AppStore s) {
   if (now.month == 4 && now.day == 1) mark('egg.april');
   if (now.month == 10 && now.day == 31) mark('egg.halloween');
   if (now.weekday == DateTime.friday && now.day == 17) mark('egg.fri17');
+  if (now.hour == 0 && now.minute == 0) mark('egg.midnight');
+  if (now.hour == 3 && now.minute == 14) mark('egg.piTime');
+  if (now.month == 3 && now.day == 14) mark('egg.piDay');
+  if (now.month == 2 && now.day == 29) mark('egg.leap');
   final y = s.calendar.yearOf(now);
   if (y != null) {
     if (dateOnly(now) == dateOnly(y.end)) mark('egg.lastDay');

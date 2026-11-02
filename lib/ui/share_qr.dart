@@ -6,6 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../models.dart';
 import '../store.dart';
+import 'code_scanner.dart';
 import 'color_lab.dart' show applyThemeCode, themeCodeOf;
 
 /// Condivisione con il QR: il codice è un link easylesson://import?d=...
@@ -160,7 +161,19 @@ Future<void> importCodeDialog(BuildContext context) async {
         controller: ctrl,
         autofocus: true,
         maxLines: 3,
-        decoration: const InputDecoration(hintText: 'easylesson://import?d=…'),
+        decoration: InputDecoration(
+          hintText: 'easylesson://import?d=…',
+          suffixIcon: qrScannerSupported
+              ? IconButton(
+                  tooltip: 'Scansiona il QR',
+                  icon: const Icon(Icons.qr_code_scanner_rounded),
+                  onPressed: () async {
+                    final v = await scanQr(c);
+                    if (v != null) ctrl.text = v;
+                  },
+                )
+              : null,
+        ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annulla')),

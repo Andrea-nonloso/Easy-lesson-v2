@@ -13,7 +13,7 @@ import 'log.dart';
 import 'models.dart';
 import 'progress.dart';
 import 'school_calendar.dart';
-import 'school_extra.dart';
+import 'school_extra.dart' hide isoDay;
 import 'school_life.dart';
 import 'i18n.dart';
 import 'timetable.dart';
@@ -925,7 +925,9 @@ class AppStore extends ChangeNotifier {
       text: text.trim(),
     ));
     AppLog.i('agenda', 'Aggiunto $kind · $subject');
+    _extras['stat.agendaAdded'] = stat('agendaAdded') + 1;
     await _saveAgenda();
+    await _prefs.setString(_kExtras, jsonEncode(_extras));
   }
 
   Future<void> toggleAgendaDone(AgendaItem item) async {
@@ -972,7 +974,11 @@ class AppStore extends ChangeNotifier {
   Future<void> toggleBagItem(DateTime day, String item) async {
     final k = dayKey(day);
     final set = bagChecked[k] ??= {};
-    if (!set.remove(item)) set.add(item);
+    if (!set.remove(item)) {
+      set.add(item);
+      _extras['stat.bagTicks'] = stat('bagTicks') + 1;
+      unawaited(_prefs.setString(_kExtras, jsonEncode(_extras)));
+    }
     // Si tengono solo gli ultimi giorni.
     if (bagChecked.length > 10) {
       final keys = bagChecked.keys.toList()..sort();
@@ -1196,7 +1202,9 @@ class AppStore extends ChangeNotifier {
     ));
     grades.sort((a, b) => b.date.compareTo(a.date));
     AppLog.i('voti', '$subject ${Grade.format(value)}');
+    _extras['stat.gradesAdded'] = stat('gradesAdded') + 1;
     await _saveList(_kGrades, grades.map((g) => g.toJson()));
+    await _prefs.setString(_kExtras, jsonEncode(_extras));
   }
 
   Future<void> removeGrade(Grade g) async {
@@ -1206,6 +1214,8 @@ class AppStore extends ChangeNotifier {
 
   Future<void> addPhoto({required DateTime date, required String subject, required String path}) async {
     photos.add(LessonPhoto(id: _newId(), date: dateOnly(date), subject: subject, path: path));
+    _extras['stat.photosAdded'] = stat('photosAdded') + 1;
+    unawaited(_prefs.setString(_kExtras, jsonEncode(_extras)));
     photos.sort((a, b) => b.date.compareTo(a.date));
     await _saveList(_kPhotos, photos.map((p) => p.toJson()));
   }
@@ -1336,7 +1346,8 @@ class AppStore extends ChangeNotifier {
   /// Da chiamare all'avvio e quando si torna nell'app: giorni attivi, serie, ore di lezione.
   Future<void> markActive([DateTime? at]) async {
     final now = at ?? DateTime.now();
-    final today = dayKey(now);
+    // isoDay (2026-11-02), non AppStore.dayKey (2026-11-2): deve combaciare con nextStreak.
+    final today = isoDay(now);
     final last = opt<String?>('stat.lastDay', null);
     _extras['stat.sessions'] = stat('sessions') + 1;
     if (last != today) {
@@ -1361,6 +1372,30 @@ class AppStore extends ChangeNotifier {
         hours.add('$i');
         _extras['stat.hoursToday'] = '$today|${hours.join(',')}';
         if (hours.length > stat('hoursInDay')) _extras['stat.hoursInDay'] = hours.length;
+        // Ultima ora di lezione di oggi (secondo il mio orario), una volta al giorno.
+        final day = myScheduleOn(now)?.week.days;
+        if (day != null && now.weekday - 1 < day.length) {
+          final lessons = day[now.weekday - 1].lessons;
+          final lastLesson = lessons.lastIndexWhere((l) => !l.isEmpty);
+          if (lastLesson >= 0 && i == lastLesson && opt<String?>('stat.lastHourDay', null) != today) {
+            _extras['stat.lastHourDay'] = today;
+            _extras['stat.lastHourOpens'] = stat('lastHourOpens') + 1;
+          }
+        }
+      }
+      // Ricreazione.
+      if (calendar.isSchoolDay(now, daysPerWeek: 6) && breaksOf(slots).any((b) => minutes >= b.start && minutes < b.end)) {
+        _extras['stat.breakOpens'] = stat('breakOpens') + 1;
+      }
+      // Nell'ora prima della prima campanella, una volta al giorno.
+      final first = slots.isEmpty ? null : slots.first.start;
+      if (first != null &&
+          minutes >= first - 60 &&
+          minutes < first &&
+          calendar.isSchoolDay(now, daysPerWeek: 6) &&
+          opt<String?>('stat.beforeBellDay', null) != today) {
+        _extras['stat.beforeBellDay'] = today;
+        _extras['stat.beforeBell'] = stat('beforeBell') + 1;
       }
     }
     notifyListeners();
@@ -1441,7 +1476,7 @@ class AppStore extends ChangeNotifier {
 
   /// Rimette le opzioni come appena installata (non tocca orari, agenda, voti, tema, soprannomi).
   Future<void> resetOptions() async {
-    const keep = ['ach.', 'egg.', 'ab.', 'credits.', 'stat.', 'statmap.', 'cloud.'];
+    const keep = ['ach.', 'egg.', 'ab.', 'credits.', 'stat.', 'statmap.', 'cloud.', 'mis.', 'event.'];
     _extras.removeWhere((k, _) => !keep.any(k.startsWith));
     appEnglish = false;
     await setNotifyMinutes(null);

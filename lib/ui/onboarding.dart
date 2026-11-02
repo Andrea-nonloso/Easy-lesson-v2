@@ -447,7 +447,7 @@ class _AccountStep extends StatelessWidget {
         Text(
           has
               ? 'Fatto! Livello e obiettivi vengono salvati con il tuo codice.'
-              : 'Easy Lesson ha livelli e più di 90 obiettivi. Con un codice segreto li ritrovi anche '
+              : 'Easy Lesson ha livelli, missioni e più di 150 obiettivi. Con un codice segreto li ritrovi anche '
                   'cambiando telefono. Puoi anche saltare e farlo dopo dalle impostazioni.',
           style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
         ),

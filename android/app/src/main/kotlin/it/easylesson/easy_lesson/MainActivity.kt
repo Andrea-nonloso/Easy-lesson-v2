@@ -136,7 +136,7 @@ class MainActivity : FlutterActivity() {
     private fun shortcutOf(intent: Intent?): String? {
         val data = intent?.data ?: return null
         if (data.scheme != "easylesson") return null
-        // I codici condivisi con il QR arrivano interi (easylesson://import?d=...).
-        return if (data.host == "import") data.toString() else data.host
+        // I codici condivisi con il QR arrivano interi (easylesson://import?d=..., login?c=..., recover?r=...).
+        return if (data.host == "import" || data.host == "login" || data.host == "recover") data.toString() else data.host
     }
 }

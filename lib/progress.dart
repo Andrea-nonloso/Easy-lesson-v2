@@ -144,6 +144,9 @@ class ProgressData {
 String dayKey(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+/// Come [dayKey]; serve dentro AppStore, dove `dayKey` è il metodo statico (formato senza zeri).
+String isoDay(DateTime d) => dayKey(d);
+
 /// Serie di giorni di fila: dato l'ultimo giorno attivo e la serie, restituisce la serie di oggi.
 /// Stesso giorno = invariata; ieri = +1; più indietro (o mai) = 1.
 int nextStreak(String? lastDay, int streak, DateTime now) {

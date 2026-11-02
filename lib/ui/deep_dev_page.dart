@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import '../cloud.dart';
 import '../log.dart';
+import '../mission_engine.dart';
 import '../native.dart';
 import '../store.dart';
 import 'achievements.dart';
@@ -150,6 +151,17 @@ class DeepDevPage extends StatelessWidget {
                     await store.setOpt(k, null);
                   }
                   toast('Progressi azzerati (sul server restano: si riuniscono alla prossima sincronizzazione)');
+                }),
+                tile(Icons.flag_outlined, 'Missioni nuove adesso', 'Rifà la scelta di oggi e della settimana', () async {
+                  for (final k in ['mis.d.key', 'mis.w.key']) {
+                    await store.setOpt(k, null);
+                  }
+                  await Missions.check(store);
+                  toast('Missioni rifatte');
+                }),
+                tile(Icons.event_available_outlined, 'Riscarica gli eventi', 'Dal server, subito', () async {
+                  await Missions.refreshEvents(store, force: true);
+                  toast('${Missions.events(store).length} eventi in memoria');
                 }),
                 tile(Icons.celebration_rounded, 'Prova la festa del livello', null, () => showLevelUp(context, lv.level + 1)),
                 tile(Icons.refresh_rounded, 'Ricontrolla gli obiettivi adesso', null, () => checkAchievements(context)),

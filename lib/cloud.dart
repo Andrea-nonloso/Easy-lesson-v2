@@ -152,6 +152,13 @@ class Cloud {
     return list is List ? [for (final r in list) if (r is Map) Map<String, dynamic>.from(r)] : const [];
   }
 
+  /// Eventi speciali delle missioni (in corso e in arrivo), come JSON grezzo.
+  static Future<List<Map<String, dynamic>>> events() async {
+    final j = await _json('GET', '/events');
+    final list = j['events'];
+    return list is List ? [for (final e in list) if (e is Map) Map<String, dynamic>.from(e)] : const [];
+  }
+
   static String rewardFileUrl(String file) => _u('/rewards/file/${Uri.encodeComponent(file)}').toString();
 }
 

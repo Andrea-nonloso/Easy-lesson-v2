@@ -16,6 +16,7 @@ import 'calendar_page.dart';
 import 'customize_pages.dart';
 import 'dev_page.dart';
 import 'fun.dart';
+import 'missions_page.dart';
 import 'more_pages.dart';
 import 'photos_page.dart';
 import 'profile_page.dart';
@@ -194,6 +195,8 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
         _Item(Icons.emoji_events_outlined, tr('Obiettivi', 'Achievements'),
             '${unlockedIds(store).length} su ${achievements.length} sbloccati', () => openAchievements(context),
             keywords: 'medaglie sfide trofei'),
+        _Item(Icons.flag_outlined, tr('Missioni', 'Missions'), '3 al giorno e 3 alla settimana, con XP in più',
+            () => openMissions(context), keywords: 'sfide giornaliere settimanali eventi'),
         _Item(Icons.redeem_rounded, tr('Ricompense', 'Rewards'), 'Ogni 5 livelli si sblocca qualcosa',
             () => _open(context, const RewardsPage()), keywords: 'skin premi sblocca'),
         _Item(Icons.key_rounded, tr('Account e sincronizzazione', 'Account and sync'),

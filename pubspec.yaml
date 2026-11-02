@@ -29,6 +29,8 @@ dependencies:
   google_fonts: '>=6.2.1 <8.0.0'
   # 2.7.0: cifratura dei backup online (AES-256-GCM, HKDF, SHA-256), anche sul web
   cryptography: ^2.7.0
+  # 2.7.0: scanner dei QR nell'app (solo Android)
+  mobile_scanner: ^7.0.0
 
 dev_dependencies:
   flutter_test:

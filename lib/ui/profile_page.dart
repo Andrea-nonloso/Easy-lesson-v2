@@ -6,6 +6,8 @@ import '../cloud.dart';
 import '../progress.dart';
 import '../store.dart';
 import 'achievements.dart';
+import 'code_scanner.dart';
+import 'missions_page.dart';
 import 'recovery_pdf.dart';
 import 'widgets.dart';
 
@@ -64,6 +66,7 @@ class ProfilePage extends StatelessWidget {
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => openAchievements(context),
               ),
+              const MissionsSummaryTile(),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.redeem_rounded, color: scheme.primary),
@@ -524,10 +527,25 @@ Future<String?> _askCode(BuildContext context, String title, String text) async 
             style: const TextStyle(fontFamily: 'monospace'),
             decoration: InputDecoration(
               hintText: 'Ab3\$k-9€xQ#-…',
-              suffixIcon: IconButton(
-                tooltip: 'Incolla',
-                icon: const Icon(Icons.paste_rounded),
-                onPressed: () async => ctrl.text = (await Clipboard.getData(Clipboard.kTextPlain))?.text?.trim() ?? '',
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (qrScannerSupported)
+                    IconButton(
+                      tooltip: 'Scansiona il QR',
+                      icon: const Icon(Icons.qr_code_scanner_rounded),
+                      onPressed: () async {
+                        final v = await scanQr(c);
+                        if (v != null) ctrl.text = parseCodeText(v).$2;
+                      },
+                    ),
+                  IconButton(
+                    tooltip: 'Incolla',
+                    icon: const Icon(Icons.paste_rounded),
+                    onPressed: () async =>
+                        ctrl.text = parseCodeText((await Clipboard.getData(Clipboard.kTextPlain))?.text ?? '').$2,
+                  ),
+                ],
               ),
             ),
             onSubmitted: (v) => Navigator.pop(c, v.trim()),
@@ -540,14 +558,64 @@ Future<String?> _askCode(BuildContext context, String title, String text) async 
       ],
     ),
   );
-  return v == null || v.isEmpty ? null : v;
+  return v == null || v.isEmpty ? null : parseCodeText(v).$2;
+}
+
+/// Link easylesson://login?c=… o easylesson://recover?r=… (QR inquadrato con la fotocamera del telefono).
+Future<void> openAccountLink(BuildContext context, String link) async {
+  final (kind, value) = parseCodeText(link);
+  if (kind == 'raw' || !looksLikeAccountCode(value)) return;
+  final store = StoreScope.read(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final current = store.accountCode;
+  if (current != null) {
+    final same = kind == 'login' && normalizeAccountCode(current) == normalizeAccountCode(value);
+    messenger.showSnackBar(SnackBar(
+      content: Text(same
+          ? 'Questo dispositivo è già collegato con questo codice ✅'
+          : 'Questo dispositivo è già collegato a un account: scollegalo prima dal Profilo'),
+    ));
+    return;
+  }
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      icon: const Icon(Icons.key_rounded),
+      title: Text(kind == 'login' ? 'Entrare con questo codice?' : 'Recuperare l\'account?'),
+      content: Text(kind == 'login'
+          ? 'Livello, obiettivi e backup dell\'account arriveranno su questo dispositivo.'
+          : 'Con il codice di recupero ricevi un codice nuovo; quello vecchio smette di funzionare.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
+        FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(kind == 'login' ? 'Entra' : 'Recupera')),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  try {
+    if (kind == 'login') {
+      final me = await CloudAccount.login(store, value);
+      messenger.showSnackBar(SnackBar(
+        content: Text(me['backup'] != null
+            ? 'Bentornato! C\'è un backup: lo ripristini da Profilo → Ripristina dal server'
+            : 'Bentornato! Livello ${levelOf(store).level} recuperato'),
+      ));
+    } else {
+      final code = await CloudAccount.recover(store, value);
+      if (context.mounted) {
+        await showCodeDialog(context, code, recovery: value, fresh: true, title: '🔑 Il tuo codice nuovo');
+      }
+    }
+  } on CloudException catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text(e.message)));
+  }
 }
 
 /// Mostra i codici grandi, con copia e QR. Se [fresh], obbliga a confermare di averli salvati.
 Future<void> showCodeDialog(BuildContext context, String code, {String? recovery, bool fresh = false, String? title}) async {
   var saved = !fresh;
   final store = StoreScope.read(context);
-  Widget codeBox(BuildContext c, String label, String value) => Column(
+  Widget codeBox(BuildContext c, String label, String value, String qr) => Column(
         children: [
           Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
@@ -560,7 +628,8 @@ Future<void> showCodeDialog(BuildContext context, String code, {String? recovery
           Container(
             padding: const EdgeInsets.all(8),
             color: Colors.white,
-            child: QrImageView(data: value, size: 150, backgroundColor: Colors.white),
+            // Il QR è un link: la fotocamera del telefono apre Easy Lesson; lo scanner dell'app lo capisce.
+            child: QrImageView(data: qr, size: 150, backgroundColor: Colors.white),
           ),
           TextButton.icon(
             onPressed: () async {
@@ -590,10 +659,10 @@ Future<void> showCodeDialog(BuildContext context, String code, {String? recovery
                     'dati cifrati. Se li perdi tutti e due nessuno può recuperarli, nemmeno noi.',
                   ),
                 ),
-              codeBox(c, 'Codice', code),
+              codeBox(c, 'Codice', code, accountLink(code)),
               if (recovery != null) ...[
                 const Divider(height: 24),
-                codeBox(c, 'Codice di recupero', recovery),
+                codeBox(c, 'Codice di recupero', recovery, recoveryLink(recovery)),
                 const Text('Tienilo separato dal telefono (stampato, a casa).', textAlign: TextAlign.center),
               ],
               const SizedBox(height: 8),

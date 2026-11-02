@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Necessario per scaricare gli orari nella versione release -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 2.7.0: scanner dei QR nell'app (mobile_scanner), chiesto solo quando si apre lo scanner -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- Notifiche della prossima lezione (Android 13+ chiede il permesso) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Per rimettere le notifiche dopo il riavvio del telefono -->
@@ -24,12 +27,15 @@
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
-            <!-- Codici condivisi con il QR: la fotocamera apre easylesson://import?d=... -->
+            <!-- Codici condivisi con il QR: la fotocamera apre easylesson://import?d=...
+                 2.7.0: anche easylesson://login?c=... e easylesson://recover?r=... (codici dell'account) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="easylesson" android:host="import" />
+                <data android:scheme="easylesson" android:host="login" />
+                <data android:scheme="easylesson" android:host="recover" />
             </intent-filter>
         </activity>
 
