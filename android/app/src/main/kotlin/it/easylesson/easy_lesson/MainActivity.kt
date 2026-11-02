@@ -103,6 +103,10 @@ class MainActivity : FlutterActivity() {
                         Thread { UpdateCheck.run(applicationContext, force = true) }.start()
                         result.success(true)
                     }
+                    // Codici dell'account nel Block Store di Google (vedi CodeVault.kt).
+                    "vaultSave" -> CodeVault.save(applicationContext, call.arguments as String) { result.success(it) }
+                    "vaultRead" -> CodeVault.read(applicationContext) { result.success(it) }
+                    "vaultDelete" -> CodeVault.delete(applicationContext) { result.success(it) }
                     "takeShortcut" -> {
                         result.success(pendingShortcut)
                         pendingShortcut = null

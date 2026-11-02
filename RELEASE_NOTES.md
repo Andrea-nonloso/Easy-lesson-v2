@@ -1,33 +1,27 @@
-## Cosa c'è di nuovo in Easy Lesson 2.6.0
+# Easy Lesson 2.7.0 — la rivoluzione dei livelli 🏆
 
-### 🏫 Scuola
-- **"L'orario è cambiato!"**: l'app riscarica il tuo orario ogni tanto e, se la scuola lo cambia, ti avvisa con una notifica e ti mostra cosa è cambiato ("Martedì 3ª ora: Fisica → Chimica").
-- **Calendario del mese**: verifiche, compiti, assenze, voti, vacanze e conti alla rovescia in un colpo d'occhio.
-- **Piano di studio**: il ripasso di ogni verifica diviso sui giorni prima, con notifica ogni pomeriggio.
-- **Trimestre/pentamestre o quadrimestri**: medie separate e voto in pagella simulato.
-- **Crediti scolastici**: la fascia di crediti dalla tua media (3º, 4º e 5º anno) e il totale verso i 40.
-- **I miei prof**: ricevimento, email e note per ogni docente.
+### Livelli e obiettivi
+- **99 obiettivi** (prima erano 28) divisi in 7 categorie: primi passi, costanza, orario, organizzazione, studio e voti, stile, segreti.
+- Ogni obiettivo ha una rarità: Bronzo, Argento, Oro, Platino. Dà XP e fa salire di **livello**.
+- XP anche solo usando l'app: 5 per ogni giorno, più le serie di giorni di fila.
+- Distintivo del livello che cambia colore ogni 5 livelli e **ricompense** ogni 5 livelli.
+- Obiettivi segreti da scoprire, barre di avanzamento (es. 37/100).
 
-### 🎒 Organizzazione
-- **Libri e materiale** per materia e **promemoria settimanali** ("ogni martedì porta…"): finiscono nello zaino e nel riepilogo della sera.
-- **Avviso compiti non fatti** il pomeriggio prima.
-- **Conti alla rovescia personali** (gita, compleanno…) nella home.
-- **Cerca in tutto**: prof, classi, materie, agenda, voti, assenze.
+### Account facoltativo (senza email)
+- Crea un **codice segreto** e ritrovi livello e obiettivi su un altro telefono.
+- **Backup online** facoltativo: scegli tu cosa salvare (orari, voti, agenda…), anche automatico una volta al giorno.
+- 🔒 Voti, assenze, studio, prof, agenda e nome partono **cifrati** dal telefono: sul server nessuno può leggerli.
+- Per non perdere il codice: **codice di recupero**, **foglio PDF** da stampare, copia nel **backup di Google**
+  (Android), salvataggio nel **gestore password** e un promemoria che ogni tanto controlla che te lo ricordi.
+- Elimina l'account e tutti i dati dal server quando vuoi.
 
-### 📊 Report
-- **Resoconto PDF** per i genitori: medie per periodo, voti, assenze.
-- **Grafici**: andamento della media voto dopo voto e minuti di studio per settimana.
-- **Widget dei voti** su Android.
-
-### ♿ Accessibilità e altro
-- **Testo più grande**, **alto contrasto** e **font ad alta leggibilità** (Lexend).
-- **English (beta)**: menù, giorni e schermate principali in inglese.
-- **Modalità verifica**: conto alla rovescia a tutto schermo, schermo sempre acceso e Non disturbare.
-- 5 obiettivi nuovi.
+### Impostazioni riordinate
+- In cima il tuo livello; poi categorie chiare: Profilo, Aspetto, Scuola, Orario, Agenda, Notifiche, Dati e backup, Aggiornamenti, Info.
+- Il canale Beta ora si trova nelle opzioni sviluppatore.
 
 ### 📦 Download
 
-- **Easy-Lesson-v2.6.0-Setup.exe** — installer Windows;
-- **Easy-Lesson-v2.6.0-Windows.zip** — Windows portatile;
-- **Easy-Lesson-v2.6.0.apk** — Android;
-- **Easy-Lesson-v2.6.0-Web.zip** — web.
+- **Easy-Lesson-v2.7.0-beta.1-Setup.exe** — installer Windows;
+- **Easy-Lesson-v2.7.0-beta.1-Windows.zip** — Windows portatile;
+- **Easy-Lesson-v2.7.0-beta.1.apk** — Android;
+- **Easy-Lesson-v2.7.0-beta.1-Web.zip** — web.

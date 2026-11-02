@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../store.dart';
+import 'profile_page.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
-/// Setup al primo avvio: nome, orario personale, tema preferito.
-/// Tre passi semplici, poi si entra nella home.
+/// Setup al primo avvio: nome, orario personale, tema preferito, codice (facoltativo).
+/// Quattro passi semplici, poi si entra nella home.
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
 
@@ -41,7 +42,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       };
 
   void _next() {
-    if (_step < 2) {
+    if (_step < 3) {
       _pages.nextPage(duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
     } else {
       _finish();
@@ -96,7 +97,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const Spacer(),
-                      for (var i = 0; i < 3; i++)
+                      for (var i = 0; i < 4; i++)
                         Container(
                           width: 8,
                           height: 8,
@@ -136,6 +137,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           StoreScope.read(context).setThemeId(id);
                         },
                       ),
+                      const _AccountStep(),
                     ],
                   ),
                 ),
@@ -159,8 +161,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                 dimension: 18,
                                 child: CircularProgressIndicator(strokeWidth: 2.2),
                               )
-                            : Icon(_step < 2 ? Icons.arrow_forward_rounded : Icons.check_rounded),
-                        label: Text(_step < 2 ? 'Continua' : 'Inizia'),
+                            : Icon(_step < 3 ? Icons.arrow_forward_rounded : Icons.check_rounded),
+                        label: Text(_step < 3 ? 'Continua' : 'Inizia'),
                       ),
                     ],
                   ),
@@ -423,6 +425,35 @@ class _ThemeChip extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ------------------------------------------------------------------ passo 4
+
+class _AccountStep extends StatelessWidget {
+  const _AccountStep();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final has = StoreScope.of(context).accountCode != null;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
+      children: [
+        Text('Salva i tuoi progressi', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
+        Text(
+          has
+              ? 'Fatto! Livello e obiettivi vengono salvati con il tuo codice.'
+              : 'Easy Lesson ha livelli e più di 90 obiettivi. Con un codice segreto li ritrovi anche '
+                  'cambiando telefono. Puoi anche saltare e farlo dopo dalle impostazioni.',
+          style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 24),
+        const AccountPanel(compact: true),
+      ],
     );
   }
 }

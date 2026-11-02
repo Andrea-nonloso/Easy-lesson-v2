@@ -11,6 +11,7 @@ import 'api.dart';
 import 'bag.dart';
 import 'log.dart';
 import 'models.dart';
+import 'progress.dart';
 import 'school_calendar.dart';
 import 'school_extra.dart';
 import 'school_life.dart';
@@ -62,6 +63,43 @@ class CachedSchedule {
   }
 }
 
+/// Parti del backup che si possono scegliere: (id, nome, cosa contiene).
+const backupSections = <(String, String, String)>[
+  ('orari', 'Orari salvati', 'Il tuo orario, preferiti, recenti ed elenchi'),
+  ('aspetto', 'Aspetto', 'Tema, soprannomi ed emoji, nome'),
+  ('agenda', 'Agenda e calendario', 'Compiti, conti alla rovescia, zaino, ponti'),
+  ('scuola', 'Voti, assenze e studio', 'Voti, assenze, minuti di studio, prof, libri, foto (solo l\'elenco)'),
+  ('opzioni', 'Impostazioni e progressi', 'Notifiche, campanelle, home, obiettivi e livello'),
+  ('excel', 'File Excel importato', 'L\'orario completo della scuola: può pesare parecchio'),
+];
+
+/// Dati sensibili: nel backup online vanno cifrati (voti, assenze, studio, prof, agenda, nome).
+bool isSensitiveKey(String key) {
+  final s = backupSectionOf(key);
+  return s == 'scuola' || s == 'agenda' || key == 'el.username';
+}
+
+/// Le sezioni consigliate (tutte tranne il file Excel).
+const defaultBackupSections = {'orari', 'aspetto', 'agenda', 'scuola', 'opzioni'};
+
+/// A quale sezione del backup appartiene una chiave della memoria.
+String backupSectionOf(String key) => switch (key) {
+      'el.schedules' || 'el.mine' || 'el.classi' || 'el.docenti' || 'el.ore' || 'el.listsAt' || 'el.grid' || 'el.changes' =>
+        'orari',
+      'el.theme' || 'el.themeId' || 'el.customTheme' || 'el.nicknames' || 'el.subjectEmojis' || 'el.username' => 'aspetto',
+      'el.agenda' || 'el.closures' || 'el.countdowns' || 'el.weekly' || 'el.bagRules' || 'el.bagChecked' => 'agenda',
+      'el.grades' ||
+      'el.absences' ||
+      'el.study' ||
+      'el.studyLog' ||
+      'el.teachers' ||
+      'el.materials' ||
+      'el.photos' =>
+        'scuola',
+      'el.xlsx' => 'excel',
+      _ => 'opzioni',
+    };
+
 /// Stato dell'app + persistenza locale (localStorage sul web,
 /// SharedPreferences su Android e Windows).
 class AppStore extends ChangeNotifier {
@@ -72,6 +110,7 @@ class AppStore extends ChangeNotifier {
     final store = AppStore._(prefs, api ?? EasyLessonApi());
     store._load();
     store._countLaunch();
+    unawaited(store.markActive());
     unawaited(store.refreshLists(onlyIfStale: true));
     return store;
   }
@@ -102,6 +141,8 @@ class AppStore extends ChangeNotifier {
   static const _kNotify = 'el.notify';
   static const _kBeta = 'el.betaUpdates';
   static const _kExtras = 'el.extras';
+  static const _kAccount = 'el.account';
+  static const _kRecovery = 'el.recovery';
   static const _kNicknames = 'el.nicknames';
   static const _kEmojis = 'el.subjectEmojis';
   static const _kBells = 'el.bells';
@@ -165,6 +206,12 @@ class AppStore extends ChangeNotifier {
 
   /// Opzioni sviluppatore sbloccate (7 tocchi sulla foglia nelle impostazioni).
   bool devMode = false;
+
+  /// Codice dell'account Easy Lesson Cloud (null = nessun account, tutto solo sul dispositivo).
+  String? accountCode;
+
+  /// Codice di recupero (se questo dispositivo lo conosce: per il foglio PDF e Google).
+  String? recoveryCode;
 
   /// Il tema personalizzato come AppThemeSpec, null se mai creato.
   AppThemeSpec? get customThemeSpec => hasCustomTheme
@@ -330,6 +377,10 @@ class AppStore extends ChangeNotifier {
     username = (u != null && u.trim().isNotEmpty) ? u.trim() : null;
     setupDone = _prefs.getBool(_kSetupDone) ?? false;
     devMode = _prefs.getBool(_kDevMode) ?? false;
+    final code = _prefs.getString(_kAccount);
+    accountCode = code == null || code.trim().isEmpty ? null : code;
+    final rec = _prefs.getString(_kRecovery);
+    recoveryCode = rec == null || rec.trim().isEmpty ? null : rec;
     try {
       final rules = _prefs.getString(_kBagRules);
       if (rules != null) {
@@ -344,7 +395,8 @@ class AppStore extends ChangeNotifier {
       extraClosures
         ..clear()
         ..addAll((jsonDecode(_prefs.getString(_kClosures) ?? '[]') as List).map(Closure.fromJson).whereType<Closure>());
-      betaUpdates = _prefs.getBool(_kBeta) ?? false;
+      // Il canale Beta si sceglie solo dalle opzioni sviluppatore.
+      betaUpdates = devMode && (_prefs.getBool(_kBeta) ?? false);
       final n = _prefs.getInt(_kNotify);
       notifyMinutes = n == null || n < 0 ? null : n;
     } catch (e) {
@@ -662,6 +714,7 @@ class AppStore extends ChangeNotifier {
     if (s == null) return;
     s.lastOpened = DateTime.now();
     _saveSchedules();
+    _countView(ref);
     notifyListeners();
   }
 
@@ -762,6 +815,7 @@ class AppStore extends ChangeNotifier {
   }
 
   Future<void> setThemeId(String id) async {
+    if (id != themeId) unawaited(bump('themeChanges'));
     themeId = id;
     AppLog.i('tema', 'Tema: $id');
     notifyListeners();
@@ -1034,15 +1088,31 @@ class AppStore extends ChangeNotifier {
     reload();
   }
 
-  /// Copia di sicurezza di tutte le impostazioni e i dati (JSON).
-  String backup() => jsonEncode({
-        'easyLessonBackup': 1,
+  /// Copia di sicurezza (JSON). [sections] = solo quelle parti (vedi [backupSections]), null = tutto.
+  /// Il codice dell'account non finisce mai nel backup.
+  String backup({Set<String>? sections}) => jsonEncode({
+        'easyLessonBackup': 2,
         'at': DateTime.now().toIso8601String(),
+        if (sections != null) 'sections': (sections.toList()..sort()),
         'prefs': {
           for (final e in rawPrefs().entries)
-            if (e.key.startsWith('el.')) e.key: e.value,
+            if (e.key.startsWith('el.') &&
+                e.key != _kAccount &&
+                e.key != _kRecovery &&
+                (sections == null || sections.contains(backupSectionOf(e.key))))
+              e.key: e.value,
         },
       });
+
+  /// Le chiavi della memoria da mettere nel backup online (solo le sezioni scelte, mai i codici).
+  Map<String, Object?> backupPrefs(Set<String> sections) => {
+        for (final e in rawPrefs().entries)
+          if (e.key.startsWith('el.') &&
+              e.key != _kAccount &&
+              e.key != _kRecovery &&
+              sections.contains(backupSectionOf(e.key)))
+            e.key: e.value,
+      };
 
   /// Ripristina una copia fatta con [backup]. Lancia FormatException se non è valida.
   Future<int> restore(String json) async {
@@ -1058,7 +1128,7 @@ class AppStore extends ChangeNotifier {
     for (final e in prefs.entries) {
       final k = '${e.key}';
       final v = e.value;
-      if (!k.startsWith('el.')) continue;
+      if (!k.startsWith('el.') || k == _kAccount || k == _kRecovery) continue;
       if (v is bool) {
         await _prefs.setBool(k, v);
       } else if (v is int) {
@@ -1228,9 +1298,150 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ---------------------------------------------------------------- progressi, livelli, account
+
+  /// Nomi di tutte le opzioni salvate (menu sviluppatore nascosto).
+  List<String> rawExtrasKeys() => _extras.keys.toList();
+
+  /// Contatore dei progressi (es. stat('views')).
+  int stat(String key) => opt('stat.$key', 0);
+
+  /// Aumenta un contatore.
+  Future<void> bump(String key, [int by = 1]) => setOpt('stat.$key', stat(key) + by);
+
+  /// Alza un contatore solo se [value] è più alto.
+  Future<void> statMax(String key, int value) async {
+    if (value > stat(key)) await setOpt('stat.$key', value);
+  }
+
+  /// Contatori per nome (es. quante volte hai aperto l'orario di ogni prof). Restano sul dispositivo.
+  Map<String, int> statMap(String key) {
+    final m = opt<Map>('statmap.$key', const {});
+    return {for (final e in m.entries) '${e.key}': (e.value is int ? e.value as int : 0)};
+  }
+
+  void _countView(ScheduleRef ref) {
+    final kind = ref.prof ? 'prof' : 'class';
+    final m = statMap(kind);
+    m[ref.name] = (m[ref.name] ?? 0) + 1;
+    _extras['statmap.$kind'] = m;
+    _extras['stat.views'] = stat('views') + 1;
+    _extras['stat.${kind}Views'] = stat('${kind}Views') + 1;
+    _extras['stat.${kind}Distinct'] = m.length;
+    final top = m.values.fold(0, (a, b) => a > b ? a : b);
+    if (top > stat('${kind}Top')) _extras['stat.${kind}Top'] = top;
+    unawaited(_prefs.setString(_kExtras, jsonEncode(_extras)));
+  }
+
+  /// Da chiamare all'avvio e quando si torna nell'app: giorni attivi, serie, ore di lezione.
+  Future<void> markActive([DateTime? at]) async {
+    final now = at ?? DateTime.now();
+    final today = dayKey(now);
+    final last = opt<String?>('stat.lastDay', null);
+    _extras['stat.sessions'] = stat('sessions') + 1;
+    if (last != today) {
+      final streak = nextStreak(last, stat('streak'), now);
+      _extras['stat.days'] = stat('days') + 1;
+      _extras['stat.streak'] = streak;
+      if (streak > stat('bestStreak')) _extras['stat.bestStreak'] = streak;
+      _extras['stat.lastDay'] = today;
+    }
+    if (now.weekday == DateTime.sunday) _extras['stat.sundays'] = stat('sundays') + (last != today ? 1 : 0);
+    final minutes = now.hour * 60 + now.minute;
+    if (minutes >= 4 * 60 && minutes < 6 * 60 + 30) _extras['egg.early'] = true;
+    // In quale ora di lezione siamo? Si contano le ore diverse di oggi.
+    if (now.weekday <= DateTime.saturday) {
+      final i = slots.indexWhere((t) => t.start != null && t.end != null && minutes >= t.start! && minutes < t.end!);
+      if (i >= 0) {
+        final prev = opt<String>('stat.hoursToday', '');
+        final parts = prev.split('|');
+        final hours = parts.length == 2 && parts.first == today
+            ? parts[1].split(',').where((x) => x.isNotEmpty).toSet()
+            : <String>{};
+        hours.add('$i');
+        _extras['stat.hoursToday'] = '$today|${hours.join(',')}';
+        if (hours.length > stat('hoursInDay')) _extras['stat.hoursInDay'] = hours.length;
+      }
+    }
+    notifyListeners();
+    await _prefs.setString(_kExtras, jsonEncode(_extras));
+  }
+
+  /// Progressi da sincronizzare (solo contatori numerici e obiettivi).
+  ProgressData get progressData => ProgressData(
+        achievements: opt('ach.done', '').split(',').where((x) => x.isNotEmpty).toSet(),
+        counters: {
+          for (final e in _extras.entries)
+            // La serie di oggi non si unisce (dipende dal giorno): si sincronizza solo la migliore.
+            if (e.key.startsWith('stat.') && e.key != 'stat.streak' && e.value is int) e.key.substring(5): e.value as int,
+        },
+      );
+
+  /// Unisce i progressi arrivati dal server (o da un altro telefono) con quelli di qui.
+  Future<bool> applyProgress(ProgressData remote) async {
+    final local = progressData;
+    final merged = local.merge(remote);
+    if (merged.sameAs(local)) return false;
+    _extras['ach.done'] = (merged.achievements.toList()..sort()).join(',');
+    for (final e in merged.counters.entries) {
+      _extras['stat.${e.key}'] = e.value;
+    }
+    AppLog.i('cloud', 'Progressi uniti: ${merged.achievements.length} obiettivi');
+    notifyListeners();
+    await _prefs.setString(_kExtras, jsonEncode(_extras));
+    return true;
+  }
+
+  Future<void> setRecoveryCode(String? code) async {
+    recoveryCode = code == null || code.trim().isEmpty ? null : code.trim();
+    notifyListeners();
+    if (recoveryCode == null) {
+      await _prefs.remove(_kRecovery);
+    } else {
+      await _prefs.setString(_kRecovery, recoveryCode!);
+    }
+  }
+
+  Future<void> setAccountCode(String? code) async {
+    accountCode = code == null || code.trim().isEmpty ? null : code.trim();
+    if (accountCode != null) {
+      _extras['cloud.since'] ??= DateTime.now().toIso8601String();
+    } else {
+      _extras.remove('cloud.since');
+      _extras.remove('cloud.verifiedAt');
+    }
+    AppLog.i('cloud', accountCode == null ? 'Account scollegato' : 'Account collegato');
+    notifyListeners();
+    await _prefs.setString(_kExtras, jsonEncode(_extras));
+    if (accountCode == null) {
+      await _prefs.remove(_kAccount);
+    } else {
+      await _prefs.setString(_kAccount, accountCode!);
+    }
+  }
+
+  /// Scrive una chiave grezza della memoria (menu sviluppatore nascosto). null = cancella.
+  Future<void> setRawPref(String key, Object? value) async {
+    if (value == null) {
+      await _prefs.remove(key);
+    } else if (value is bool) {
+      await _prefs.setBool(key, value);
+    } else if (value is int) {
+      await _prefs.setInt(key, value);
+    } else if (value is double) {
+      await _prefs.setDouble(key, value);
+    } else if (value is List) {
+      await _prefs.setStringList(key, [for (final x in value) '$x']);
+    } else {
+      await _prefs.setString(key, '$value');
+    }
+    AppLog.w('memoria', 'Chiave scritta a mano: $key');
+    reload();
+  }
+
   /// Rimette le opzioni come appena installata (non tocca orari, agenda, voti, tema, soprannomi).
   Future<void> resetOptions() async {
-    const keep = ['ach.', 'egg.', 'ab.', 'credits.'];
+    const keep = ['ach.', 'egg.', 'ab.', 'credits.', 'stat.', 'statmap.', 'cloud.'];
     _extras.removeWhere((k, _) => !keep.any(k.startsWith));
     appEnglish = false;
     await setNotifyMinutes(null);
@@ -1264,6 +1475,7 @@ class AppStore extends ChangeNotifier {
 
   Future<void> setDevMode(bool v) async {
     devMode = v;
+    if (!v && betaUpdates) await setBetaUpdates(false);
     AppLog.i('dev', v ? 'Opzioni sviluppatore attivate' : 'Opzioni sviluppatore disattivate');
     notifyListeners();
     await _prefs.setBool(_kDevMode, v);

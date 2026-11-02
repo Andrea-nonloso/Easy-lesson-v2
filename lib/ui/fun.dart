@@ -114,6 +114,7 @@ class _CreditsFooterState extends State<CreditsFooter> {
 
   void _tap() {
     _taps++;
+    StoreScope.read(context).bump('leafTaps');
     final messenger = ScaffoldMessenger.of(context);
     final store = StoreScope.read(context);
     if (_taps < 7) {

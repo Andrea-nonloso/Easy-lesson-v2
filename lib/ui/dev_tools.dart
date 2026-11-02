@@ -77,6 +77,17 @@ List<Widget> devExtraTiles(
       toast('Fatto');
     }),
     const SectionLabel('Aggiornamenti'),
+    if (Updater.supported)
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        secondary: Icon(Icons.science_outlined, color: scheme.primary),
+        title: const Text('Canale Beta 🧪'),
+        subtitle: Text(store.betaUpdates
+            ? 'Ricevi le versioni di prova prima degli altri (possono avere difetti)'
+            : 'Canale Stabile: solo le versioni ufficiali'),
+        value: store.betaUpdates,
+        onChanged: (v) => store.setBetaUpdates(v),
+      ),
     sw('dev.fakeOld', Icons.history_toggle_off_rounded, 'Fai finta di essere vecchio',
         'L\'app crede di essere la 0.0.1: così provi il messaggio di aggiornamento',
         also: (v) => Updater.pretendOld = v),
@@ -169,14 +180,8 @@ List<Widget> devExtraTiles(
       easterMessage(store, DateTime.now()) ?? 'Oggi nessuna sorpresa nella home',
       null,
     ),
-    tile(Icons.lock_open_rounded, 'Sblocca tutti gli obiettivi', '${unlockedIds(store).length}/${achievements.length} sbloccati',
-        () => store.setOpt('ach.done', achievements.map((a) => a.id).join(','))),
-    tile(Icons.restart_alt_rounded, 'Azzera obiettivi e sorprese', 'Si risbloccano man mano', () async {
-      for (final k in ['ach.done', 'ach.qr', 'ach.backup', 'ach.exam', 'ach.pdf', 'egg.night', 'egg.lastDay', 'egg.firstDay']) {
-        await store.setOpt(k, null);
-      }
-      toast('Azzerati');
-    }),
+    tile(Icons.emoji_events_outlined, 'Obiettivi e livello', '${unlockedIds(store).length}/${achievements.length} obiettivi · '
+        'livello ${levelOf(store).level}. Per modificarli serve il menu nascosto.', null),
   ];
 }
 

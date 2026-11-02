@@ -18,6 +18,7 @@ import 'dev_page.dart';
 import 'fun.dart';
 import 'more_pages.dart';
 import 'photos_page.dart';
+import 'profile_page.dart';
 import 'report_pdf.dart';
 import 'school_life_pages.dart';
 import 'share_qr.dart';
@@ -100,7 +101,9 @@ Future<void> askExcelUrl(BuildContext context) async {
   }
 }
 
-Future<void> showSettingsSheet(BuildContext context) => showModalBottomSheet<void>(
+Future<void> showSettingsSheet(BuildContext context) {
+  StoreScope.read(context).bump('settingsOpens');
+  return showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
@@ -108,6 +111,7 @@ Future<void> showSettingsSheet(BuildContext context) => showModalBottomSheet<voi
       constraints: const BoxConstraints(maxWidth: 640),
       builder: (_) => const SettingsSheet(),
     );
+}
 
 /// Una voce delle impostazioni (cercabile).
 class _Item {
@@ -170,20 +174,48 @@ Future<void> _confirmResetOptions(BuildContext context, AppStore store) async {
 void _open(BuildContext context, Widget page) =>
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
 
-/// Tutte le impostazioni, divise in gruppi.
+/// Tutte le impostazioni, divise in categorie (ognuna si apre in una pagina sua).
 List<_Group> _settingsGroups(BuildContext context, AppStore store) {
   final theme = Theme.of(context);
   final scheme = theme.colorScheme;
   final android = NativeBridge.supported;
+  final lv = levelOf(store);
   return [
+    _Group(
+      'profilo',
+      Icons.military_tech_outlined,
+      tr('Profilo e progressi', 'Profile and progress'),
+      'Livello ${lv.level} · ${unlockedIds(store).length}/${achievements.length} obiettivi'
+          '${store.accountCode == null ? '' : ' · account ☁️'}',
+      [
+        _Item(Icons.military_tech_outlined, tr('Livello e statistiche', 'Level and stats'),
+            'Livello ${lv.level} · ${lv.title} · ${lv.xp} XP', () => openProfile(context),
+            keywords: 'xp livello profilo statistiche'),
+        _Item(Icons.emoji_events_outlined, tr('Obiettivi', 'Achievements'),
+            '${unlockedIds(store).length} su ${achievements.length} sbloccati', () => openAchievements(context),
+            keywords: 'medaglie sfide trofei'),
+        _Item(Icons.redeem_rounded, tr('Ricompense', 'Rewards'), 'Ogni 5 livelli si sblocca qualcosa',
+            () => _open(context, const RewardsPage()), keywords: 'skin premi sblocca'),
+        _Item(Icons.key_rounded, tr('Account e sincronizzazione', 'Account and sync'),
+            store.accountCode == null ? 'Facoltativo: salva i progressi con un codice' : 'Collegato · progressi al sicuro',
+            () => openProfile(context), keywords: 'codice login accedi cloud server sincronizza'),
+      ],
+      color: Colors.amber.shade700,
+    ),
     _Group(
       'aspetto',
       Icons.palette_outlined,
       tr('Aspetto', 'Appearance'),
-      '${themeById(store.themeId).name} · soprannomi · icona',
+      '${themeById(store.themeId).name} · icona · home · soprannomi',
       [
         _Item(Icons.palette_outlined, tr('Tema', 'Theme'), themeById(store.themeId).name, () => openThemesPage(context),
             keywords: 'colori scuro chiaro oled sfondo'),
+        if (android)
+          _Item(Icons.apps_rounded, tr('Icona dell\'app', 'App icon'), 'Verde, blu, viola, rossa, nera…',
+              () => pickAppIcon(context), keywords: 'launcher colore'),
+        _Item(Icons.dashboard_customize_outlined, tr('Home e pagina iniziale', 'Home and start page'),
+            'Cosa vedere nella home, emoji dei laboratori, vibrazione', () => openHomeOptions(context),
+            keywords: 'sezioni scorciatoie conto alla rovescia recenti'),
         _Item(
           Icons.emoji_emotions_outlined,
           tr('Soprannomi ed emoji', 'Nicknames and emoji'),
@@ -193,12 +225,6 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
           () => openNicknames(context),
           keywords: 'nomi materie prof rinomina',
         ),
-        if (android)
-          _Item(Icons.apps_rounded, tr('Icona dell\'app', 'App icon'), 'Verde, blu, viola, rossa, nera…',
-              () => pickAppIcon(context), keywords: 'launcher colore'),
-        _Item(Icons.dashboard_customize_outlined, tr('Home e pagina iniziale', 'Home and start page'),
-            'Cosa vedere nella home, emoji dei laboratori, vibrazione', () => openHomeOptions(context),
-            keywords: 'sezioni scorciatoie conto alla rovescia recenti'),
         _Item(Icons.translate_rounded, tr('Lingua', 'Language'), store.opt('lang', 'it') == 'en' ? 'English (beta)' : 'Italiano',
             () => openHomeOptions(context), keywords: 'inglese english'),
         _Item(
@@ -213,6 +239,134 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
         ),
       ],
       color: scheme.primary,
+    ),
+    _Group(
+      'scuola',
+      Icons.school_outlined,
+      tr('Scuola', 'School'),
+      'Voti, assenze e permessi, timer, prof, zaino',
+      [
+        _Item(Icons.grade_outlined, tr('Voti e medie', 'Grades'),
+            store.grades.isEmpty ? 'E quanto ti serve alla prossima verifica' : '${store.grades.length} voti',
+            () => openGrades(context), keywords: 'media pagella trimestre quadrimestre'),
+        _Item(Icons.event_busy_outlined, tr('Assenze e permessi', 'Absences'),
+            store.absences.isEmpty ? 'Ore perse e limite del 25%' : '${store.absences.length} segnate', () => openAbsences(context),
+            keywords: 'entrata uscita ritardo'),
+        _Item(Icons.timer_outlined, tr('Timer per studiare', 'Study timer'), 'Pomodoro 25/5', () => openStudyTimer(context),
+            keywords: 'pomodoro'),
+        _Item(Icons.hourglass_bottom_rounded, tr('Modalità verifica', 'Exam mode'), 'Conto alla rovescia a tutto schermo',
+            () => openExamMode(context)),
+        _Item(Icons.menu_book_outlined, tr('Piano di studio', 'Study plan'), 'Il ripasso diviso sui giorni prima',
+            () => openStudyPlan(context), keywords: 'ripasso verifica'),
+        _Item(Icons.show_chart_rounded, tr('Grafici', 'Charts'), 'Andamento dei voti e studio per settimana',
+            () => openCharts(context)),
+        _Item(Icons.workspace_premium_outlined, tr('Crediti scolastici', 'School credits'), 'Dal 3º anno',
+            () => openCredits(context), keywords: 'maturità'),
+        if (!kIsWeb)
+          _Item(Icons.photo_library_outlined, tr('Foto delle lezioni', 'Lesson photos'),
+              store.photos.isEmpty ? 'Lavagna e appunti' : '${store.photos.length} foto', () => openPhotos(context),
+              keywords: 'lavagna appunti'),
+        _Item(
+          Icons.contact_mail_outlined,
+          tr('I miei prof', 'My teachers'),
+          store.teachers.isEmpty ? 'Ricevimento, email e note' : '${store.teachers.length} con informazioni',
+          () => openTeachers(context),
+          keywords: 'docenti ricevimento email',
+        ),
+        _Item(Icons.backpack_outlined, tr('Zaino', 'Backpack'), 'Regole: camice, tuta, calcolatrice…', () => openBag(context),
+            keywords: 'portare'),
+        _Item(Icons.library_books_outlined, tr('Libri e materiale', 'Books and supplies'),
+            'Per materia e "ogni martedì porta…"', () => openMaterials(context), keywords: 'libri quaderni zaino'),
+      ],
+      color: Colors.indigo,
+    ),
+    _Group(
+      'orario',
+      Icons.schedule_rounded,
+      tr('Orario', 'Timetable'),
+      '${store.usingExcel ? 'File Excel' : 'Server Easy Lesson'} · campanelle · calendario · A/B',
+      [
+        _Item(
+          Icons.schedule_rounded,
+          tr('Orari delle campanelle', 'Bell times'),
+          store.customBells == null ? 'Quelli della scuola · ${store.slots.length} ore' : 'Scelti da te · ${store.slots.length} ore',
+          () => openBells(context),
+          keywords: 'ricreazione ore inizio fine',
+        ),
+        _Item(
+          Icons.event_busy_outlined,
+          tr('Calendario scolastico', 'School calendar'),
+          store.extraClosures.isEmpty
+              ? 'Vacanze e feste, aggiungi i ponti della scuola'
+              : 'Vacanze e feste · ${store.extraClosures.length} giorni aggiunti da te',
+          () => openSchoolCalendar(context),
+          keywords: 'vacanze ponti feste natale pasqua',
+        ),
+        _Item(
+          Icons.swap_vert_circle_outlined,
+          'Settimana A/B',
+          store.altRef == null ? 'Se l\'orario cambia a settimane alterne' : 'Settimana B: ${store.altRef!.displayName}',
+          () => abWeekDialog(context),
+          keywords: 'alternata',
+        ),
+        _Item(
+          Icons.badge_outlined,
+          'Materie e codici docenti',
+          subjectOverrides.isEmpty && teacherSubjectOverrides.isEmpty
+              ? 'Es. A026 = Matematica'
+              : '${subjectOverrides.length + teacherSubjectOverrides.length} personalizzazioni',
+          () => _open(context, const SubjectsPage()),
+          keywords: 'classe di concorso',
+        ),
+        if (!store.usingExcel)
+          _Item(Icons.sync_rounded, 'Aggiorna gli elenchi',
+              store.listsUpdatedAt == null ? 'Mai scaricati' : 'Aggiornati ${relativeTime(store.listsUpdatedAt!)}',
+              () => store.refreshLists(), keywords: 'server classi docenti fonte'),
+        _Item(Icons.upload_file_rounded, store.usingExcel ? 'Importa un altro file Excel' : 'Importa file Excel (.xlsx)',
+            'Il file dell\'orario della scuola: poi funziona tutto offline', () => pickAndImportExcel(context),
+            keywords: 'xlsx offline fonte'),
+        _Item(Icons.link_rounded, 'Scarica Excel da un link', 'Ideale nelle app (Android, Windows)', () => askExcelUrl(context),
+            keywords: 'fonte'),
+        if (store.usingExcel)
+          _Item(Icons.cloud_outlined, 'Torna al server Easy Lesson', null, () => store.removeExcel(), keywords: 'fonte'),
+      ],
+      extra: [
+        if (store.usingExcel)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.table_view_rounded, color: scheme.primary),
+            title: Text(store.excelName ?? 'File Excel'),
+            subtitle: Text(
+              '${store.classi.length} classi · ${store.docenti.length} docenti'
+              '${store.excelAt != null ? ' · importato ${relativeTime(store.excelAt!)}' : ''}'
+              '${store.excelUrl != null ? '\nSi aggiorna dal link' : '\nFunziona tutto offline'}',
+            ),
+            isThreeLine: true,
+            trailing: store.listsLoading
+                ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : (store.excelUrl != null
+                    ? IconButton(tooltip: 'Riscarica', onPressed: () => store.refreshLists(), icon: const Icon(Icons.sync_rounded))
+                    : null),
+          ),
+        if (!store.usingExcel && store.listsLoading) const LinearProgressIndicator(),
+      ],
+      color: Colors.teal,
+    ),
+    _Group(
+      'organizza',
+      Icons.event_note_outlined,
+      tr('Agenda e calendario', 'Planner and calendar'),
+      '${store.agendaFrom(DateTime.now()).length} cose in agenda · ${store.countdowns.length} conti alla rovescia',
+      [
+        _Item(Icons.event_note_rounded, 'Agenda', 'Compiti, verifiche, interrogazioni', () => openAgenda(context),
+            keywords: 'compiti verifiche'),
+        _Item(Icons.calendar_month_outlined, tr('Calendario del mese', 'Monthly calendar'), 'Tutto in un colpo d\'occhio',
+            () => openMonth(context)),
+        _Item(Icons.hourglass_top_rounded, tr('Conti alla rovescia', 'Countdowns'),
+            store.countdowns.isEmpty ? 'Gita, compleanno…' : '${store.countdowns.length} in corso', () => openCountdowns(context),
+            keywords: 'gita compleanno'),
+      ],
+      color: Colors.pink,
     ),
     _Group(
       'notifiche',
@@ -242,152 +396,16 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
       color: Colors.orange,
     ),
     _Group(
-      'scuola',
-      Icons.school_outlined,
-      tr('Scuola e orario', 'School and timetable'),
-      'Campanelle, calendario, settimana A/B, prof, zaino',
-      [
-        _Item(
-          Icons.schedule_rounded,
-          tr('Orari delle campanelle', 'Bell times'),
-          store.customBells == null ? 'Quelli della scuola · ${store.slots.length} ore' : 'Scelti da te · ${store.slots.length} ore',
-          () => openBells(context),
-          keywords: 'ricreazione ore inizio fine',
-        ),
-        _Item(
-          Icons.event_busy_outlined,
-          tr('Calendario scolastico', 'School calendar'),
-          store.extraClosures.isEmpty
-              ? 'Vacanze e feste, aggiungi i ponti della scuola'
-              : 'Vacanze e feste · ${store.extraClosures.length} giorni aggiunti da te',
-          () => openSchoolCalendar(context),
-          keywords: 'vacanze ponti feste natale pasqua',
-        ),
-        _Item(
-          Icons.swap_vert_circle_outlined,
-          'Settimana A/B',
-          store.altRef == null ? 'Se l\'orario cambia a settimane alterne' : 'Settimana B: ${store.altRef!.displayName}',
-          () => abWeekDialog(context),
-          keywords: 'alternata',
-        ),
-        _Item(
-          Icons.contact_mail_outlined,
-          tr('I miei prof', 'My teachers'),
-          store.teachers.isEmpty ? 'Ricevimento, email e note' : '${store.teachers.length} con informazioni',
-          () => openTeachers(context),
-          keywords: 'docenti ricevimento email',
-        ),
-        _Item(Icons.backpack_outlined, tr('Zaino', 'Backpack'), 'Regole: camice, tuta, calcolatrice…', () => openBag(context),
-            keywords: 'portare'),
-        _Item(Icons.library_books_outlined, tr('Libri e materiale', 'Books and supplies'),
-            'Per materia e "ogni martedì porta…"', () => openMaterials(context), keywords: 'libri quaderni zaino'),
-        _Item(
-          Icons.badge_outlined,
-          'Materie e codici docenti',
-          subjectOverrides.isEmpty && teacherSubjectOverrides.isEmpty
-              ? 'Es. A026 = Matematica'
-              : '${subjectOverrides.length + teacherSubjectOverrides.length} personalizzazioni',
-          () => _open(context, const SubjectsPage()),
-          keywords: 'classe di concorso',
-        ),
-      ],
-      color: Colors.teal,
-    ),
-    _Group(
-      'studio',
-      Icons.menu_book_outlined,
-      tr('Studio, voti e assenze', 'Study, grades and absences'),
-      '${store.grades.length} voti · ${store.absences.length} assenze',
-      [
-        _Item(Icons.grade_outlined, tr('Voti e medie', 'Grades'),
-            store.grades.isEmpty ? 'E quanto ti serve alla prossima verifica' : '${store.grades.length} voti',
-            () => openGrades(context), keywords: 'media pagella trimestre quadrimestre'),
-        _Item(Icons.event_busy_outlined, tr('Assenze e permessi', 'Absences'),
-            store.absences.isEmpty ? 'Ore perse e limite del 25%' : '${store.absences.length} segnate', () => openAbsences(context),
-            keywords: 'entrata uscita ritardo'),
-        _Item(Icons.menu_book_outlined, tr('Piano di studio', 'Study plan'), 'Il ripasso diviso sui giorni prima',
-            () => openStudyPlan(context), keywords: 'ripasso verifica'),
-        _Item(Icons.timer_outlined, tr('Timer per studiare', 'Study timer'), 'Pomodoro 25/5', () => openStudyTimer(context),
-            keywords: 'pomodoro'),
-        _Item(Icons.hourglass_bottom_rounded, tr('Modalità verifica', 'Exam mode'), 'Conto alla rovescia a tutto schermo',
-            () => openExamMode(context)),
-        _Item(Icons.show_chart_rounded, tr('Grafici', 'Charts'), 'Andamento dei voti e studio per settimana',
-            () => openCharts(context)),
-        _Item(Icons.workspace_premium_outlined, tr('Crediti scolastici', 'School credits'), 'Dal 3º anno',
-            () => openCredits(context), keywords: 'maturità'),
-        if (!kIsWeb)
-          _Item(Icons.photo_library_outlined, tr('Foto delle lezioni', 'Lesson photos'),
-              store.photos.isEmpty ? 'Lavagna e appunti' : '${store.photos.length} foto', () => openPhotos(context),
-              keywords: 'lavagna appunti'),
-      ],
-      color: Colors.indigo,
-    ),
-    _Group(
-      'organizza',
-      Icons.event_note_outlined,
-      tr('Agenda e calendario', 'Planner and calendar'),
-      '${store.agendaFrom(DateTime.now()).length} cose in agenda · ${store.countdowns.length} conti alla rovescia',
-      [
-        _Item(Icons.event_note_rounded, 'Agenda', 'Compiti, verifiche, interrogazioni', () => openAgenda(context),
-            keywords: 'compiti verifiche'),
-        _Item(Icons.calendar_month_outlined, tr('Calendario del mese', 'Monthly calendar'), 'Tutto in un colpo d\'occhio',
-            () => openMonth(context)),
-        _Item(Icons.hourglass_top_rounded, tr('Conti alla rovescia', 'Countdowns'),
-            store.countdowns.isEmpty ? 'Gita, compleanno…' : '${store.countdowns.length} in corso', () => openCountdowns(context),
-            keywords: 'gita compleanno'),
-        _Item(Icons.emoji_events_outlined, tr('Obiettivi', 'Achievements'),
-            '${unlockedIds(store).length} su ${achievements.length} sbloccati', () => openAchievements(context),
-            keywords: 'medaglie'),
-      ],
-      color: Colors.pink,
-    ),
-    _Group(
-      'fonte',
-      Icons.cloud_outlined,
-      tr('Fonte dell\'orario', 'Timetable source'),
-      store.usingExcel ? 'File Excel · ${store.excelName ?? ''}' : 'Server Easy Lesson',
-      [
-        if (!store.usingExcel)
-          _Item(Icons.sync_rounded, 'Aggiorna gli elenchi',
-              store.listsUpdatedAt == null ? 'Mai scaricati' : 'Aggiornati ${relativeTime(store.listsUpdatedAt!)}',
-              () => store.refreshLists(), keywords: 'server classi docenti'),
-        _Item(Icons.upload_file_rounded, store.usingExcel ? 'Importa un altro file Excel' : 'Importa file Excel (.xlsx)',
-            'Il file dell\'orario della scuola: poi funziona tutto offline', () => pickAndImportExcel(context),
-            keywords: 'xlsx offline'),
-        _Item(Icons.link_rounded, 'Scarica Excel da un link', 'Ideale nelle app (Android, Windows)', () => askExcelUrl(context)),
-        if (store.usingExcel)
-          _Item(Icons.cloud_outlined, 'Torna al server Easy Lesson', null, () => store.removeExcel()),
-      ],
-      extra: [
-        if (store.usingExcel)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.table_view_rounded, color: scheme.primary),
-            title: Text(store.excelName ?? 'File Excel'),
-            subtitle: Text(
-              '${store.classi.length} classi · ${store.docenti.length} docenti'
-              '${store.excelAt != null ? ' · importato ${relativeTime(store.excelAt!)}' : ''}'
-              '${store.excelUrl != null ? '\nSi aggiorna dal link' : '\nFunziona tutto offline'}',
-            ),
-            isThreeLine: true,
-            trailing: store.listsLoading
-                ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : (store.excelUrl != null
-                    ? IconButton(tooltip: 'Riscarica', onPressed: () => store.refreshLists(), icon: const Icon(Icons.sync_rounded))
-                    : null),
-          ),
-        if (!store.usingExcel && store.listsLoading) const LinearProgressIndicator(),
-      ],
-      color: Colors.blueGrey,
-    ),
-    _Group(
       'dati',
       Icons.save_alt_rounded,
-      tr('Dati e condivisione', 'Data and sharing'),
-      'Backup, QR, resoconto PDF',
+      tr('Dati e backup', 'Data and backup'),
+      'Backup, backup online, QR, resoconto PDF',
       [
-        _Item(Icons.save_alt_rounded, tr('Copia di sicurezza', 'Backup'), 'Copia tutto o rimettilo su un altro dispositivo',
+        _Item(Icons.save_alt_rounded, tr('Copia di sicurezza', 'Backup'), 'Copia tutto negli appunti o rimettilo su un altro dispositivo',
             () => _backupSheet(context, store), keywords: 'backup ripristina'),
+        _Item(Icons.cloud_upload_outlined, tr('Backup online', 'Online backup'),
+            store.accountCode == null ? 'Serve il codice Easy Lesson (facoltativo)' : 'Scegli cosa salvare sul server',
+            () => openProfile(context), keywords: 'cloud server sincronizza'),
         _Item(Icons.qr_code_2_rounded, tr('Condividi con un QR', 'Share with a QR'), 'Il tuo orario, il tema o i soprannomi',
             () => showShareQr(context), keywords: 'amico'),
         _Item(Icons.qr_code_scanner_rounded, tr('Importa un codice', 'Import a code'), 'Incolla il codice che ti hanno mandato',
@@ -406,7 +424,7 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
       'aggiornamenti',
       Icons.system_update_outlined,
       tr('Aggiornamenti', 'Updates'),
-      store.betaUpdates ? 'Canale Beta 🧪' : 'Canale Stabile',
+      store.betaUpdates ? 'Canale Beta 🧪' : 'Cerca aggiornamenti, novità',
       [
         _Item(Icons.new_releases_outlined, tr('Novità', 'What\'s new'), 'Le note di ogni versione su GitHub',
             () => launchUrl(Uri.parse('https://github.com/$githubRepo/releases'), mode: LaunchMode.externalApplication),
@@ -414,30 +432,14 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
       ],
       extra: [
         const _UpdateTile(),
-        if (Updater.supported) ...[
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Expanded(child: Text('Canale aggiornamenti')),
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(value: false, label: Text('Stabile')),
-                  ButtonSegment(value: true, label: Text('Beta 🧪')),
-                ],
-                selected: {store.betaUpdates},
-                onSelectionChanged: (sel) => store.setBetaUpdates(sel.first),
-              ),
-            ],
-          ),
-          if (store.betaUpdates)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                'Con Beta ricevi le versioni di prova prima degli altri: possono avere qualche difetto.',
-                style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-              ),
+        if (store.betaUpdates)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 4),
+            child: Text(
+              '🧪 Canale Beta attivo: ricevi le versioni di prova. Si cambia dalle opzioni sviluppatore.',
+              style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
-        ],
+          ),
         if (android)
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -482,7 +484,7 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
         'dev',
         Icons.science_outlined,
         tr('Opzioni sviluppatore', 'Developer options'),
-        'Log, notifiche, memoria, rete, interfaccia',
+        'Canale Beta, log, notifiche, memoria, rete',
         [_Item(Icons.science_outlined, tr('Opzioni sviluppatore', 'Developer options'), null, () => openDevPage(context))],
         color: Colors.red,
       ),
@@ -575,6 +577,8 @@ class _SettingsSheetState extends State<SettingsSheet> {
             ],
           ),
           const SizedBox(height: 14),
+          LevelCard(onTap: () => openProfile(context)),
+          const SizedBox(height: 12),
           TextField(
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search_rounded),

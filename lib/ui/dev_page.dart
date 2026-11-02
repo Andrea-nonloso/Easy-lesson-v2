@@ -8,6 +8,7 @@ import '../store.dart';
 import '../updater.dart';
 import '../xlsx_write.dart';
 import 'color_lab.dart';
+import 'deep_dev_page.dart';
 import 'dev_tools.dart';
 import 'save_file_io.dart' if (dart.library.js_interop) 'save_file_web.dart';
 import 'widgets.dart';
@@ -34,7 +35,13 @@ class DevPage extends StatelessWidget {
         );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Opzioni sviluppatore')),
+      appBar: AppBar(
+        // Tieni premuto il titolo: si apre la porta del menu nascosto (serve il PIN).
+        title: GestureDetector(
+          onLongPress: () => openDeepDevGate(context),
+          child: const Text('Opzioni sviluppatore'),
+        ),
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 640),

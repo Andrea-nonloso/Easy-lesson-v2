@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show timeDilation;
 import 'package:flutter/services.dart';
 
+import '../cloud.dart';
 import '../i18n.dart';
 import '../native.dart';
 import '../store.dart';
@@ -14,6 +15,7 @@ import 'desktop.dart';
 import 'app_menu.dart';
 import 'home_page.dart';
 import 'now_page.dart';
+import 'profile_page.dart' show checkCodeMemory;
 import 'saved_page.dart';
 import 'schedule_screen.dart';
 import 'school_life_pages.dart';
@@ -65,6 +67,12 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       final store = StoreScope.read(context);
       _store = store;
       store.addListener(_onStoreChanged);
+      Cloud.overrideUrl = store.opt<String?>('dev.cloudUrl', null);
+      CloudSync.maybeSync(store);
+      // Ogni tanto: "ti ricordi il tuo codice?" (solo con l'account, vedi profile_page.dart).
+      Timer(const Duration(seconds: 8), () {
+        if (mounted) checkCodeMemory(context);
+      });
       NativeBridge.scheduleSync(store);
       DesktopBridge.init(store);
       _checkScheduleChanges();
@@ -88,6 +96,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && _store != null) {
+      _store!.markActive();
+      CloudSync.maybeSync(_store!);
       NativeBridge.scheduleSync(_store!);
       _checkScheduleChanges();
       // Si ricontrolla GitHub quando si torna nell'app (al massimo ogni 3 ore).

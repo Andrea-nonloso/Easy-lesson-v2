@@ -72,3 +72,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // 2.7.0: Block Store di Google, per ritrovare il codice Easy Lesson su un telefono nuovo (CodeVault.kt).
+    implementation("com.google.android.gms:play-services-auth-blockstore:16.4.0")
+}

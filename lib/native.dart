@@ -34,6 +34,16 @@ class NativeBridge {
     }
   }
 
+  /// Salva un piccolo testo nel Block Store di Google (codici dell'account). true = salvato.
+  static Future<bool> vaultSave(String data) async => await _call<bool>('vaultSave', data) ?? false;
+
+  /// Legge quello salvato con [vaultSave] (anche su un telefono nuovo, dopo il ripristino di Google).
+  static Future<String?> vaultRead() => _call<String>('vaultRead');
+
+  static Future<void> vaultDelete() async {
+    await _call<bool>('vaultDelete');
+  }
+
   /// Una notifica sola a un'ora precisa (timer di studio). [id] tra 7000 e 7099.
   static Future<void> scheduleOne(int id, DateTime at, String title, String body) =>
       _call<bool>('scheduleOne', jsonEncode({'id': id, 'at': at.millisecondsSinceEpoch, 'title': title, 'body': body}));
