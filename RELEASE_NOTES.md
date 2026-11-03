@@ -24,7 +24,7 @@
 
 ### 📦 Download
 
-- **Easy-Lesson-v2.7.0-beta.1-Setup.exe** — installer Windows;
-- **Easy-Lesson-v2.7.0-beta.1-Windows.zip** — Windows portatile;
-- **Easy-Lesson-v2.7.0-beta.1.apk** — Android;
-- **Easy-Lesson-v2.7.0-beta.1-Web.zip** — web.
+- **Easy-Lesson-v2.7.0-Setup.exe** — installer Windows;
+- **Easy-Lesson-v2.7.0-Windows.zip** — Windows portatile;
+- **Easy-Lesson-v2.7.0.apk** — Android;
+- **Easy-Lesson-v2.7.0-Web.zip** — web.
