@@ -112,10 +112,10 @@ void main() {
       expect(backupSectionOf('el.chiaveNuova'), 'opzioni');
       expect(defaultBackupSections.contains('excel'), isFalse);
       // Cifrate nel backup online
-      for (final k in ['el.grades', 'el.absences', 'el.agenda', 'el.teachers', 'el.username', 'el.studyLog']) {
+      for (final k in ['el.grades', 'el.absences', 'el.agenda', 'el.teachers', 'el.username', 'el.studyLog', 'el.extras', 'el.nicknames', 'el.chiaveNuova']) {
         expect(isSensitiveKey(k), isTrue, reason: k);
       }
-      for (final k in ['el.schedules', 'el.themeId', 'el.extras', 'el.xlsx']) {
+      for (final k in ['el.schedules', 'el.themeId', 'el.subjectEmojis', 'el.xlsx']) {
         expect(isSensitiveKey(k), isFalse, reason: k);
       }
       for (final s in defaultBackupSections) {

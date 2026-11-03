@@ -30,9 +30,9 @@ Future<List<int>> buildRecoverySheet({required String code, String? recovery, St
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(title, style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: green)),
+                  pw.Text(title, style: const pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: green)),
                   pw.SizedBox(height: 8),
-                  pw.Text(value, style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, letterSpacing: 1.5)),
+                  pw.Text(value, style: const pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, letterSpacing: 1.5)),
                   pw.SizedBox(height: 6),
                   pw.Text(note, style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
                 ],
@@ -50,7 +50,7 @@ Future<List<int>> buildRecoverySheet({required String code, String? recovery, St
     build: (ctx) => pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('Easy Lesson · Foglio di recupero', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: green)),
+        pw.Text('Easy Lesson · Foglio di recupero', style: const pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: green)),
         pw.SizedBox(height: 4),
         pw.Text(
           '${name == null || name.isEmpty ? '' : '$name · '}creato il ${now.day}/${now.month}/${now.year}',
@@ -63,7 +63,7 @@ Future<List<int>> buildRecoverySheet({required String code, String? recovery, St
           box('Codice di recupero', recovery, recoveryLink(recovery),
               'Se perdi il codice: Impostazioni > Profilo > "Ho perso il codice". Poi ne ricevi uno nuovo.'),
         pw.SizedBox(height: 8),
-        pw.Text('Come conservarlo', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
+        pw.Text('Come conservarlo', style: const pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 6),
         pw.Bullet(text: 'Stampalo e tienilo a casa, oppure salvalo dove non lo perdi (non sul telefono soltanto).'),
         pw.Bullet(text: 'Non darlo a nessuno: chi ha il codice entra nel tuo account e legge i tuoi dati.'),

@@ -66,18 +66,26 @@ class CachedSchedule {
 /// Parti del backup che si possono scegliere: (id, nome, cosa contiene).
 const backupSections = <(String, String, String)>[
   ('orari', 'Orari salvati', 'Il tuo orario, preferiti, recenti ed elenchi'),
-  ('aspetto', 'Aspetto', 'Tema, soprannomi ed emoji, nome'),
+  ('aspetto', 'Aspetto', 'Tema, soprannomi ed emoji, nome (soprannomi e nome cifrati)'),
   ('agenda', 'Agenda e calendario', 'Compiti, conti alla rovescia, zaino, ponti'),
   ('scuola', 'Voti, assenze e studio', 'Voti, assenze, minuti di studio, prof, libri, foto (solo l\'elenco)'),
   ('opzioni', 'Impostazioni e progressi', 'Notifiche, campanelle, home, obiettivi e livello'),
   ('excel', 'File Excel importato', 'L\'orario completo della scuola: può pesare parecchio'),
 ];
 
-/// Dati sensibili: nel backup online vanno cifrati (voti, assenze, studio, prof, agenda, nome).
+/// Informativa privacy (pagina della versione web).
+const privacyUrl = 'https://easylesson.khugudvjan.cc/privacy.html';
+
+/// Dati sensibili: nel backup online vanno cifrati (voti, assenze, studio, prof, agenda,
+/// impostazioni e statistiche, nome e soprannomi).
 bool isSensitiveKey(String key) {
   final s = backupSectionOf(key);
-  return s == 'scuola' || s == 'agenda' || key == 'el.username';
+  return secretBackupSections.contains(s) || key == 'el.username' || key == 'el.nicknames';
 }
+
+/// Sezioni del backup cifrate per intero (le altre vanno in chiaro, tranne nome e soprannomi).
+/// 'opzioni' contiene el.extras: crediti, statistiche per prof (nomi di persone)…
+const secretBackupSections = {'scuola', 'agenda', 'opzioni'};
 
 /// Le sezioni consigliate (tutte tranne il file Excel).
 const defaultBackupSections = {'orari', 'aspetto', 'agenda', 'scuola', 'opzioni'};
@@ -1476,7 +1484,7 @@ class AppStore extends ChangeNotifier {
 
   /// Rimette le opzioni come appena installata (non tocca orari, agenda, voti, tema, soprannomi).
   Future<void> resetOptions() async {
-    const keep = ['ach.', 'egg.', 'ab.', 'credits.', 'stat.', 'statmap.', 'cloud.', 'mis.', 'event.'];
+    const keep = ['ach.', 'egg.', 'ab.', 'credits.', 'stat.', 'statmap.', 'cloud.', 'mis.', 'event.', 'ann.', 'social.', 'shop.'];
     _extras.removeWhere((k, _) => !keep.any(k.startsWith));
     appEnglish = false;
     await setNotifyMinutes(null);

@@ -142,7 +142,9 @@ class ReminderReceiver : BroadcastReceiver() {
                 SchoolSilence.restore(context)
                 LessonWidget.updateAll(context)
                 UpdateCheck.ensureScheduled(context)
+                LiveLesson.update(context)
             }
+            LiveLesson.ACTION -> LiveLesson.update(context)
             else -> if (SchoolSilence.isAction(intent)) {
                 SchoolSilence.apply(context, intent.getBooleanExtra("on", false))
             } else Reminders.show(

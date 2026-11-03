@@ -453,6 +453,8 @@ class _AccountStep extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         const AccountPanel(compact: true),
+        const SizedBox(height: 8),
+        const PrivacyLink(),
       ],
     );
   }

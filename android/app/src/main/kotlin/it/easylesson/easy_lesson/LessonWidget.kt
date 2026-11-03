@@ -66,6 +66,7 @@ class LessonWidget : AppWidgetProvider() {
             AgendaWidget.updateAll(context)
             GradesWidget.updateAll(context)
             scheduleNext(context, compute(context, Calendar.getInstance()).nextChange, Calendar.getInstance())
+            LiveLesson.update(context)
         }
 
         fun hm(m: Int) = String.format(Locale.ITALY, "%02d:%02d", m / 60, m % 60)

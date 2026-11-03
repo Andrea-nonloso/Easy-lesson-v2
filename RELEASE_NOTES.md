@@ -1,30 +1,48 @@
-# Easy Lesson 2.7.0 — la rivoluzione dei livelli 🏆
+# Easy Lesson 3.0 🎉
 
-### Livelli, obiettivi e missioni
-- **158 obiettivi** (prima erano 28) divisi in 8 categorie: primi passi, missioni, costanza, orario, organizzazione, studio e voti, stile, segreti.
-- **Missioni**: 3 giornaliere e 3 settimanali, uguali per tutti, con XP e un bonus se le completi tutte.
-  Ogni tanto arrivano **eventi speciali** con XP doppie.
-- Ogni obiettivo ha una rarità: Bronzo, Argento, Oro, Platino. Dà XP e fa salire di **livello**.
-- XP anche solo usando l'app: 5 per ogni giorno, più le serie di giorni di fila.
-- Distintivo del livello che cambia colore ogni 5 livelli e **ricompense** ogni 5 livelli.
-- Obiettivi segreti da scoprire, barre di avanzamento (es. 37/100).
+La versione più grande di sempre: la classe, gli amici, il negozio, una grafica nuova e la lezione sempre in tendina.
 
-### Account facoltativo (senza email)
-- Crea un **codice segreto** e ritrovi livello e obiettivi su un altro telefono.
-- **Backup online** facoltativo: scegli tu cosa salvare (orari, voti, agenda…), anche automatico una volta al giorno.
-- 🔒 Voti, assenze, studio, prof, agenda e nome partono **cifrati** dal telefono: sul server nessuno può leggerli.
-- Per non perdere il codice: **codice di recupero**, **foglio PDF** da stampare, copia nel **backup di Google**
-  (Android), salvataggio nel **gestore password** e un promemoria che ogni tanto controlla che te lo ricordi.
-- I QR dei codici si inquadrano con la fotocamera del telefono o con lo **scanner dentro l'app**.
-- Elimina l'account e tutti i dati dal server quando vuoi.
+## 👥 Classe e amici
+- **Gruppo classe**: crea la tua classe o entra con il codice / il QR di un compagno (fino a 45 persone).
+- **Agenda condivisa**: verifiche e compiti visibili a tutta la classe, con il 👍 "confermo" e il tasto per aggiungerli alla tua agenda.
+- **Sfide di classe**: ogni settimana una sfida per tutti (ore di studio, compiti fatti, giorni con l'app); gli amministratori ne possono lanciare altre.
+- **Amici e classifica**: aggiungi gli amici con il codice amico o il QR e gareggia sulle XP della settimana.
+- **Chat rapida**: si parla con la classe solo con **frasi pronte** ("Domani c'è la verifica di Matematica?", "Oggi fa caldo 🥵"…), scegliendo materia e giorno da un elenco. Niente testo libero, i messaggi spariscono dopo 24 ore.
+- Si vede solo il tuo **soprannome con un'emoji**, mai il nome vero. Filtro sulle parolacce e tasto **Segnala** ovunque, avvisi e moderatori di classe.
 
-### Impostazioni riordinate
-- In cima il tuo livello; poi categorie chiare: Profilo, Aspetto, Scuola, Orario, Agenda, Notifiche, Dati e backup, Aggiornamenti, Info.
-- Il canale Beta ora si trova nelle opzioni sviluppatore.
+## 🛍️ Negozio
+- Le XP diventano **monete** (1 ogni 4 XP).
+- Compra **cornici** per il distintivo, **titoli**, **avatar** speciali e **6 temi nuovi** (Ciliegio, Caramella, Abisso, Matrix, Nero e oro, Cosmo).
+- Con l'account le cose comprate ti seguono su ogni telefono.
+
+## 🎨 Grafica nuova
+- Stile **Material 3 Expressive**: forme più tonde, pulsanti più grandi, barra di navigazione nuova, "indietro predittivo" su Android. Si può tornare allo stile classico da Impostazioni → Aspetto.
+
+## 📳 Lezione in corso
+- Nuova notifica che resta in tendina durante la lezione: materia, aula e **barra del tempo che manca**, e 10 minuti prima la prossima.
+- Su **Android 16 e 17** diventa un **Live Update** (in evidenza nella barra di stato e sulla schermata di blocco). Impostazioni → Notifiche → Lezione in corso.
+
+## 🔄 Sincronizzazione completa
+- Telefono, PC e web sempre uguali: orari, agenda, voti e opzioni. Le parti personali viaggiano **cifrate end-to-end**. Impostazioni → Dati e backup.
+
+## 📢 Avvisi
+- Avvisi importanti in cima alla home (sciopero, aggiornamenti…), direttamente dal server.
+
+## 🏆 E poi
+- **173 obiettivi** (15 nuovi per classe, amici, chat e negozio).
+- Privacy: le impostazioni e le statistiche nel backup online ora sono cifrate; account inattivi da 2 anni cancellati in automatico; nuova [informativa privacy](https://easylesson.khugudvjan.cc/privacy.html).
+- Server più robusto: può spostarsi da Cloudflare a un server dedicato senza aggiornare l'app.
+
+## ⚠️ Versione beta
+
+Questa è una versione **beta** (non stabile): può avere qualche difetto. Si aggiorna da sola solo chi ha il canale Beta attivo. Per provarla: Impostazioni → Opzioni sviluppatore → Canale Beta, oppure installa l'APK a mano.
 
 ### 📦 Download
 
-- **Easy-Lesson-v2.7.0-Setup.exe** — installer Windows;
-- **Easy-Lesson-v2.7.0-Windows.zip** — Windows portatile;
-- **Easy-Lesson-v2.7.0.apk** — Android;
-- **Easy-Lesson-v2.7.0-Web.zip** — web.
+- **Easy-Lesson-v3.0.0-beta.1-Setup.exe** — installer Windows;
+- **Easy-Lesson-v3.0.0-beta.1-Windows.zip** — Windows portatile;
+- **Easy-Lesson-v3.0.0-beta.1.apk** — Android;
+- **Easy-Lesson-v3.0.0-beta.1-Web.zip** — web.
+
+
+**Full Changelog**: https://github.com/Andrea-nonloso/Easy-lesson-v2/compare/v2.7.0...v3.0.0-beta.1

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../shop.dart';
 import '../store.dart';
 import 'backdrop.dart';
 import 'color_lab.dart';
@@ -23,6 +24,10 @@ class ThemesPage extends StatelessWidget {
     final categories = <String, List<AppThemeSpec>>{};
     for (final t in appThemes) {
       (categories[t.category] ??= []).add(t);
+    }
+    // Temi comprati nel negozio.
+    for (final t in shopThemes) {
+      if (Shop.owns(store, 'theme.${t.id.substring(5)}')) (categories[t.category] ??= []).add(t);
     }
 
     return Scaffold(
@@ -134,7 +139,7 @@ class _ThemeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final outer = Theme.of(context).colorScheme;
     final data = _cache.putIfAbsent(
-        '${spec.id}-${spec.seed.value}-${spec.pureBlack}-${brightness.name}', () => buildTheme(brightness, spec));
+        '${spec.id}-${spec.seed.toARGB32()}-${spec.pureBlack}-${brightness.name}', () => buildTheme(brightness, spec));
     final scheme = data.colorScheme;
     final p = data.extension<AppPalette>()!;
 

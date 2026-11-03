@@ -35,7 +35,7 @@ Future<List<int>> buildReportPdf(AppStore store, {String mode = 'tri'}) async {
   }
 
   final stats = week == null ? null : absenceStats(store.absences, week, now);
-  final header = pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white);
+  const header = pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white);
   const green = PdfColor.fromInt(0xFF16A34A);
 
   doc.addPage(pw.MultiPage(
@@ -47,7 +47,7 @@ Future<List<int>> buildReportPdf(AppStore store, {String mode = 'tri'}) async {
           style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
     ),
     build: (ctx) => [
-      pw.Text('Resoconto scolastico', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold, color: green)),
+      pw.Text('Resoconto scolastico', style: const pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold, color: green)),
       pw.SizedBox(height: 4),
       pw.Text(_clean([
         if (store.username != null) store.username!,
@@ -55,7 +55,7 @@ Future<List<int>> buildReportPdf(AppStore store, {String mode = 'tri'}) async {
         'aggiornato al ${_d(now)}',
       ].join(' - '))),
       pw.SizedBox(height: 18),
-      pw.Text('Medie', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+      pw.Text('Medie', style: const pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
       pw.SizedBox(height: 6),
       if (subjects.isEmpty)
         pw.Text('Nessun voto segnato.')
@@ -84,7 +84,7 @@ Future<List<int>> buildReportPdf(AppStore store, {String mode = 'tri'}) async {
         ),
       if (subjects.isNotEmpty) ...[
         pw.SizedBox(height: 18),
-        pw.Text('Tutti i voti', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+        pw.Text('Tutti i voti', style: const pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 6),
         pw.TableHelper.fromTextArray(
           headerStyle: header,
@@ -97,7 +97,7 @@ Future<List<int>> buildReportPdf(AppStore store, {String mode = 'tri'}) async {
         ),
       ],
       pw.SizedBox(height: 18),
-      pw.Text('Assenze', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+      pw.Text('Assenze', style: const pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
       pw.SizedBox(height: 6),
       if (stats != null)
         pw.Text('Ore perse: ${stats.lost} su un limite di ${stats.limitHours} '

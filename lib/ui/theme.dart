@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 /// Accento predefinito dell'app: azzurro elettrico (stile "blu notte").
@@ -271,8 +272,52 @@ AppThemeSpec buildCustomSpec({
   );
 }
 
+/// Temi del negozio (3.0): si usano solo dopo averli comprati (vedi lib/shop.dart).
+const shopThemes = <AppThemeSpec>[
+  AppThemeSpec(
+    id: 'shop_ciliegio', name: 'Ciliegio', seed: Color(0xFFEC407A), brightness: Brightness.light,
+    background: Color(0xFFFFF1F5), card: Color(0xFFFFFFFF), nav: Color(0xFFFFE4EC), category: 'Dal negozio',
+  ),
+  AppThemeSpec(
+    id: 'shop_caramella', name: 'Caramella', seed: Color(0xFF7E57C2), brightness: Brightness.light,
+    background: Color(0xFFF3F0FF), card: Color(0xFFFFFFFF), nav: Color(0xFFE9F7FF),
+    backdrop: BackdropKind.blobs,
+    backdropColors: [Color(0xFFFFC1E3), Color(0xFFB3E5FC), Color(0xFFFFF59D)],
+    category: 'Dal negozio',
+  ),
+  AppThemeSpec(
+    id: 'shop_abisso', name: 'Abisso', seed: Color(0xFF26C6DA), brightness: Brightness.dark,
+    background: Color(0xFF02101A), card: Color(0xE0062033), nav: Color(0xCC02101A),
+    backdrop: BackdropKind.waves,
+    backdropColors: [Color(0xFF01579B), Color(0xFF006064), Color(0xFF0D47A1)],
+    category: 'Dal negozio',
+  ),
+  AppThemeSpec(
+    id: 'shop_matrix', name: 'Matrix', seed: Color(0xFF00E676), brightness: Brightness.dark,
+    background: Color(0xFF000000), card: Color(0xE0061208), nav: Color(0xCC000000),
+    backdrop: BackdropKind.stars,
+    backdropColors: [Color(0xFF00E676), Color(0xFF1B5E20)],
+    pureBlack: true,
+    category: 'Dal negozio',
+  ),
+  AppThemeSpec(
+    id: 'shop_oro', name: 'Nero e oro', seed: Color(0xFFFFC107), brightness: Brightness.dark,
+    background: Color(0xFF0A0A0A), card: Color(0xFF17140C), nav: Color(0xFF0A0A0A), pureBlack: true, category: 'Dal negozio',
+  ),
+  AppThemeSpec(
+    id: 'shop_cosmo', name: 'Cosmo', seed: Color(0xFFB388FF), brightness: Brightness.dark,
+    background: Color(0xFF07041A), card: Color(0xE0140E2E), nav: Color(0xCC07041A),
+    backdrop: BackdropKind.stars,
+    backdropColors: [Color(0xFF7C4DFF), Color(0xFF448AFF), Color(0xFFFF4081)],
+    category: 'Dal negozio',
+  ),
+];
+
 AppThemeSpec themeById(String? id, {AppThemeSpec? custom}) {
   if (id == customThemeId && custom != null) return custom;
+  for (final t in shopThemes) {
+    if (t.id == id) return t;
+  }
   return appThemes.firstWhere((t) => t.id == id, orElse: () => appThemes.first);
 }
 
@@ -378,6 +423,82 @@ ThemeData buildTheme(Brightness brightness, [AppThemeSpec spec = const AppThemeS
       ),
     ),
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+  );
+}
+
+/// 3.0 — stile "Material 3 Expressive": forme più tonde e varie, pulsanti più grandi e decisi,
+/// titoli più pesanti, barra di navigazione con indicatore a pillola, transizioni con il "torna
+/// indietro predittivo" di Android. Solo API stabili di Flutter: si spegne dalle impostazioni.
+ThemeData expressiveTheme(ThemeData t) {
+  final scheme = t.colorScheme;
+  final text = t.textTheme;
+  const pill = StadiumBorder();
+  RoundedRectangleBorder round(double r) => RoundedRectangleBorder(borderRadius: BorderRadius.circular(r));
+  const big = Size(64, 52);
+  const label = TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, letterSpacing: 0.1);
+  return t.copyWith(
+    textTheme: text.copyWith(
+      displaySmall: text.displaySmall?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.5),
+      headlineLarge: text.headlineLarge?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.5),
+      headlineMedium: text.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.3),
+      headlineSmall: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+      titleLarge: text.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+      titleMedium: text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+    ),
+    cardTheme: CardThemeData(
+      elevation: 0,
+      shape: round(26),
+      surfaceTintColor: Colors.transparent,
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(shape: pill, minimumSize: big, textStyle: label, padding: const EdgeInsets.symmetric(horizontal: 24)),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(shape: pill, minimumSize: big, textStyle: label),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(shape: pill, minimumSize: big, textStyle: label, side: BorderSide(color: scheme.outline, width: 1.5)),
+    ),
+    textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(shape: pill, textStyle: label)),
+    iconButtonTheme: IconButtonThemeData(style: IconButton.styleFrom(shape: round(16))),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      shape: round(22),
+      elevation: 2,
+      extendedTextStyle: label,
+      extendedSizeConstraints: const BoxConstraints.tightFor(height: 60),
+      sizeConstraints: const BoxConstraints.tightFor(width: 64, height: 64),
+    ),
+    navigationBarTheme: t.navigationBarTheme.copyWith(
+      height: 76,
+      indicatorShape: pill,
+      labelTextStyle: WidgetStateProperty.resolveWith(
+        (s) => TextStyle(
+          fontSize: 12.5,
+          fontWeight: s.contains(WidgetState.selected) ? FontWeight.w800 : FontWeight.w500,
+          color: s.contains(WidgetState.selected) ? scheme.onSurface : scheme.onSurfaceVariant,
+        ),
+      ),
+    ),
+    navigationRailTheme: t.navigationRailTheme.copyWith(indicatorShape: pill),
+    dialogTheme: DialogThemeData(shape: round(32)),
+    bottomSheetTheme: t.bottomSheetTheme.copyWith(
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+      showDragHandle: true,
+    ),
+    chipTheme: t.chipTheme.copyWith(shape: pill),
+    listTileTheme: ListTileThemeData(shape: round(18)),
+    segmentedButtonTheme: SegmentedButtonThemeData(style: SegmentedButton.styleFrom(shape: pill)),
+    snackBarTheme: t.snackBarTheme.copyWith(shape: round(18)),
+    tooltipTheme: TooltipThemeData(decoration: BoxDecoration(color: scheme.inverseSurface, borderRadius: BorderRadius.circular(12))),
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+        TargetPlatform.windows: ZoomPageTransitionsBuilder(),
+        TargetPlatform.linux: ZoomPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+      },
+    ),
   );
 }
 

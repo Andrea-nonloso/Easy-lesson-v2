@@ -10,6 +10,7 @@ import '../i18n.dart';
 import '../school_extra.dart';
 import 'achievements.dart';
 import 'agenda_page.dart';
+import 'announcement_banner.dart';
 import 'bag_page.dart';
 import 'fun.dart';
 import 'more_pages.dart';
@@ -128,6 +129,7 @@ class HomePage extends StatelessWidget {
       ),
       if (store.opt('home.shortcuts', true)) _QuickSwitch(store: store, onOpenMine: onOpenMine, onSearch: onSearch),
       const ScheduleChangedBanner(),
+      const AnnouncementBanner(),
       SizedBox(height: tight ? 10 : 16),
       _TodayCard(store: store, now: now, onOpenMine: onOpenMine, onSearch: onSearch),
       if (!tight && store.opt('home.countdown', true)) ...[const SizedBox(height: 10), _Countdowns(store: store)],

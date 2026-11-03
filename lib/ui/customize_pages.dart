@@ -287,7 +287,7 @@ class _BellsPageState extends State<BellsPage> {
   String? get _error {
     for (var i = 0; i < _bells.length; i++) {
       if (_bells[i].$2 <= _bells[i].$1) return 'La ${i + 1}ª ora finisce prima di iniziare';
-      if (i > 0 && _bells[i].$1 < _bells[i - 1].$2) return 'La ${i + 1}ª ora inizia prima della fine della ${i}ª';
+      if (i > 0 && _bells[i].$1 < _bells[i - 1].$2) return 'La ${i + 1}ª ora inizia prima della fine della $iª';
     }
     return null;
   }

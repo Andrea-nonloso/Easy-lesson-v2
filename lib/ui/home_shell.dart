@@ -4,17 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show timeDilation;
 import 'package:flutter/services.dart';
 
+import '../announcements.dart';
 import '../cloud.dart';
 import '../i18n.dart';
 import '../mission_engine.dart';
 import '../native.dart';
+import '../social.dart';
 import '../store.dart';
 import '../updater.dart';
 import 'achievements.dart';
 import 'agenda_page.dart';
+import 'class_page.dart' show openSocialLink;
 import 'desktop.dart';
 import 'app_menu.dart';
 import 'home_page.dart';
+import 'notices.dart';
 import 'now_page.dart';
 import 'profile_page.dart' show checkCodeMemory, openAccountLink;
 import 'saved_page.dart';
@@ -71,9 +75,16 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       Cloud.overrideUrl = store.opt<String?>('dev.cloudUrl', null);
       CloudSync.maybeSync(store);
       Missions.refreshEvents(store);
+      Announcements.refresh(store);
+      final lv = levelOf(store);
+      Social.sync(store, xp: lv.xp, level: lv.level);
       // Ogni tanto: "ti ricordi il tuo codice?" (solo con l'account, vedi profile_page.dart).
       Timer(const Duration(seconds: 8), () {
         if (mounted) checkCodeMemory(context);
+      });
+      // Avvisi della moderazione (classe e amici).
+      Timer(const Duration(seconds: 12), () {
+        if (mounted) ModNotices.check(context);
       });
       NativeBridge.scheduleSync(store);
       DesktopBridge.init(store);
@@ -100,8 +111,12 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed && _store != null) {
       _store!.markActive();
       CloudSync.maybeSync(_store!);
+      Announcements.refresh(_store!);
+      final lv = levelOf(_store!);
+      Social.sync(_store!, xp: lv.xp, level: lv.level);
       NativeBridge.scheduleSync(_store!);
       _checkScheduleChanges();
+      ModNotices.check(context);
       // Si ricontrolla GitHub quando si torna nell'app (al massimo ogni 3 ore).
       final last = Updater.lastCheck;
       if (last == null || DateTime.now().difference(last) > const Duration(hours: 3)) _checkUpdates();
@@ -112,6 +127,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
   void _onStoreChanged() {
     if (_store != null) NativeBridge.scheduleSync(_store!);
+    // Sincronizzazione completa: un minuto dopo l'ultimo cambiamento.
+    if (_store != null && CloudSync.live(_store!)) CloudSync.schedule(_store!, delay: const Duration(seconds: 60));
     // Obiettivi: si controllano un attimo dopo l'ultimo cambiamento.
     _achTimer?.cancel();
     _achTimer = Timer(const Duration(seconds: 2), () {
@@ -134,6 +151,11 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     // QR del codice dell'account (easylesson://login?c=... / recover?r=...).
     if (s.startsWith('easylesson://login') || s.startsWith('easylesson://recover')) {
       await openAccountLink(context, s);
+      return;
+    }
+    // 3.0: QR di una classe o di un amico.
+    if (s.startsWith('easylesson://class') || s.startsWith('easylesson://friend')) {
+      await openSocialLink(context, s);
       return;
     }
     switch (s) {

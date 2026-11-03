@@ -94,6 +94,9 @@ class NativeBridge {
   /// Scorciatoia con cui è stata aperta l'app ("mine", "prof", "agenda"), una volta sola.
   static Future<String?> takeShortcut() => _call<String>('takeShortcut');
 
+  /// 3.0: notifica "lezione in corso" (Live Update su Android 16+), vedi LiveLesson.kt.
+  static Future<void> setLiveLesson(bool on) => _call<bool>('setLiveLesson', on);
+
   /// Scorciatoie e risposte che arrivano con l'app già aperta.
   static void listen(void Function(String shortcut) onShortcut) {
     if (!supported) return;
@@ -110,6 +113,7 @@ class NativeBridge {
   static String? _lastWidget;
   static String? _lastUpdates;
   static String? _lastSilence;
+  static bool? _lastLive;
   static String? _version;
 
   /// Da chiamare quando cambia qualcosa nello store: dopo un attimo aggiorna
@@ -134,6 +138,11 @@ class NativeBridge {
       _lastUpdates = upd;
       await configureUpdates(
           enabled: store.opt('n.updates', true), beta: store.betaUpdates, current: _version ?? '');
+    }
+    final live = store.opt('n.live', false);
+    if (live != _lastLive) {
+      _lastLive = live;
+      await setLiveLesson(live);
     }
     final silence = jsonEncode(store.opt('silence', false) ? silenceWindows(store, now) : const []);
     if (silence != _lastSilence) {
@@ -331,10 +340,10 @@ class NativeBridge {
 
       // Riepilogo della sera prima.
       if (evening) {
-        final items = [
+        final items = <dynamic>{
           ...bagItems(days[wd], store.bagRules),
           ...extraBagItems(days[wd], d.weekday, store.materials, store.weeklyItems),
-        ].toSet().toList();
+        }.toList();
         add(
           3000 + k * 10 + 6,
           at(prev, eveningAt),

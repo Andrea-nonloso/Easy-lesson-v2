@@ -5,6 +5,7 @@ import 'package:cryptography/cryptography.dart' show SecretKey;
 import 'package:http/http.dart' as http;
 
 import 'crypto_box.dart';
+import 'live_sync.dart';
 import 'log.dart';
 import 'native.dart';
 import 'progress.dart';
@@ -42,9 +43,10 @@ class Cloud {
 
   /// Chiamata generica: restituisce il corpo, o lancia CloudException con un messaggio chiaro.
   /// [code] = codice dell'account (si manda il suo token).
-  static Future<String> raw(String method, String path, {String? code, Object? body}) async {
+  static Future<String> raw(String method, String path, {String? code, String? bearer, Object? body}) async {
     final req = http.Request(method, _u(path));
     if (code != null) req.headers['authorization'] = 'Bearer ${await authToken(code)}';
+    if (bearer != null) req.headers['authorization'] = 'Bearer $bearer';
     if (body != null) {
       req.headers['content-type'] = 'application/json';
       req.body = body is String ? body : jsonEncode(body);
@@ -69,8 +71,8 @@ class Cloud {
     throw CloudException(msg, res.statusCode);
   }
 
-  static Future<Map<String, dynamic>> _json(String method, String path, {String? code, Object? body}) async {
-    final t = await raw(method, path, code: code, body: body);
+  static Future<Map<String, dynamic>> _json(String method, String path, {String? code, String? bearer, Object? body}) async {
+    final t = await raw(method, path, code: code, bearer: bearer, body: body);
     try {
       final j = jsonDecode(t);
       return j is Map<String, dynamic> ? j : <String, dynamic>{};
@@ -127,8 +129,12 @@ class Cloud {
   static Future<ProgressData> pushProgress(String code, ProgressData p) async =>
       ProgressData.fromJson(await _json('PUT', '/progress', code: code, body: p.toJson()));
 
+  /// Ora (del server, ms) dell'ultimo backup caricato da qui.
+  static int? lastUploadAt;
+
   static Future<int> uploadBackup(String code, String backupJson) async {
     final j = await _json('PUT', '/backup', code: code, body: backupJson);
+    lastUploadAt = (j['at'] as num?)?.toInt();
     return (j['size'] as num?)?.toInt() ?? backupJson.length;
   }
 
@@ -139,7 +145,9 @@ class Cloud {
   /// Controlla il PIN del menu sviluppatore nascosto (lo decide il server).
   static Future<bool> devUnlock(String pin) async {
     try {
-      return (await _json('POST', '/dev/unlock', body: {'pin': pin}))['ok'] == true;
+      final j = await _json('POST', '/dev/unlock', body: {'pin': pin});
+      devSession = j['session'] as String?;
+      return j['ok'] == true;
     } on CloudException catch (e) {
       if (e.status == 403) return false;
       rethrow;
@@ -158,6 +166,61 @@ class Cloud {
     final list = j['events'];
     return list is List ? [for (final e in list) if (e is Map) Map<String, dynamic>.from(e)] : const [];
   }
+
+  /// Avvisi in corso per questa versione e piattaforma.
+  static Future<List<Map<String, dynamic>>> announcements({String? version, String? platform}) async {
+    final q = [
+      if (version != null && version.isNotEmpty) 'v=${Uri.encodeQueryComponent(version)}',
+      if (platform != null) 'p=$platform',
+    ].join('&');
+    final j = await _json('GET', '/announcements${q.isEmpty ? '' : '?$q'}');
+    final list = j['announcements'];
+    return list is List ? [for (final a in list) if (a is Map) Map<String, dynamic>.from(a)] : const [];
+  }
+
+  // ---------------------------------------------------------------- amministrazione (Sviluppatore²)
+
+  /// Sessione data dal server con la password del menu nascosto (12 ore). Solo in memoria.
+  static String? devSession;
+
+  static Future<Map<String, dynamic>> admin(String method, String path, {Object? body}) {
+    final s = devSession;
+    if (s == null) throw CloudException('Riapri Sviluppatore² con la password');
+    return _json(method, '/admin/$path', bearer: s, body: body);
+  }
+
+  static Future<Map<String, dynamic>> adminStats() => admin('GET', 'stats');
+
+  /// Tutte le righe di una tabella (announcements, events, rewards).
+  static Future<List<Map<String, dynamic>>> adminRows(String table) async {
+    final out = <Map<String, dynamic>>[];
+    var after = '';
+    for (var i = 0; i < 50; i++) {
+      final j = await admin('GET', 'dump?table=$table&limit=200&after=${Uri.encodeQueryComponent(after)}');
+      final rows = j['rows'];
+      if (rows is List) out.addAll([for (final r in rows) if (r is Map) Map<String, dynamic>.from(r)]);
+      final next = j['next'];
+      if (next is! String || next.isEmpty) break;
+      after = next;
+    }
+    return out;
+  }
+
+  static Future<void> adminSave(String table, Map<String, dynamic> row) =>
+      admin('POST', 'load', body: {'table': table, 'rows': [row]});
+
+  static Future<void> adminDelete(String table, String id) => admin('DELETE', 'row/$table/${Uri.encodeComponent(id)}');
+
+  static Future<Map<String, dynamic>> adminCleanup() => admin('POST', 'cleanup');
+
+  /// Segnalazioni aperte (classe e amici), raggruppate per cosa è stato segnalato.
+  static Future<List<Map<String, dynamic>>> adminReports() async {
+    final l = (await admin('GET', 'reports'))['reports'];
+    return l is List ? [for (final r in l) if (r is Map) Map<String, dynamic>.from(r)] : const [];
+  }
+
+  /// action: dismiss | hide | delete | restore
+  static Future<void> adminResolve(String reportId, String action) => admin('POST', 'reports/$reportId', body: {'action': action});
 
   static String rewardFileUrl(String file) => _u('/rewards/file/${Uri.encodeComponent(file)}').toString();
 }
@@ -285,6 +348,10 @@ class CloudAccount {
     await store.setAccountCode(null);
     await store.setRecoveryCode(null);
     await CloudVault.clear();
+    // Classe e amici appartengono all'account.
+    for (final k in ['social.nick', 'social.classes', 'social.at']) {
+      await store.setOpt(k, null);
+    }
   }
 }
 
@@ -327,19 +394,28 @@ class CloudSync {
 
   static Timer? _timer;
   static bool _busy = false;
+  static DateTime? _lastEnd;
 
   /// Da chiamare quando cambiano i progressi: si sincronizza dopo qualche secondo di calma.
+  /// I cambiamenti fatti dalla sincronizzazione stessa non ne fanno partire un'altra.
   static void schedule(AppStore store, {Duration delay = const Duration(seconds: 15)}) {
     if (store.accountCode == null) return;
+    if (_busy || (_lastEnd != null && DateTime.now().difference(_lastEnd!) < const Duration(seconds: 5))) return;
     _timer?.cancel();
     _timer = Timer(delay, () => syncNow(store, quiet: true));
   }
 
-  /// All'avvio e quando si torna nell'app: sincronizza solo se sono passate almeno 2 ore.
+  /// Sincronizzazione completa tra dispositivi accesa (serve anche il consenso al backup online).
+  static bool live(AppStore store) =>
+      store.accountCode != null && store.opt('cloud.live', false) && store.opt('cloud.consent', false);
+
+  /// All'avvio e quando si torna nell'app: sincronizza solo se sono passate almeno 2 ore
+  /// (2 minuti con la sincronizzazione completa).
   static void maybeSync(AppStore store) {
     if (store.accountCode == null) return;
     final last = DateTime.tryParse(store.opt('cloud.lastSync', ''));
-    if (last == null || DateTime.now().difference(last) > const Duration(hours: 2)) {
+    final every = live(store) ? const Duration(minutes: 2) : const Duration(hours: 2);
+    if (last == null || DateTime.now().difference(last) > every) {
       schedule(store, delay: const Duration(seconds: 6));
     }
   }
@@ -355,7 +431,13 @@ class CloudSync {
       await store.applyProgress(merged);
       await store.setOpt('cloud.lastSync', DateTime.now().toIso8601String());
       var msg = 'Progressi sincronizzati';
-      if (store.opt('cloud.auto', false)) {
+      if (live(store)) {
+        final got = await _pullOther(store);
+        if (got > 0) msg += ' · $got cambiamenti dall\'altro dispositivo';
+        final sent = await uploadBackupIfChanged(store);
+        if (sent) msg += ' · dati inviati';
+        await store.setOpt('cloud.syncBase', jsonEncode(syncHashes(store.backupPrefs(sections(store)))));
+      } else if (store.opt('cloud.auto', false)) {
         final last = DateTime.tryParse(store.opt('cloud.backupAt', ''));
         if (last == null || DateTime.now().difference(last) > const Duration(hours: 20)) {
           final sent = await uploadBackupIfChanged(store);
@@ -374,7 +456,58 @@ class CloudSync {
       return '$e';
     } finally {
       _busy = false;
+      _lastEnd = DateTime.now();
     }
+  }
+
+  /// Codice di questo dispositivo (resta qui: le opzioni cloud.* non viaggiano).
+  static Future<String> deviceId(AppStore store) async {
+    var id = store.opt('cloud.device', '');
+    if (id.isEmpty) {
+      id = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+      await store.setOpt('cloud.device', id);
+    }
+    return id;
+  }
+
+  /// Se sul server c'è un backup più nuovo fatto da un ALTRO dispositivo, lo unisce a quello di qui.
+  /// Restituisce quante chiavi sono cambiate.
+  static Future<int> _pullOther(AppStore store) async {
+    final code = store.accountCode!;
+    final me = await Cloud.me(code);
+    final b = me['backup'];
+    final at = b is Map ? (b['at'] as num?)?.toInt() : null;
+    if (at == null || at <= store.opt('cloud.seenAt', 0)) return 0;
+    final m = Map<String, dynamic>.from(jsonDecode(await Cloud.downloadBackup(code)) as Map);
+    await store.setOpt('cloud.seenAt', at);
+    if (m['from'] == await deviceId(store)) return 0;
+    final remote = Map<String, Object?>.from((m['prefs'] as Map?) ?? const {});
+    if (m['secret'] != null) {
+      try {
+        remote.addAll(await openJson(m['secret'], await CloudKeys.dek(store)));
+      } on CryptoFailure catch (e) {
+        AppLog.w('cloud', 'Sincronizzazione: parte cifrata illeggibile (${e.message})');
+        return 0;
+      }
+    }
+    final secs = sections(store);
+    remote.removeWhere((k, _) => !secs.contains(backupSectionOf(k)));
+    Map<String, int> base;
+    try {
+      base = Map<String, int>.from(jsonDecode(store.opt('cloud.syncBase', '{}')) as Map);
+    } catch (_) {
+      base = {};
+    }
+    final merged = mergeSync(local: store.backupPrefs(secs), remote: remote, base: base);
+    if (merged.changed.isEmpty) return 0;
+    final keys = {for (final k in merged.changed) k.startsWith('$extrasKey/') ? extrasKey : k};
+    // Le opzioni di questo dispositivo (cloud.*…) restano: mergeSync parte da quelle di qui.
+    await store.restore(jsonEncode({
+      'easyLessonBackup': 3,
+      'prefs': {for (final k in keys) k: merged.prefs[k]},
+    }));
+    AppLog.i('cloud', 'Sincronizzazione: ${merged.changed.length} cambiamenti da un altro dispositivo');
+    return merged.changed.length;
   }
 
   /// Sezioni del backup scelte dall'utente.
@@ -398,6 +531,7 @@ class CloudSync {
     final doc = <String, dynamic>{
       'easyLessonBackup': 3,
       'at': DateTime.now().toIso8601String(),
+      'from': await deviceId(store),
       'sections': (secs.toList()..sort()),
       'prefs': plain,
       if (secret.isNotEmpty) 'secret': await sealJson(secret, await CloudKeys.dek(store)),
@@ -406,6 +540,7 @@ class CloudSync {
     await store.setOpt('cloud.backupSign', sign);
     await store.setOpt('cloud.backupAt', DateTime.now().toIso8601String());
     await store.setOpt('cloud.backupSize', size);
+    if (Cloud.lastUploadAt != null) await store.setOpt('cloud.seenAt', Cloud.lastUploadAt);
     await store.setOpt('ach.cloudBackup', true);
     AppLog.i('cloud', 'Backup caricato: $size byte, ${secret.length} chiavi cifrate (${secs.join(', ')})');
     return true;

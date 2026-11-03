@@ -25,6 +25,10 @@ String recoveryLink(String code) => 'easylesson://recover?r=${Uri.encodeQueryCom
     if (u != null && u.host == 'recover' && (u.queryParameters['r'] ?? '').isNotEmpty) {
       return ('recover', u.queryParameters['r']!);
     }
+    // 3.0: invito in una classe e codice amico.
+    if (u != null && (u.host == 'class' || u.host == 'friend') && (u.queryParameters['c'] ?? '').isNotEmpty) {
+      return (u.host, u.queryParameters['c']!);
+    }
   }
   return ('raw', t);
 }

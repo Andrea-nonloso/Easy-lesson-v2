@@ -6,6 +6,8 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- Notifiche della prossima lezione (Android 13+ chiede il permesso) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 3.0: Android 16+ "Live Update" per la notifica della lezione in corso (LiveLesson.kt) -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
     <!-- Per rimettere le notifiche dopo il riavvio del telefono -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- "Silenzioso a scuola": Non disturbare durante le lezioni (permesso dato dall'utente) -->
@@ -36,6 +38,9 @@
                 <data android:scheme="easylesson" android:host="import" />
                 <data android:scheme="easylesson" android:host="login" />
                 <data android:scheme="easylesson" android:host="recover" />
+                <!-- 3.0: inviti in una classe e codici amico -->
+                <data android:scheme="easylesson" android:host="class" />
+                <data android:scheme="easylesson" android:host="friend" />
             </intent-filter>
         </activity>
 

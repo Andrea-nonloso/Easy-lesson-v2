@@ -95,6 +95,11 @@ class MainActivity : FlutterActivity() {
                         AppIcons.set(this, call.arguments as? String ?: "default")
                         result.success(true)
                     }
+                    // 3.0: notifica "lezione in corso" (LiveLesson.kt).
+                    "setLiveLesson" -> {
+                        LiveLesson.setEnabled(applicationContext, call.arguments as? Boolean ?: false)
+                        result.success(true)
+                    }
                     "configureUpdates" -> {
                         UpdateCheck.configure(this, call.arguments as? String ?: "{}")
                         result.success(true)
@@ -136,7 +141,7 @@ class MainActivity : FlutterActivity() {
     private fun shortcutOf(intent: Intent?): String? {
         val data = intent?.data ?: return null
         if (data.scheme != "easylesson") return null
-        // I codici condivisi con il QR arrivano interi (easylesson://import?d=..., login?c=..., recover?r=...).
-        return if (data.host == "import" || data.host == "login" || data.host == "recover") data.toString() else data.host
+        // I codici condivisi con il QR arrivano interi (easylesson://import?d=..., login?c=..., recover?r=..., class?c=..., friend?c=...).
+        return if (data.host in setOf("import", "login", "recover", "class", "friend")) data.toString() else data.host
     }
 }

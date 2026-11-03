@@ -56,7 +56,7 @@ Future<Uint8List> renderScheduleImage({
         size: 15, weight: FontWeight.w700);
   }
 
-  final gridTop = top + dayH;
+  const gridTop = top + dayH;
   for (var h = 0; h < rows; h++) {
     final y = gridTop + h * rowH;
     text('${h + 1}ª', Offset(pad, y + 10), timeW - 8, size: 15, weight: FontWeight.w700);

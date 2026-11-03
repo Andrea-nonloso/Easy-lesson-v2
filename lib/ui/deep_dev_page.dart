@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
+import '../announcements.dart';
 import '../cloud.dart';
 import '../log.dart';
 import '../mission_engine.dart';
 import '../native.dart';
 import '../store.dart';
 import 'achievements.dart';
+import 'server_admin_page.dart';
 
 /// Menu sviluppatore nascosto ("Sviluppatore²"): si apre tenendo premuto il titolo delle
 /// opzioni sviluppatore e scrivendo il PIN, che controlla il server (secret DEV_PIN del Worker).
@@ -141,6 +143,17 @@ class DeepDevPage extends StatelessWidget {
                   final n = int.tryParse(v ?? '');
                   if (n != null) await store.setOpt('stat.xpBonus', n == 0 ? null : n);
                 }),
+                tile(Icons.savings_outlined, 'Regala monete', 'Bonus del negozio: ${store.stat('coinBonus')}', () async {
+                  final v = await _askText(context, 'Monete in regalo (totale)', '${store.stat('coinBonus')}', number: true);
+                  final n = int.tryParse(v ?? '');
+                  if (n != null) await store.setOpt('stat.coinBonus', n == 0 ? null : n);
+                }),
+                tile(Icons.remove_shopping_cart_outlined, 'Svuota il negozio', 'Toglie gli oggetti comprati e rimette le monete', () async {
+                  for (final k in store.rawExtrasKeys().where((k) => k.startsWith('stat.own.') || k.startsWith('shop.') || k == 'stat.coinsSpent')) {
+                    await store.setOpt(k, null);
+                  }
+                  toast('Negozio svuotato (con l\'account, il server li rimette alla prossima sincronizzazione)');
+                }),
                 tile(Icons.pin_outlined, 'Contatori', 'Giorni, serie, orari aperti… (modificabili)', () => push(const _CountersPage())),
                 tile(Icons.checklist_rounded, 'Obiettivi uno per uno', 'Sblocca o blocca', () => push(const _AchievementsEditor())),
                 tile(Icons.lock_open_rounded, 'Sblocca tutti gli obiettivi', null,
@@ -165,6 +178,15 @@ class DeepDevPage extends StatelessWidget {
                 }),
                 tile(Icons.celebration_rounded, 'Prova la festa del livello', null, () => showLevelUp(context, lv.level + 1)),
                 tile(Icons.refresh_rounded, 'Ricontrolla gli obiettivi adesso', null, () => checkAchievements(context)),
+              ]),
+              group('Server', Icons.admin_panel_settings_outlined, [
+                tile(Icons.insights_rounded, 'Gestisci il server', 'Numeri, avvisi, eventi, pulizia',
+                    () => push(const ServerAdminPage())),
+                tile(Icons.campaign_outlined, 'Riscarica gli avvisi', 'Dal server, subito', () async {
+                  await Announcements.refresh(store, force: true);
+                  toast('${Announcements.current(store).length} avvisi da mostrare');
+                }),
+                tile(Icons.visibility_outlined, 'Rimostra gli avvisi chiusi', null, () => store.setOpt('ann.dismissed', null)),
               ]),
               group('Cloud', Icons.cloud_outlined, [
                 ListTile(

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../cloud.dart';
 import '../i18n.dart';
 import '../models.dart';
 import '../native.dart';
@@ -13,6 +14,7 @@ import 'achievements.dart';
 import 'agenda_page.dart' show openAgenda;
 import 'bag_page.dart';
 import 'calendar_page.dart';
+import 'class_page.dart' show openClassHub;
 import 'customize_pages.dart';
 import 'dev_page.dart';
 import 'fun.dart';
@@ -23,12 +25,12 @@ import 'profile_page.dart';
 import 'report_pdf.dart';
 import 'school_life_pages.dart';
 import 'share_qr.dart';
+import 'shop_page.dart' show openShop;
 import 'subjects_page.dart';
 import 'theme.dart';
 import 'themes_page.dart';
 import 'widgets.dart';
 
-const _privacyUrl = 'https://easy-lesson.web.app/EasyLesson_PrivacyPolicy.html';
 const _githubUrl = 'https://github.com/dalonzoo';
 
 void _report(ScaffoldMessengerState messenger, AppStore store, Object? error) {
@@ -199,6 +201,11 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
             () => openMissions(context), keywords: 'sfide giornaliere settimanali eventi'),
         _Item(Icons.redeem_rounded, tr('Ricompense', 'Rewards'), 'Ogni 5 livelli si sblocca qualcosa',
             () => _open(context, const RewardsPage()), keywords: 'skin premi sblocca'),
+        _Item(Icons.storefront_rounded, tr('Negozio', 'Shop'), 'Cornici, titoli, avatar e temi con le monete',
+            () => openShop(context), keywords: 'monete compra skin cornice titolo avatar temi'),
+        _Item(Icons.groups_rounded, tr('Classe e amici', 'Class and friends'),
+            store.opt<String?>('social.nick', null) == null ? 'Agenda condivisa, sfide, classifica' : 'Sei ${store.opt('social.nick', '')}',
+            () => openClassHub(context), keywords: 'classe amici classifica compagni gruppo sfide condivisa'),
         _Item(Icons.key_rounded, tr('Account e sincronizzazione', 'Account and sync'),
             store.accountCode == null ? 'Facoltativo: salva i progressi con un codice' : 'Collegato · progressi al sicuro',
             () => openProfile(context), keywords: 'codice login accedi cloud server sincronizza'),
@@ -213,6 +220,10 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
       [
         _Item(Icons.palette_outlined, tr('Tema', 'Theme'), themeById(store.themeId).name, () => openThemesPage(context),
             keywords: 'colori scuro chiaro oled sfondo'),
+        _Item(Icons.auto_awesome_rounded, 'Stile Expressive',
+            store.opt('look.expressive', true) ? 'Attivo: forme più tonde, pulsanti grandi (tocca per lo stile classico)' : 'Spento: stile classico',
+            () => store.setOpt('look.expressive', !store.opt('look.expressive', true)),
+            keywords: 'material 3 expressive forme arrotondate stile nuovo'),
         if (android)
           _Item(Icons.apps_rounded, tr('Icona dell\'app', 'App icon'), 'Verde, blu, viola, rossa, nera…',
               () => pickAppIcon(context), keywords: 'launcher colore'),
@@ -381,6 +392,15 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
           _Item(Icons.notifications_active_outlined, tr('Notifiche', 'Notifications'), _notifySummary(store),
               () => openNotifications(context),
               keywords: 'lezione riepilogo sera buongiorno ricreazione compiti piano studio vacanze'),
+          _Item(Icons.timelapse_rounded, 'Lezione in corso',
+              store.opt('n.live', false)
+                  ? 'Attiva: materia, aula e tempo che manca in tendina (tocca per spegnere)'
+                  : 'Spenta: tocca per tenere la lezione sempre in tendina (Live Update)', () async {
+            final on = !store.opt('n.live', false);
+            if (on && !await NativeBridge.notificationsAllowed()) await NativeBridge.requestNotificationPermission();
+            await store.setOpt('n.live', on);
+            NativeBridge.scheduleSync(store);
+          }, keywords: 'live update notifica fissa barra stato lezione adesso'),
           _Item(Icons.do_not_disturb_on_outlined, 'Silenzioso a scuola',
               store.opt('silence', false) ? 'Attivo' : 'Non disturbare durante le lezioni', () => openNotifications(context),
               keywords: 'non disturbare silenzio'),
@@ -409,6 +429,11 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
         _Item(Icons.cloud_upload_outlined, tr('Backup online', 'Online backup'),
             store.accountCode == null ? 'Serve il codice Easy Lesson (facoltativo)' : 'Scegli cosa salvare sul server',
             () => openProfile(context), keywords: 'cloud server sincronizza'),
+        _Item(Icons.devices_rounded, 'Sincronizzazione completa',
+            CloudSync.live(store)
+                ? 'Attiva: telefono, PC e web sempre uguali, cifrati (tocca per spegnere)'
+                : 'Gli stessi dati su tutti i tuoi dispositivi, cifrati end-to-end', () => _toggleLiveSync(context, store),
+            keywords: 'sincronizza pc telefono dispositivi uguale cloud e2e'),
         _Item(Icons.qr_code_2_rounded, tr('Condividi con un QR', 'Share with a QR'), 'Il tuo orario, il tema o i soprannomi',
             () => showShareQr(context), keywords: 'amico'),
         _Item(Icons.qr_code_scanner_rounded, tr('Importa un codice', 'Import a code'), 'Incolla il codice che ti hanno mandato',
@@ -478,7 +503,7 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
         _Item(Icons.history_edu_rounded, 'Progetto originale su GitHub', "Easy Lesson di Daniele D'Alonzo",
             () => launchUrl(Uri.parse(_githubUrl), mode: LaunchMode.externalApplication), external: true),
         _Item(Icons.privacy_tip_outlined, 'Privacy policy', null,
-            () => launchUrl(Uri.parse(_privacyUrl), mode: LaunchMode.externalApplication), external: true),
+            () => launchUrl(Uri.parse(privacyUrl), mode: LaunchMode.externalApplication), external: true),
       ],
       color: Colors.grey,
     ),
@@ -739,5 +764,44 @@ class _UpdateTileState extends State<_UpdateTile> {
           : null,
       onTap: _checking ? null : (_update != null ? () => Updater.open(_update!) : _check),
     );
+  }
+}
+
+/// Accende/spegne la sincronizzazione completa (serve account + consenso al backup online).
+Future<void> _toggleLiveSync(BuildContext context, AppStore store) async {
+  final messenger = ScaffoldMessenger.of(context);
+  if (CloudSync.live(store)) {
+    await store.setOpt('cloud.live', null);
+    messenger.showSnackBar(const SnackBar(content: Text('Sincronizzazione completa spenta')));
+    return;
+  }
+  if (store.accountCode == null) {
+    openProfile(context);
+    messenger.showSnackBar(const SnackBar(content: Text('Prima crea (o inserisci) il codice Easy Lesson')));
+    return;
+  }
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      icon: const Icon(Icons.devices_rounded),
+      title: const Text('Sincronizzazione completa'),
+      content: const Text(
+        'Orari, agenda, voti e opzioni restano uguali su tutti i dispositivi con il tuo codice '
+        '(telefono, PC, web). Le parti personali viaggiano cifrate: il server non le legge.\n\n'
+        'La prima volta, se il server ha già dati di un altro dispositivo, quelli vincono sulle differenze.',
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
+        FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Attiva')),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  if (!store.opt('cloud.consent', false) && !await showBackupConsent(context)) return;
+  await store.setOpt('cloud.live', true);
+  try {
+    messenger.showSnackBar(SnackBar(content: Text(await CloudSync.syncNow(store))));
+  } on CloudException catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text(e.message)));
   }
 }

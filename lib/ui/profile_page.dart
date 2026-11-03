@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../cloud.dart';
 import '../progress.dart';
+import '../shop.dart';
 import '../store.dart';
 import 'achievements.dart';
+import 'class_page.dart' show openClassHub;
 import 'code_scanner.dart';
 import 'missions_page.dart';
 import 'recovery_pdf.dart';
+import 'shop_page.dart';
 import 'widgets.dart';
 
 void openProfile(BuildContext context) =>
@@ -74,6 +78,22 @@ class ProfilePage extends StatelessWidget {
                 subtitle: const Text('Ogni 5 livelli si sblocca qualcosa'),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const RewardsPage())),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.storefront_rounded, color: scheme.primary),
+                title: const Text('Negozio'),
+                subtitle: Text('🪙 ${Shop.balance(lv.xp, store)} monete · cornici, titoli, avatar, temi'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => openShop(context),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.groups_rounded, color: scheme.primary),
+                title: const Text('Classe e amici'),
+                subtitle: const Text('Agenda condivisa, sfide di classe, classifica'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => openClassHub(context),
               ),
               const SectionLabel('Account Easy Lesson'),
               const AccountPanel(),
@@ -812,12 +832,27 @@ Future<void> checkCodeMemory(BuildContext context, {bool force = false}) async {
       title: answer == '?' ? 'Salvalo adesso, finché hai il telefono' : 'Non era giusto: salvalo adesso');
 }
 
+/// Link all'informativa privacy.
+class PrivacyLink extends StatelessWidget {
+  const PrivacyLink({super.key});
+
+  @override
+  Widget build(BuildContext context) => Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          style: TextButton.styleFrom(padding: EdgeInsets.zero),
+          onPressed: () => launchUrl(Uri.parse(privacyUrl), mode: LaunchMode.externalApplication),
+          icon: const Icon(Icons.privacy_tip_outlined, size: 18),
+          label: const Text('Leggi l\'informativa privacy'),
+        ),
+      );
+}
+
 /// Avviso privacy + scelta di cosa salvare nel backup online. true = accettato.
 Future<bool> showBackupConsent(BuildContext context) async {
   final store = StoreScope.read(context);
   final chosen = {...CloudSync.sections(store)};
   var accepted = store.opt('cloud.consent', false);
-  const secret = {'scuola', 'agenda'};
   final ok = await showDialog<bool>(
     context: context,
     builder: (c) => StatefulBuilder(
@@ -833,6 +868,7 @@ Future<bool> showBackupConsent(BuildContext context) async {
                 'tuo codice. Quelle con il lucchetto 🔒 (e il tuo nome) partono cifrate con il tuo codice: '
                 'sul server nessuno può leggerle. Le altre vanno in chiaro. Puoi cancellare tutto quando vuoi.',
               ),
+              const PrivacyLink(),
               const SizedBox(height: 8),
               for (final (id, name, what) in backupSections)
                 CheckboxListTile(
@@ -840,7 +876,7 @@ Future<bool> showBackupConsent(BuildContext context) async {
                   dense: true,
                   value: chosen.contains(id),
                   onChanged: (v) => setState(() => v == true ? chosen.add(id) : chosen.remove(id)),
-                  title: Text(secret.contains(id) ? '🔒 $name' : name),
+                  title: Text(secretBackupSections.contains(id) ? '🔒 $name' : name),
                   subtitle: Text(what),
                 ),
               const Divider(),

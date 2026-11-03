@@ -312,9 +312,9 @@ class _LogPageState extends State<LogPage> {
             icon: const Icon(Icons.save_alt_rounded),
             onPressed: () => saveTextFile('easy_lesson_log.txt', AppLog.dump()),
           ),
-          IconButton(
+          const IconButton(
             tooltip: 'Svuota',
-            icon: const Icon(Icons.delete_sweep_outlined),
+            icon: Icon(Icons.delete_sweep_outlined),
             onPressed: AppLog.clear,
           ),
         ],

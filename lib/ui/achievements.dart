@@ -7,6 +7,7 @@ import '../models.dart';
 import '../progress.dart';
 import '../school_calendar.dart';
 import '../school_life.dart' show Grade;
+import '../shop.dart';
 import '../store.dart';
 import 'missions_page.dart' show openMissions;
 
@@ -19,6 +20,7 @@ const achievementCategories = [
   ('organizza', '🗂️', 'Organizzazione'),
   ('studio', '📚', 'Studio e voti'),
   ('stile', '🎨', 'Stile e collezione'),
+  ('classe', '👥', 'Classe e amici'),
   ('segreti', '🤫', 'Segreti'),
 ];
 
@@ -210,7 +212,7 @@ final achievements = <Achievement>[
   Achievement('pass', '✔️', 'Promosso', 'Prendi almeno 6', (s) => s.grades.any((g) => g.value >= 6), category: 'studio'),
   Achievement('ten10', '🌟', 'DIECI!', 'Prendi un 10', (s) => s.grades.any((g) => g.value >= 9.99),
       tier: Tier.gold, category: 'studio'),
-  Achievement('comeback', '📈', 'Rimonta', 'Dopo un voto sotto il 6, prendi almeno 8 nella stessa materia', _comeback,
+  const Achievement('comeback', '📈', 'Rimonta', 'Dopo un voto sotto il 6, prendi almeno 8 nella stessa materia', _comeback,
       tier: Tier.silver, category: 'studio'),
   Achievement('avg8', '🧠', 'Cervellone', 'Media dell\'8 con almeno 5 voti',
       (s) => s.grades.length >= 5 && (_average(s.grades) ?? 0) >= 8, tier: Tier.gold, category: 'studio'),
@@ -399,10 +401,40 @@ final achievements = <Achievement>[
       tier: Tier.gold, category: 'stile'),
   _count('collect125', '✨', 'Quasi tutti', 'Sblocca 125 obiettivi', 125, (s) => unlockedIds(s).length,
       tier: Tier.platinum, category: 'stile'),
-  Achievement('categoryFull', '🧺', 'Categoria completa', 'Sblocca tutti gli obiettivi di una categoria (non i segreti)',
+  const Achievement('categoryFull', '🧺', 'Categoria completa', 'Sblocca tutti gli obiettivi di una categoria (non i segreti)',
       _anyCategoryFull, tier: Tier.gold, category: 'stile'),
-  Achievement('secretsAll', '🔍', 'Detective', 'Scopri tutti gli obiettivi segreti (tranne quello degli sviluppatori)',
+  const Achievement('secretsAll', '🔍', 'Detective', 'Scopri tutti gli obiettivi segreti (tranne quello degli sviluppatori)',
       _allSecrets, tier: Tier.gold, category: 'stile'),
+
+  // ------------------------------------------------------------ classe e amici (3.0)
+  Achievement('socialNick', '🦊', 'Chi sei?', 'Scegli il soprannome per classe e amici',
+      (s) => s.opt<String?>('social.nick', null) != null, category: 'classe'),
+  _count('classIn', '🏫', 'Presente!', 'Entra in una classe (o creane una)', 1, (s) => s.stat('classesJoined'), category: 'classe'),
+  _count('friend1', '🤝', 'Primo amico', 'Diventa amico di qualcuno con il codice amico', 1, (s) => s.stat('friendsAdded'),
+      category: 'classe'),
+  _count('friend5', '👯', 'Compagnia', 'Abbi 5 amici', 5, (s) => s.stat('friendsAdded'), tier: Tier.silver, category: 'classe'),
+  _count('friend20', '🎉', 'Popolare', 'Abbi 20 amici', 20, (s) => s.stat('friendsAdded'), tier: Tier.gold, category: 'classe'),
+  _count('shared1', '📣', 'Avviso a tutti', 'Condividi un compito o una verifica con la classe', 1, (s) => s.stat('classItems'),
+      category: 'classe'),
+  _count('shared10', '🗞️', 'Il giornalino', 'Condividi 10 compiti o verifiche', 10, (s) => s.stat('classItems'),
+      tier: Tier.silver, category: 'classe'),
+  _count('shared50', '📡', 'Radio classe', 'Condividi 50 compiti o verifiche', 50, (s) => s.stat('classItems'),
+      tier: Tier.gold, category: 'classe'),
+  _count('chat1', '💬', 'Prime parole', 'Manda una frase nella chat rapida della classe', 1, (s) => s.stat('chatSent'),
+      category: 'classe'),
+  _count('chat50', '🗣️', 'Chiacchierone', 'Manda 50 frasi nella chat rapida', 50, (s) => s.stat('chatSent'),
+      tier: Tier.silver, category: 'classe'),
+  Achievement('weekTop', '🥇', 'Primo della settimana', 'Sii primo nella classifica degli amici (almeno in 2)',
+      (s) => _flag(s, 'egg.weekTop'), tier: Tier.gold, category: 'classe'),
+  Achievement('classWin', '🏆', 'Lavoro di squadra', 'Completa una sfida di classe', (s) => _flag(s, 'egg.classWin'),
+      tier: Tier.gold, category: 'classe'),
+
+  // ------------------------------------------------------------ negozio (3.0)
+  _count('shop1', '🛍️', 'Primo acquisto', 'Compra qualcosa nel negozio', 1, (s) => Shop.ownedCount(s), category: 'stile'),
+  _count('shop10', '🧺', 'Collezionista', 'Abbi 10 oggetti del negozio', 10, (s) => Shop.ownedCount(s),
+      tier: Tier.silver, category: 'stile'),
+  _count('shopAll', '🏬', 'Ho comprato il negozio', 'Abbi tutti gli oggetti del negozio', shopItems.length,
+      (s) => Shop.ownedCount(s), tier: Tier.platinum, category: 'stile'),
 
   // ------------------------------------------------------------ altri segreti
   Achievement('over9000', '💪', 'È più di 9000!', 'Supera 9000 XP', (s) => totalXp(s) > 9000,
@@ -514,9 +546,26 @@ Future<void> showLevelUp(BuildContext context, int level) => showDialog<void>(
 
 /// Distintivo rotondo con il numero del livello; il colore cambia ogni 5 livelli.
 class LevelBadge extends StatelessWidget {
-  const LevelBadge({super.key, required this.level, this.size = 48});
+  const LevelBadge({super.key, required this.level, this.size = 48, this.frame});
   final int level;
   final double size;
+
+  /// Cornice comprata nel negozio (id tipo 'frame.fire'), null = nessuna.
+  final String? frame;
+
+  static const frameColors = <String, List<Color>>{
+    'frame.wood': [Color(0xFF5D4037), Color(0xFFA1887F), Color(0xFF5D4037)],
+    'frame.fire': [Color(0xFFD50000), Color(0xFFFF6D00), Color(0xFFFFD600), Color(0xFFFF6D00), Color(0xFFD50000)],
+    'frame.ice': [Color(0xFF80D8FF), Color(0xFFFFFFFF), Color(0xFF00B8D4), Color(0xFFFFFFFF), Color(0xFF80D8FF)],
+    'frame.leaf': [Color(0xFF1B5E20), Color(0xFF8BC34A), Color(0xFF2E7D32), Color(0xFFCDDC39), Color(0xFF1B5E20)],
+    'frame.gold': [Color(0xFFFFD54F), Color(0xFFFF8F00), Color(0xFFFFF8E1), Color(0xFFFF8F00), Color(0xFFFFD54F)],
+    'frame.neon': [Color(0xFFFF00E5), Color(0xFF00E5FF), Color(0xFFFF00E5)],
+    'frame.rainbow': [
+      Color(0xFFE53935), Color(0xFFFB8C00), Color(0xFFFDD835), Color(0xFF43A047),
+      Color(0xFF1E88E5), Color(0xFF8E24AA), Color(0xFFE53935),
+    ],
+    'frame.galaxy': [Color(0xFF1A237E), Color(0xFF7C4DFF), Color(0xFFFF4081), Color(0xFF00B0FF), Color(0xFF1A237E)],
+  };
 
   static const rankColors = [
     Color(0xFF8D6E63), // 1-4 legno
@@ -530,6 +579,18 @@ class LevelBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ring = frameColors[frame];
+    if (ring == null) return _badge();
+    return Container(
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(size * 0.08),
+      decoration: BoxDecoration(shape: BoxShape.circle, gradient: SweepGradient(colors: ring)),
+      child: LevelBadge(level: level, size: size * 0.84),
+    );
+  }
+
+  Widget _badge() {
     final c = rankColors[levelRank(level)];
     return Container(
       width: size,
@@ -572,13 +633,13 @@ class LevelCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              LevelBadge(level: lv.level, size: 52),
+              LevelBadge(level: lv.level, size: 56, frame: Shop.equipped(store, 'frame')),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Livello ${lv.level} · ${lv.title}',
+                    Text('Livello ${lv.level} · ${shopItem(Shop.equipped(store, 'title') ?? '')?.name ?? lv.title}',
                         style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 6),
                     ClipRRect(

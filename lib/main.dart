@@ -25,12 +25,14 @@ class EasyLessonApp extends StatelessWidget {
 
   static final Map<String, ThemeData> _themes = {};
 
-  static ThemeData _theme(AppThemeSpec spec, Brightness b, {bool contrast = false, bool readable = false}) =>
+  static ThemeData _theme(AppThemeSpec spec, Brightness b, {bool contrast = false, bool readable = false, bool expressive = true}) =>
       _themes.putIfAbsent(
         '${spec.id}-${spec.seed.toARGB32()}-${spec.background?.toARGB32()}-${spec.card?.toARGB32()}'
-        '-${spec.nav?.toARGB32()}-${spec.pureBlack}-${b.name}-$contrast-$readable',
+        '-${spec.nav?.toARGB32()}-${spec.pureBlack}-${b.name}-$contrast-$readable-$expressive',
         () {
           var t = buildTheme(b, spec);
+          // 3.0: stile "Material 3 Expressive" (forme più tonde, pulsanti e barra più grandi).
+          if (expressive) t = expressiveTheme(t);
           // Accessibilità: testi secondari e bordi più marcati.
           if (contrast) {
             final c = t.colorScheme;
@@ -75,9 +77,13 @@ class EasyLessonApp extends StatelessWidget {
             null => ThemeMode.system,
           },
           theme: _theme(spec, spec.brightness ?? Brightness.light,
-              contrast: store.opt('a11y.contrast', false), readable: store.opt('a11y.font', false)),
+              contrast: store.opt('a11y.contrast', false),
+              readable: store.opt('a11y.font', false),
+              expressive: store.opt('look.expressive', true)),
           darkTheme: _theme(spec, spec.brightness ?? Brightness.dark,
-              contrast: store.opt('a11y.contrast', false), readable: store.opt('a11y.font', false)),
+              contrast: store.opt('a11y.contrast', false),
+              readable: store.opt('a11y.font', false),
+              expressive: store.opt('look.expressive', true)),
           // Sfondo del tema (anche animato) dietro a tutte le schermate, con la dimensione del testo scelta.
           builder: (context, child) {
             final mq = MediaQuery.of(context);
