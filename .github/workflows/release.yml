@@ -1,5 +1,7 @@
 # Crea una release quando si pubblica un tag, es.:  git tag v2.0.1 && git push origin v2.0.1
 # Contiene: installer + zip Windows, APK Android e zip web.
+# Velocizzata (4/11/2026): cache di Gradle, Gradle senza daemon, Inno Setup solo se manca.
+# (cache: true di flutter-action tiene gia' sia Flutter sia i pacchetti Dart.)
 # La versione dell'app viene presa dal tag (v2.0.1 -> 2.0.1): le app installate la
 # confrontano con l'ultima release per proporre l'aggiornamento.
 #
@@ -30,8 +32,14 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - name: Installa Inno Setup
-        run: choco install innosetup -y --no-progress
+      # Inno Setup: se c'e' gia' sulla macchina di GitHub non lo reinstalla.
+      - name: Inno Setup (solo se manca)
+        shell: pwsh
+        run: |
+          $ok = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+                  "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ }
+          if ($ok) { Write-Host "Inno Setup gia' presente: $($ok[0])" }
+          else { choco install innosetup -y --no-progress }
       - name: Build Windows
         shell: pwsh
         run: ./build_windows.ps1 -Version ${{ steps.v.outputs.name }} -BuildNumber ${{ github.run_number }} -Tag ${{ github.ref_name }}
@@ -55,6 +63,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle            # dipendenze di Gradle tenute tra un giro e l'altro (il guadagno piu' grosso)
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -70,6 +79,10 @@ jobs:
         run: |
           echo "::warning::APK firmato con chiave di debug, gli aggiornamenti non si installeranno sopra la versione precedente."
       - run: flutter pub get
+      - name: Gradle piu' veloce in CI
+        run: |
+          mkdir -p ~/.gradle
+          printf 'org.gradle.daemon=false\norg.gradle.parallel=true\norg.gradle.caching=true\norg.gradle.jvmargs=-Xmx4g\n' >> ~/.gradle/gradle.properties
       - run: flutter build apk --release --build-name=${{ steps.v.outputs.name }} --build-number=$((100 + ${{ github.run_number }})) --dart-define=EL_TAG=${{ github.ref_name }}
       - run: cp build/app/outputs/flutter-apk/app-release.apk "Easy-Lesson-v${{ steps.v.outputs.name }}.apk"
       - uses: actions/upload-artifact@v4
