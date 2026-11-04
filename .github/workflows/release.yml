@@ -110,9 +110,39 @@ jobs:
           name: web
           path: Easy-Lesson-v*-Web.zip
 
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then echo "name=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else echo "name=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)" >> "$GITHUB_OUTPUT"; fi
+      - name: Dipendenze GTK e dpkg
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libblkid-dev liblzma-dev libayatana-appindicator3-dev
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build linux --release
+      - name: Impacchetta .deb
+        run: |
+          VERSION=${{ steps.v.outputs.name }}
+          PKG=Easy-Lesson-v${VERSION}-Linux
+          mkdir -p $PKG/DEBIAN $PKG/opt/easy-lesson $PKG/usr/share/applications
+          cp -r build/linux/x64/release/bundle/* $PKG/opt/easy-lesson/
+          printf 'Package: easy-lesson\nVersion: %s\nArchitecture: amd64\nMaintainer: Andrea\nDepends: libgtk-3-0\nDescription: Easy Lesson - orario di scuola e agenda\n' "$VERSION" > $PKG/DEBIAN/control
+          printf '[Desktop Entry]\nName=Easy Lesson\nExec=/opt/easy-lesson/easy_lesson\nType=Application\nCategories=Utility;\nTerminal=false\n' > $PKG/usr/share/applications/easy-lesson.desktop
+          dpkg-deb --root-owner-group --build $PKG "Easy-Lesson-v${VERSION}-Linux.deb"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: Easy-Lesson-v*-Linux.deb
+
   release:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [windows, android, web]
+    needs: [windows, android, web, linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
