@@ -9,6 +9,7 @@ import '../school_calendar.dart';
 import '../school_life.dart' show Grade;
 import '../shop.dart';
 import '../store.dart';
+import 'achievements_extra.dart';
 import 'missions_page.dart' show openMissions;
 
 /// Categorie degli obiettivi (per la pagina e i filtri).
@@ -446,7 +447,53 @@ final achievements = <Achievement>[
   Achievement('piDay', '🔢', 'Pi Day', 'Apri l\'app il 14 marzo', (s) => _flag(s, 'egg.piDay'), category: 'segreti', secret: true),
   Achievement('leapDay', '🐸', 'Giorno bisestile', 'Apri l\'app il 29 febbraio', (s) => _flag(s, 'egg.leap'),
       tier: Tier.gold, category: 'segreti', secret: true),
+
+  // ------------------------------------------------------------ 3.0: arriviamo a 350
+  ...extraAchievements,
 ];
+
+/// Quanti obiettivi si vedono: si parte da 40 e se ne scoprono altri man mano
+/// (quando ne hai sbloccati il 60% di quelli che vedi), così 350 non spaventano.
+const revealSteps = [40, 60, 100, 150, 180, 220, 260, 300];
+
+int revealLimit(int unlocked) {
+  for (final step in revealSteps) {
+    if (step >= achievements.length) break;
+    if (unlocked < step * 3 ~/ 5) return step;
+  }
+  return achievements.length;
+}
+
+/// Quanti ne mancano per scoprirne altri (0 = si vedono già tutti).
+int toNextReveal(int unlocked) {
+  final limit = revealLimit(unlocked);
+  return limit >= achievements.length ? 0 : limit * 3 ~/ 5 - unlocked;
+}
+
+/// Gli obiettivi da mostrare: tutti quelli sbloccati + i più facili tra quelli da fare.
+List<Achievement> visibleAchievements(Set<String> done) {
+  final unlocked = achievements.where((a) => done.contains(a.id)).length;
+  final limit = revealLimit(unlocked);
+  if (limit >= achievements.length) return achievements;
+  int ease(Achievement a) => (a.secret ? 10000 : 0) + a.tier.index * 1000 + (a.goal ?? 0).clamp(0, 999);
+  final index = {for (var i = 0; i < achievements.length; i++) achievements[i].id: i};
+  final locked = achievements.where((a) => !done.contains(a.id)).toList()
+    ..sort((a, b) {
+      final d = ease(a) - ease(b);
+      return d != 0 ? d : index[a.id]! - index[b.id]!;
+    });
+  final show = {...done, ...locked.take((limit - unlocked).clamp(0, locked.length)).map((a) => a.id)};
+  return [for (final a in achievements) if (show.contains(a.id)) a];
+}
+
+/// Totale "visibile" da mostrare nei contatori (es. 12/40).
+int visibleCount(AppStore s) => visibleAchievements(unlockedIds(s)).length;
+
+/// Sbloccati che contano (esclude id vecchi che non esistono più).
+int unlockedCount(AppStore s) {
+  final done = unlockedIds(s);
+  return achievements.where((a) => done.contains(a.id)).length;
+}
 
 bool _anyCategoryFull(AppStore s) {
   final done = unlockedIds(s);
@@ -493,6 +540,7 @@ Future<void> checkAchievements(BuildContext context) async {
     ));
   }
   final done = unlockedIds(store);
+  final shownBefore = revealLimit(unlockedCount(store));
   final fresh = <Achievement>[];
   // Più giri: sbloccare obiettivi fa salire di livello, e questo può sbloccarne altri.
   for (var round = 0; round < 4; round++) {
@@ -510,6 +558,13 @@ Future<void> checkAchievements(BuildContext context) async {
   CloudSync.schedule(store);
   if (!context.mounted) return;
   final messenger = ScaffoldMessenger.maybeOf(context);
+  final shownAfter = revealLimit(unlockedCount(store));
+  if (shownAfter > shownBefore) {
+    messenger?.showSnackBar(SnackBar(
+      content: Text('👀 Nuovi obiettivi da scoprire: ora ne vedi $shownAfter'),
+      action: SnackBarAction(label: 'Vedi', onPressed: () => openAchievements(context)),
+    ));
+  }
   // Al primo avvio non si festeggia "Benvenuto" sopra a tutto il resto.
   final show = fresh.where((a) => a.id != 'first').toList();
   if (show.length > 2) {
@@ -648,7 +703,7 @@ class LevelCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${lv.inLevel}/${lv.needed} XP · ${unlockedIds(store).length}/${achievements.length} obiettivi'
+                      '${lv.inLevel}/${lv.needed} XP · ${unlockedCount(store)}/${visibleCount(store)} obiettivi'
                       '${store.accountCode == null ? '' : ' · ☁️'}',
                       style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                     ),
@@ -683,13 +738,16 @@ class _AchievementsPageState extends State<AchievementsPage> {
     final store = StoreScope.of(context);
     final scheme = Theme.of(context).colorScheme;
     final done = unlockedIds(store);
+    final visible = visibleAchievements(done);
+    final unlocked = visible.where((a) => done.contains(a.id)).length;
+    final missing = toNextReveal(unlocked);
     final list = [
-      for (final a in achievements)
+      for (final a in visible)
         if ((_category == null || a.category == _category) && (!_onlyLocked || !done.contains(a.id))) a,
     ]..sort((a, b) => (done.contains(a.id) ? 0 : 1).compareTo(done.contains(b.id) ? 0 : 1));
     return Scaffold(
       appBar: AppBar(
-        title: Text('Obiettivi · ${done.length}/${achievements.length}'),
+        title: Text('Obiettivi · $unlocked/${visible.length}'),
         actions: [
           IconButton(
             tooltip: _onlyLocked ? 'Mostra tutti' : 'Solo da sbloccare',
@@ -704,6 +762,24 @@ class _AchievementsPageState extends State<AchievementsPage> {
             padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
             sliver: SliverToBoxAdapter(child: LevelCard()),
           ),
+          if (missing > 0)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              sliver: SliverToBoxAdapter(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: scheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    '🔓 Sbloccane ancora $missing per scoprire altri '
+                    '${revealLimit(unlocked + missing) - visible.length} obiettivi',
+                    style: TextStyle(color: scheme.onSecondaryContainer, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ),
           SliverToBoxAdapter(
             child: SizedBox(
               height: 48,
@@ -724,8 +800,8 @@ class _AchievementsPageState extends State<AchievementsPage> {
                       padding: const EdgeInsets.only(right: 6),
                       child: ChoiceChip(
                         label: Text('$emoji $name '
-                            '${achievements.where((a) => a.category == id && done.contains(a.id)).length}/'
-                            '${achievements.where((a) => a.category == id).length}'),
+                            '${visible.where((a) => a.category == id && done.contains(a.id)).length}/'
+                            '${visible.where((a) => a.category == id).length}'),
                         selected: _category == id,
                         onSelected: (_) => setState(() => _category = id),
                       ),
@@ -771,7 +847,15 @@ class _AchievementCard extends StatelessWidget {
     final hidden = a.secret && !unlocked;
     final p = a.progress == null || a.goal == null || unlocked ? null : a.progress!(store).clamp(0, a.goal!);
     return Card(
-      color: unlocked ? scheme.primaryContainer : null,
+      color: unlocked ? scheme.primaryContainer : scheme.surfaceContainerLow,
+      elevation: unlocked ? 1 : 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: unlocked ? _tierColors[a.tier]!.withAlpha(160) : scheme.outlineVariant.withAlpha(90),
+          width: unlocked ? 2 : 1,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Column(
@@ -826,6 +910,13 @@ void _eggFlags(AppStore s) {
   if (now.hour == 3 && now.minute == 14) mark('egg.piTime');
   if (now.month == 3 && now.day == 14) mark('egg.piDay');
   if (now.month == 2 && now.day == 29) mark('egg.leap');
+  mark('egg.wd${now.weekday}');
+  mark('egg.m${now.month}');
+  final h = now.hour;
+  if (h >= 7 && h < 9) mark('egg.tod.morning');
+  if (h == 13) mark('egg.tod.lunch');
+  if (h >= 15 && h < 18) mark('egg.tod.afternoon');
+  if (h >= 19 && h < 22) mark('egg.tod.evening');
   final y = s.calendar.yearOf(now);
   if (y != null) {
     if (dateOnly(now) == dateOnly(y.end)) mark('egg.lastDay');

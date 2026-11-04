@@ -1,4 +1,14 @@
-# Easy Lesson 3.0 🎉
+# Easy Lesson 3.5 🎉
+
+Tutta la 3.0 (classe, amici, negozio, grafica nuova) più le novità della 3.5.
+
+## ✨ Novità della 3.5
+- **350 obiettivi**, molti più facili: aprire l'app di lunedì o a settembre, studiare 15 minuti, la prima occhiata a un orario…
+  Non arrivano tutti insieme: all'inizio ne vedi **40**, poi se ne scoprono altri man mano (60, 100, 150… fino a tutti).
+- **Rispondi alla moderazione**: sotto un avviso puoi scrivere la tua versione (fino a 500 caratteri). La legge solo la
+  moderazione, nessun altro utente, e ti arriva la risposta nell'app.
+- Carte degli obiettivi più colorate, con il bordo del loro livello.
+- Server più veloce e affidabile: gira su un server dedicato, con Cloudflare come riserva automatica.
 
 La versione più grande di sempre: la classe, gli amici, il negozio, una grafica nuova e la lezione sempre in tendina.
 
@@ -29,20 +39,15 @@ La versione più grande di sempre: la classe, gli amici, il negozio, una grafica
 - Avvisi importanti in cima alla home (sciopero, aggiornamenti…), direttamente dal server.
 
 ## 🏆 E poi
-- **173 obiettivi** (15 nuovi per classe, amici, chat e negozio).
 - Privacy: le impostazioni e le statistiche nel backup online ora sono cifrate; account inattivi da 2 anni cancellati in automatico; nuova [informativa privacy](https://easylesson.khugudvjan.cc/privacy.html).
 - Server più robusto: può spostarsi da Cloudflare a un server dedicato senza aggiornare l'app.
 
-## ⚠️ Versione beta
-
-Questa è una versione **beta** (non stabile): può avere qualche difetto. Si aggiorna da sola solo chi ha il canale Beta attivo. Per provarla: Impostazioni → Opzioni sviluppatore → Canale Beta, oppure installa l'APK a mano.
-
 ### 📦 Download
 
-- **Easy-Lesson-v3.0.0-beta.1-Setup.exe** — installer Windows;
-- **Easy-Lesson-v3.0.0-beta.1-Windows.zip** — Windows portatile;
-- **Easy-Lesson-v3.0.0-beta.1.apk** — Android;
-- **Easy-Lesson-v3.0.0-beta.1-Web.zip** — web.
+- **Easy-Lesson-v3.5.0-Setup.exe** — installer Windows;
+- **Easy-Lesson-v3.5.0-Windows.zip** — Windows portatile;
+- **Easy-Lesson-v3.5.0.apk** — Android;
+- **Easy-Lesson-v3.5.0-Web.zip** — web.
 
 
-**Full Changelog**: https://github.com/Andrea-nonloso/Easy-lesson-v2/compare/v2.7.0...v3.0.0-beta.1
+**Full Changelog**: https://github.com/Andrea-nonloso/Easy-lesson-v2/compare/v2.7.0...v3.5.0

@@ -26,6 +26,26 @@ class ModNotices {
         await _show(context, store, n, reasons);
         _showing = false;
       }
+      // La moderazione ha risposto a un messaggio: si apre la conversazione.
+      final answered = list.where((n) => n.read && n.replies.any((r) => !r.mine) && n.replies.last.mine == false).toList();
+      if (Social.unreadModReplies > 0 && answered.isNotEmpty && context.mounted) {
+        final n = answered.first;
+        final open = await showDialog<bool>(
+          context: context,
+          builder: (c) => AlertDialog(
+            icon: const Icon(Icons.mark_chat_unread_outlined, size: 32),
+            title: const Text('La moderazione ti ha risposto'),
+            content: Text('Su: ${n.title}'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Dopo')),
+              FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Leggi')),
+            ],
+          ),
+        );
+        if (open == true && context.mounted) {
+          await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => NoticeThreadPage(notice: n)));
+        }
+      }
     } on CloudException catch (e) {
       AppLog.w('moderazione', 'Avvisi non scaricati: ${e.message}');
     } finally {
@@ -68,11 +88,16 @@ class ModNotices {
         ),
         actions: [
           if (n.canAppeal && !answered) TextButton(onPressed: () => Navigator.pop(c, 'appeal'), child: const Text('Non è giusto')),
+          if (!n.closed) TextButton(onPressed: () => Navigator.pop(c, 'write'), child: const Text('Rispondi')),
           FilledButton(onPressed: () => Navigator.pop(c, 'ok'), child: const Text('Ho capito')),
         ],
       ),
     );
     if (!context.mounted) return;
+    if (action == 'write') {
+      await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => NoticeThreadPage(notice: n)));
+      return;
+    }
     if (action == 'appeal') {
       final reason = await showDialog<String>(
         context: context,
@@ -138,6 +163,11 @@ class _NoticesPageState extends State<NoticesPage> {
                 for (final n in list)
                   Card(
                     child: ListTile(
+                      onTap: () async {
+                        await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => NoticeThreadPage(notice: n)));
+                        if (mounted) setState(() => _f = Social.notices(StoreScope.read(context)));
+                      },
+                      trailing: n.replies.isEmpty ? null : Badge(label: Text('${n.replies.length}'), child: const Icon(Icons.forum_outlined)),
                       leading: Icon(ModNotices.style(n.level).$1, color: n.level == 'info' ? scheme.primary : scheme.error),
                       title: Text(n.title),
                       subtitle: Text([
@@ -154,6 +184,128 @@ class _NoticesPageState extends State<NoticesPage> {
           );
         },
       ),
+    );
+  }
+}
+
+/// Conversazione con la moderazione su un avviso: si può spiegare con parole proprie.
+/// La leggono solo i moderatori (mai gli altri utenti).
+class NoticeThreadPage extends StatefulWidget {
+  const NoticeThreadPage({super.key, required this.notice});
+  final ModNotice notice;
+  @override
+  State<NoticeThreadPage> createState() => _NoticeThreadPageState();
+}
+
+class _NoticeThreadPageState extends State<NoticeThreadPage> {
+  late ModNotice _n = widget.notice;
+  final _text = TextEditingController();
+  bool _sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Aprendo la conversazione si segnano lette le risposte.
+    Social.readNotice(StoreScope.read(context), _n.id).catchError((_) {});
+  }
+
+  Future<void> _reload() async {
+    final (list, _) = await Social.notices(StoreScope.read(context));
+    final again = list.where((x) => x.id == _n.id);
+    if (again.isNotEmpty && mounted) setState(() => _n = again.first);
+  }
+
+  Future<void> _send() async {
+    final t = _text.text.trim();
+    if (t.length < 2) return;
+    setState(() => _sending = true);
+    try {
+      await Social.replyNotice(StoreScope.read(context), _n.id, t);
+      _text.clear();
+      await _reload();
+    } on CloudException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  String _when(DateTime t) =>
+      '${t.day.toString().padLeft(2, '0')}/${t.month.toString().padLeft(2, '0')} ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final (icon, label) = ModNotices.style(_n.level);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Moderazione')),
+      body: Column(children: [
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _reload,
+            child: ListView(padding: const EdgeInsets.all(16), children: [
+              Card(
+                child: ListTile(
+                  leading: Icon(icon, color: _n.level == 'info' ? scheme.primary : scheme.error),
+                  title: Text(_n.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: Text('$label · ${_when(_n.createdAt)}\n${_n.body}'),
+                  isThreeLine: true,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Qui puoi spiegare cosa è successo. Lo leggono solo i moderatori, nessun altro utente.',
+                style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 8),
+              for (final r in _n.replies)
+                Align(
+                  alignment: r.mine ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 340),
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                    decoration: BoxDecoration(
+                      color: r.mine ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      if (!r.mine) Text('🛡️ ${r.who}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: scheme.primary)),
+                      Text(r.text),
+                      Text(_when(r.at), style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+                    ]),
+                  ),
+                ),
+              if (_n.closed)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text('La moderazione ha chiuso questa conversazione.', textAlign: TextAlign.center,
+                      style: TextStyle(color: scheme.onSurfaceVariant)),
+                ),
+            ]),
+          ),
+        ),
+        if (!_n.closed)
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+              child: Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: _text,
+                    minLines: 1,
+                    maxLines: 4,
+                    maxLength: 500,
+                    decoration: const InputDecoration(hintText: 'Scrivi alla moderazione…', counterText: ''),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(onPressed: _sending ? null : _send, icon: const Icon(Icons.send_rounded)),
+              ]),
+            ),
+          ),
+      ]),
     );
   }
 }

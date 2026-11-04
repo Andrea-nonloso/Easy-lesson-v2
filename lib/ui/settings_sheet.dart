@@ -188,14 +188,14 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
       'profilo',
       Icons.military_tech_outlined,
       tr('Profilo e progressi', 'Profile and progress'),
-      'Livello ${lv.level} · ${unlockedIds(store).length}/${achievements.length} obiettivi'
+      'Livello ${lv.level} · ${unlockedCount(store)}/${visibleCount(store)} obiettivi'
           '${store.accountCode == null ? '' : ' · account ☁️'}',
       [
         _Item(Icons.military_tech_outlined, tr('Livello e statistiche', 'Level and stats'),
             'Livello ${lv.level} · ${lv.title} · ${lv.xp} XP', () => openProfile(context),
             keywords: 'xp livello profilo statistiche'),
         _Item(Icons.emoji_events_outlined, tr('Obiettivi', 'Achievements'),
-            '${unlockedIds(store).length} su ${achievements.length} sbloccati', () => openAchievements(context),
+            '${unlockedCount(store)} su ${visibleCount(store)} sbloccati', () => openAchievements(context),
             keywords: 'medaglie sfide trofei'),
         _Item(Icons.flag_outlined, tr('Missioni', 'Missions'), '3 al giorno e 3 alla settimana, con XP in più',
             () => openMissions(context), keywords: 'sfide giornaliere settimanali eventi'),

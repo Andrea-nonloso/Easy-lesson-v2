@@ -53,6 +53,18 @@ class ModNotice {
   String? get appeal => j['appeal'] is String ? j['appeal'] as String : null;
   String? get reply => j['reply'] is String ? j['reply'] as String : null;
   DateTime get createdAt => DateTime.fromMillisecondsSinceEpoch(_i(j['createdAt']));
+  bool get closed => j['closed'] == true;
+  List<ModReply> get replies => [for (final r in (j['replies'] is List ? j['replies'] as List : const [])) if (r is Map) ModReply(Map<String, dynamic>.from(r))];
+}
+
+/// Messaggio nella conversazione con la moderazione. author: 'user' (io) | 'mod'.
+class ModReply {
+  ModReply(this.j);
+  final Map<String, dynamic> j;
+  bool get mine => j['author'] == 'user';
+  String get who => _s(j['who'], 'Moderazione');
+  String get text => _s(j['text']);
+  DateTime get at => DateTime.fromMillisecondsSinceEpoch(_i(j['at']));
 }
 
 /// Un amico (o una richiesta, o una riga della classifica).
@@ -294,14 +306,19 @@ class Social {
       _j(s, 'POST', '/classes/$classId/challenges', body: {'metric': metric, 'target': target, 'days': days});
 
   /// Avvisi della moderazione e i motivi possibili per contestarli.
+  /// Risposte della moderazione non ancora lette (si aggiorna con [notices]).
+  static int unreadModReplies = 0;
+
   static Future<(List<ModNotice>, Map<String, String>)> notices(AppStore s) async {
     final j = await _j(s, 'GET', '/social/notices');
+    unreadModReplies = _i(j['unreadReplies']);
     final l = j['notices'];
     final reasons = j['reasons'] is Map ? Map<String, String>.from((j['reasons'] as Map).map((k, v) => MapEntry('$k', '$v'))) : <String, String>{};
     return (l is List ? [for (final n in l) if (n is Map) ModNotice(Map<String, dynamic>.from(n))] : <ModNotice>[], reasons);
   }
 
   static Future<void> readNotice(AppStore s, String id) => _j(s, 'POST', '/social/notices/$id/read');
+  static Future<void> replyNotice(AppStore s, String id, String text) => _j(s, 'POST', '/social/notices/$id/reply', body: {'text': text});
   static Future<void> appealNotice(AppStore s, String id, String reason) =>
       _j(s, 'POST', '/social/notices/$id/appeal', body: {'reason': reason});
 

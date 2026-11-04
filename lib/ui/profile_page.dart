@@ -66,7 +66,7 @@ class ProfilePage extends StatelessWidget {
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.emoji_events_outlined, color: scheme.primary),
                 title: const Text('Obiettivi'),
-                subtitle: Text('${unlockedIds(store).length} su ${achievements.length} sbloccati'),
+                subtitle: Text('${unlockedCount(store)} su ${visibleCount(store)} sbloccati'),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => openAchievements(context),
               ),

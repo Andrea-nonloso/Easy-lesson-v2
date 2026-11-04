@@ -99,6 +99,26 @@ void main() {
         if (a.goal != null) expect(a.progress, isNotNull, reason: a.id);
       }
     });
+
+    test('350 obiettivi, si scoprono un po\' alla volta', () {
+      expect(achievements.length, 350);
+      expect(revealLimit(0), 40);
+      expect(revealLimit(23), 40);
+      expect(revealLimit(24), 60);
+      expect(revealLimit(36), 100);
+      expect(revealLimit(60), 150);
+      expect(revealLimit(500), achievements.length);
+      expect(toNextReveal(10), 14);
+      expect(toNextReveal(500), 0);
+      // All'inizio se ne vedono 40, mai segreti prima dei normali.
+      final first = visibleAchievements({});
+      expect(first.length, 40);
+      expect(first.where((a) => a.secret), isEmpty);
+      // Quelli sbloccati si vedono sempre, anche se erano nascosti.
+      final last = achievements.last.id;
+      expect(visibleAchievements({last}).map((a) => a.id), contains(last));
+      expect(visibleAchievements({last}).length, 40);
+    });
   });
 
   group('backup', () {
