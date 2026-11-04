@@ -142,7 +142,7 @@ jobs:
         continue-on-error: true
         run: |
           VERSION=${{ steps.v.outputs.name }}
-          sudo apt-get install -y file
+          sudo apt-get install -y file desktop-file-utils
           APP=EasyLesson.AppDir
           mkdir -p $APP/usr/lib/easy-lesson
           cp -r build/linux/x64/release/bundle/* $APP/usr/lib/easy-lesson/
