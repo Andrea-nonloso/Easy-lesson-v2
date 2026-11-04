@@ -74,10 +74,11 @@ jobs:
           echo "$KEYSTORE_B64" | base64 -d > android/app/upload-keystore.jks
           printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=upload\nstoreFile=upload-keystore.jks\n' \
             "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" > android/key.properties
-      - name: Avviso firma mancante
+      - name: Firma mancante = release bloccata
         if: env.KEYSTORE_B64 == ''
         run: |
-          echo "::warning::APK firmato con chiave di debug, gli aggiornamenti non si installeranno sopra la versione precedente."
+          echo "::error::Mancano i secret ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD: niente APK firmato con la chiave di debug."
+          exit 1
       - run: flutter pub get
       - name: Gradle piu' veloce in CI
         run: |
