@@ -179,6 +179,16 @@ class DeepDevPage extends StatelessWidget {
                 tile(Icons.celebration_rounded, 'Prova la festa del livello', null, () => showLevelUp(context, lv.level + 1)),
                 tile(Icons.refresh_rounded, 'Ricontrolla gli obiettivi adesso', null, () => checkAchievements(context)),
               ]),
+              group('Laboratorio', Icons.science_outlined, [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  secondary: Icon(Icons.document_scanner_outlined, color: scheme.primary),
+                  title: const Text('Importa assenze dal registro'),
+                  subtitle: const Text('Pulsante in Assenze: incolli il testo degli screenshot del registro'),
+                  value: store.opt('lab.registro', false),
+                  onChanged: (v) => store.setOpt('lab.registro', v ? true : null),
+                ),
+              ]),
               group('Server', Icons.admin_panel_settings_outlined, [
                 tile(Icons.insights_rounded, 'Gestisci il server', 'Numeri, avvisi, eventi, pulizia',
                     () => push(const ServerAdminPage())),

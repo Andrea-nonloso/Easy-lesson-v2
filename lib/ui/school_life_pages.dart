@@ -11,6 +11,7 @@ import '../store.dart';
 import 'agenda_page.dart' show mySubjects;
 import 'desktop.dart';
 import 'more_pages.dart' show openCharts, openCredits;
+import 'register_import_page.dart';
 import 'report_pdf.dart';
 import 'widgets.dart';
 
@@ -156,7 +157,18 @@ class AbsencesPage extends StatelessWidget {
         );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Assenze e permessi')),
+      appBar: AppBar(
+        title: const Text('Assenze e permessi'),
+        actions: [
+          // Laboratorio (si accende da Sviluppatore²): importa dal registro con il testo degli screenshot.
+          if (store.opt('lab.registro', false))
+            IconButton(
+              tooltip: 'Importa dal registro',
+              icon: const Icon(Icons.document_scanner_outlined),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const RegisterImportPage())),
+            ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => addAbsenceDialog(context),
         icon: const Icon(Icons.add_rounded),
