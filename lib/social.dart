@@ -34,6 +34,9 @@ class SocialProfile {
   int get strikes => _i(j['strikes']);
   int get unreadNotices => _i(j['unreadNotices']);
 
+  /// 3.7.1: maggiorenne verificato di persona dalla moderazione = vede la "Chat dei grandi".
+  bool get adult => j['adult'] == true;
+
   /// Messaggio se è sospeso da classe e amici (null = no).
   String? get suspension => j['suspension'] is String ? j['suspension'] as String : null;
 }
@@ -321,6 +324,15 @@ class Social {
   static Future<void> replyNotice(AppStore s, String id, String text) => _j(s, 'POST', '/social/notices/$id/reply', body: {'text': text});
   static Future<void> appealNotice(AppStore s, String id, String reason) =>
       _j(s, 'POST', '/social/notices/$id/appeal', body: {'reason': reason});
+
+  // Chat dei grandi (solo per chi è abilitato; per gli altri il server risponde 404).
+  static Future<List<ChatMessage>> adultChat(AppStore s) async {
+    final j = await _j(s, 'GET', '/social/adult/chat');
+    return [for (final m in (j['messages'] is List ? j['messages'] as List : const [])) if (m is Map) ChatMessage(Map<String, dynamic>.from(m))];
+  }
+
+  static Future<void> sendAdult(AppStore s, String text) => _j(s, 'POST', '/social/adult/chat', body: {'text': text});
+  static Future<void> deleteAdult(AppStore s, String id) => _j(s, 'DELETE', '/social/adult/chat/$id');
 
   static Future<void> report(AppStore s, {required String kind, required String target, String reason = ''}) =>
       _j(s, 'POST', '/report', body: {'kind': kind, 'target': target, 'reason': reason});

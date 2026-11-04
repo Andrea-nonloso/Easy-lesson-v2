@@ -1,10 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../cloud.dart';
 import '../social.dart';
 import '../store.dart';
+import 'live_poll.dart';
 
 /// Chat rapida della classe: solo frasi pronte (le decide la moderazione), niente testo libero.
 /// {materia} e {giorno} si scelgono da elenchi. I messaggi spariscono dopo 24 ore.
@@ -18,24 +17,28 @@ class ClassChatTab extends StatefulWidget {
 
 const _categories = {'saluti': '👋 Saluti', 'scuola': '🏫 Scuola', 'umore': '😄 Umore', 'sfide': '🏆 Sfide'};
 
-class _ClassChatTabState extends State<ClassChatTab> {
+class _ClassChatTabState extends State<ClassChatTab> with LivePoll {
   ChatData? _data;
   Object? _error;
-  Timer? _timer;
   bool _sending = false;
 
   @override
   void initState() {
     super.initState();
     _load();
-    // Mentre la chat è aperta si aggiorna da sola.
-    _timer = Timer.periodic(const Duration(seconds: 20), (_) => _load());
+    // Mentre la chat è aperta si aggiorna da sola (e subito quando si torna nell'app).
+    startLivePoll(const Duration(seconds: 1));
   }
 
   @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
+  Future<void> livePollRefresh() async {
+    final d = await Social.chat(StoreScope.read(context), widget.classId);
+    if (mounted) {
+      setState(() {
+        _data = d;
+        _error = null;
+      });
+    }
   }
 
   Future<void> _load() async {

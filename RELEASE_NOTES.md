@@ -1,3 +1,22 @@
+# Easy Lesson 3.7.1 beta 1 🧪
+
+Versione di prova per il canale **Beta**: serve a controllare le novità con dati veri prima della 3.7.1 stabile.
+
+## ⚡ Chat in diretta
+- La **chat di classe** e la **conversazione con la moderazione** si aggiornano da sole ogni secondo: i messaggi nuovi
+  arrivano senza dover ricaricare. Quando torni nell'app si aggiornano subito; con l'app in background si fermano.
+
+## 🔞 Chat dei grandi
+- Un canale a **testo libero** riservato ai **maggiorenni verificati di persona** dalla moderazione.
+- La vede solo chi è stato abilitato: per tutti gli altri non c'è. I messaggi durano **24 ore**, e si possono segnalare
+  tenendoli premuti.
+- Si trova in **Amici → Chat dei grandi** (solo se sei abilitato).
+
+## 🐧 Linux
+- Torna l'**AppImage** oltre al pacchetto `.deb`.
+
+---
+
 # Easy Lesson 3.7 🚀
 
 Un aggiornamento di quelli che si sentono: l'app è stata riorganizzata da cima a fondo per fare spazio alle funzioni

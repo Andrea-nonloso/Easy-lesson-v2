@@ -4,6 +4,7 @@ import '../cloud.dart';
 import '../log.dart';
 import '../social.dart';
 import '../store.dart';
+import 'live_poll.dart';
 
 /// Avvisi della moderazione (3.0): li manda Andrea dall'app "Easy Lesson Moderazione".
 /// Si mostrano uno alla volta, finché non si preme "Ho capito". Si può contestare solo con motivi fissi.
@@ -197,7 +198,7 @@ class NoticeThreadPage extends StatefulWidget {
   State<NoticeThreadPage> createState() => _NoticeThreadPageState();
 }
 
-class _NoticeThreadPageState extends State<NoticeThreadPage> {
+class _NoticeThreadPageState extends State<NoticeThreadPage> with LivePoll {
   late ModNotice _n = widget.notice;
   final _text = TextEditingController();
   bool _sending = false;
@@ -210,6 +211,18 @@ class _NoticeThreadPageState extends State<NoticeThreadPage> {
     // Avviso già letto: aprendo la conversazione si segnano lette le risposte.
     // Avviso nuovo (3.6): si segna letto solo con "Ho letto" in fondo all'avviso.
     if (_n.read) Social.readNotice(StoreScope.read(context), _n.id).catchError((_) {});
+    // Le risposte del moderatore arrivano da sole mentre la conversazione è aperta.
+    startLivePoll(const Duration(seconds: 1));
+  }
+
+  @override
+  Future<void> livePollRefresh() async {
+    final before = _n.replies.length;
+    await _reload();
+    // Arrivato un messaggio nuovo con la conversazione aperta: è già letto.
+    if (_n.read && _n.replies.length != before && mounted) {
+      Social.readNotice(StoreScope.read(context), _n.id).catchError((_) {});
+    }
   }
 
   Future<void> _markRead() async {

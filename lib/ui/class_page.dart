@@ -7,6 +7,7 @@ import '../shop.dart';
 import '../social.dart';
 import '../store.dart';
 import 'achievements.dart' show levelOf;
+import 'adult_chat.dart';
 import 'class_chat.dart';
 import 'code_scanner.dart';
 import 'friends_page.dart';
@@ -451,6 +452,19 @@ class _ClassHubPageState extends State<ClassHubPage> {
             ),
           ],
         ),
+        // 3.7.1: solo per i maggiorenni verificati di persona dalla moderazione (gli altri non la vedono).
+        if (me.adult) ...[
+          section('Chat dei grandi'),
+          Card(
+            child: ListTile(
+              leading: const Text('🔞', style: TextStyle(fontSize: 28)),
+              title: const Text('Chat dei grandi'),
+              subtitle: const Text('Solo maggiorenni verificati · testo libero · i messaggi durano 24 ore'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AdultChatPage())).then((_) => _load()),
+            ),
+          ),
+        ],
         if (me.strikes > 0)
           ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 4),
