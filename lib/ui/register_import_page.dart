@@ -5,7 +5,7 @@ import '../register_import.dart';
 import '../store.dart';
 
 /// Importa assenze, ritardi e uscite dal registro elettronico incollando il testo degli screenshot.
-/// Funzione "di laboratorio": si accende da Sviluppatore² (opzione lab.registro).
+/// Funzione in beta: pulsante "Incolla dal registro (beta)" in Assenze e permessi.
 class RegisterImportPage extends StatefulWidget {
   const RegisterImportPage({super.key});
   @override

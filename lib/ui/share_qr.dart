@@ -118,7 +118,67 @@ class _ShareSheetState extends State<_ShareSheet> {
   }
 }
 
+/// Cosa farebbe un codice condiviso, detto all'utente prima di applicarlo (null = non valido).
+/// [risky] = cambia molte cose (un backup): si chiede sempre conferma.
+({String title, String text, bool risky})? describeShared(String text) {
+  final m = decodeShare(text);
+  if (m == null) return null;
+  switch (m['k']) {
+    case 'orario':
+      final ref = ScheduleRef.fromKey('${m['r']}');
+      if (ref == null) return null;
+      return (title: 'Salvare un orario?', text: 'Verrà salvato l\'orario di ${ref.displayName}.', risky: false);
+    case 'tema':
+      return (title: 'Applicare un tema?', text: 'Il tema dell\'app cambierà con quello condiviso.', risky: false);
+    case 'nick':
+      final n = (m['n'] as Map?)?.length ?? 0;
+      final e = (m['e'] as Map?)?.length ?? 0;
+      return (title: 'Importare i soprannomi?', text: 'Soprannomi ed emoji delle materie ($n + $e) verranno sostituiti.', risky: false);
+    case 'backup':
+      return (
+        title: 'Ripristinare un backup?',
+        text: 'Orari, agenda, voti, assenze e impostazioni di questo dispositivo verranno sostituiti con quelli '
+            'del backup. Fallo solo se il backup è tuo. Account, server e opzioni del dispositivo non cambiano.',
+        risky: true,
+      );
+  }
+  return (title: 'Codice sconosciuto', text: 'Codice di una versione più nuova: aggiorna l\'app.', risky: false);
+}
+
+/// Mostra cosa farà il codice e lo applica solo dopo "Importa" (sicurezza EL-01: un link
+/// esterno non cambia niente da solo). [onlyRisky] = chiede solo per i backup (codice incollato a mano).
+Future<void> confirmAndImport(BuildContext context, String text, {bool onlyRisky = false}) async {
+  final store = StoreScope.read(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final d = describeShared(text);
+  if (d == null) {
+    messenger.showSnackBar(const SnackBar(content: Text('Codice non valido')));
+    return;
+  }
+  if (!onlyRisky || d.risky) {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        icon: Icon(d.risky ? Icons.warning_amber_rounded : Icons.download_rounded),
+        title: Text(d.title),
+        content: Text(d.text),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Importa')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+  }
+  try {
+    messenger.showSnackBar(SnackBar(content: Text(await importShared(store, text))));
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text(e is FormatException ? e.message : '$e')));
+  }
+}
+
 /// Applica un codice condiviso (dal QR o incollato). Restituisce cosa è stato importato.
+/// L'interfaccia passa da [confirmAndImport]: qui non si chiede niente.
 Future<String> importShared(AppStore store, String text) async {
   final m = decodeShare(text);
   if (m == null) throw const FormatException('Codice non valido');
@@ -148,8 +208,6 @@ Future<String> importShared(AppStore store, String text) async {
 
 /// Dialogo "Importa un codice" (per chi non può inquadrare il QR).
 Future<void> importCodeDialog(BuildContext context) async {
-  final store = StoreScope.read(context);
-  final messenger = ScaffoldMessenger.of(context);
   final clip = await Clipboard.getData(Clipboard.kTextPlain);
   final ctrl = TextEditingController(text: (clip?.text ?? '').startsWith('easylesson://') ? clip!.text : '');
   if (!context.mounted) return;
@@ -181,10 +239,6 @@ Future<void> importCodeDialog(BuildContext context) async {
       ],
     ),
   );
-  if (v == null || v.trim().isEmpty) return;
-  try {
-    messenger.showSnackBar(SnackBar(content: Text(await importShared(store, v))));
-  } catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text(e is FormatException ? e.message : '$e')));
-  }
+  if (v == null || v.trim().isEmpty || !context.mounted) return;
+  await confirmAndImport(context, v, onlyRisky: true);
 }

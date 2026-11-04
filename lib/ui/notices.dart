@@ -169,7 +169,7 @@ class _NoticesPageState extends State<NoticesPage> {
                       },
                       trailing: n.replies.isEmpty ? null : Badge(label: Text('${n.replies.length}'), child: const Icon(Icons.forum_outlined)),
                       leading: Icon(ModNotices.style(n.level).$1, color: n.level == 'info' ? scheme.primary : scheme.error),
-                      title: Text(n.title),
+                      title: Text(n.read ? n.title : '● ${n.title}', style: n.read ? null : const TextStyle(fontWeight: FontWeight.w800)),
                       subtitle: Text([
                         n.body,
                         if (n.appeal == 'open') '⏳ Contestazione in attesa di risposta',
@@ -202,11 +202,29 @@ class _NoticeThreadPageState extends State<NoticeThreadPage> {
   final _text = TextEditingController();
   bool _sending = false;
 
+  bool _marking = false;
+
   @override
   void initState() {
     super.initState();
-    // Aprendo la conversazione si segnano lette le risposte.
-    Social.readNotice(StoreScope.read(context), _n.id).catchError((_) {});
+    // Avviso già letto: aprendo la conversazione si segnano lette le risposte.
+    // Avviso nuovo (3.6): si segna letto solo con "Ho letto" in fondo all'avviso.
+    if (_n.read) Social.readNotice(StoreScope.read(context), _n.id).catchError((_) {});
+  }
+
+  Future<void> _markRead() async {
+    setState(() => _marking = true);
+    try {
+      await Social.readNotice(StoreScope.read(context), _n.id);
+      await _reload();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Letto: chat, classi e amici tornano a posto')));
+      }
+    } on CloudException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _marking = false);
+    }
   }
 
   Future<void> _reload() async {
@@ -245,12 +263,23 @@ class _NoticeThreadPageState extends State<NoticeThreadPage> {
             onRefresh: _reload,
             child: ListView(padding: const EdgeInsets.all(16), children: [
               Card(
-                child: ListTile(
-                  leading: Icon(icon, color: _n.level == 'info' ? scheme.primary : scheme.error),
-                  title: Text(_n.title, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Text('$label · ${_when(_n.createdAt)}\n${_n.body}'),
-                  isThreeLine: true,
-                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  ListTile(
+                    leading: Icon(icon, color: _n.level == 'info' ? scheme.primary : scheme.error),
+                    title: Text(_n.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: Text('$label · ${_when(_n.createdAt)}\n${_n.body}'),
+                    isThreeLine: true,
+                  ),
+                  if (!_n.read)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: FilledButton.icon(
+                        onPressed: _marking ? null : _markRead,
+                        icon: const Icon(Icons.done_rounded),
+                        label: const Text('Ho letto'),
+                      ),
+                    ),
+                ]),
               ),
               const SizedBox(height: 8),
               Text(

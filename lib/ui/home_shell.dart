@@ -14,23 +14,24 @@ import '../store.dart';
 import '../updater.dart';
 import 'achievements.dart';
 import 'agenda_page.dart';
-import 'class_page.dart' show openSocialLink;
+import 'class_page.dart' show ClassHubPage, openSocialLink;
 import 'desktop.dart';
 import 'app_menu.dart';
 import 'home_page.dart';
 import 'notices.dart';
 import 'now_page.dart';
-import 'profile_page.dart' show checkCodeMemory, openAccountLink;
+import 'profile_page.dart' show ProfilePage, checkCodeMemory, openAccountLink;
 import 'saved_page.dart';
 import 'schedule_screen.dart';
 import 'school_life_pages.dart';
 import 'search_page.dart';
-import 'settings_sheet.dart';
 import 'share_qr.dart';
 import 'themes_page.dart';
 import 'widgets.dart';
 
-/// Struttura principale: barra in basso su telefono, barra laterale su tablet.
+/// Struttura principale (3.6): Home · Orario · Amici · Profilo.
+/// Telefono: barra in basso con 4 voci; Cerca e Salvati si aprono dai pulsanti della home.
+/// Schermi grandi: barra laterale con le 4 voci e, sotto un separatore, Cerca e Salvati più chiari.
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
@@ -50,7 +51,10 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     _started = true;
     // Pagina iniziale e opzioni sviluppatore scelte nelle impostazioni.
     final store = StoreScope.read(context);
-    _index = store.opt('start.tab', 0).clamp(0, 3);
+    // 0 = Home, 1 = Il mio orario, 2 = Cerca (si apre sopra la home sul telefono).
+    final start = store.opt('start.tab', 0);
+    _index = start == 1 ? 1 : 0;
+    if (start == 2) WidgetsBinding.instance.addPostFrameCallback((_) => _openSearch());
     Updater.pretendOld = store.opt('dev.fakeOld', false);
     timeDilation = store.opt('dev.slow', false) ? 5.0 : 1.0;
   }
@@ -58,9 +62,27 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   static List<({IconData icon, IconData selected, String label})> get _destinations => [
         (icon: Icons.home_outlined, selected: Icons.home_rounded, label: 'Home'),
         (icon: Icons.today_outlined, selected: Icons.today_rounded, label: tr('Orario', 'Timetable')),
-        (icon: Icons.search_rounded, selected: Icons.search_rounded, label: tr('Cerca', 'Search')),
-        (icon: Icons.bookmark_border_rounded, selected: Icons.bookmark_rounded, label: tr('Salvati', 'Saved')),
+        (icon: Icons.people_outline_rounded, selected: Icons.people_rounded, label: tr('Amici', 'Friends')),
+        (icon: Icons.account_circle_outlined, selected: Icons.account_circle_rounded, label: tr('Profilo', 'Profile')),
       ];
+
+  // Indici delle pagine: 0-3 le voci della barra, 4 Cerca, 5 Salvati (solo nella barra laterale).
+  static const _search = 4;
+  static const _saved = 5;
+  bool _wide = false;
+
+  /// Cerca: nella barra laterale è una pagina accanto; sul telefono si apre sopra.
+  void _openSearch() {
+    if (!mounted) return;
+    if (_wide) return _go(_search);
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SearchPage()));
+  }
+
+  void _openSaved() {
+    if (!mounted) return;
+    if (_wide) return _go(_saved);
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SavedPage(onSearch: _openSearch)));
+  }
 
   @override
   void initState() {
@@ -72,7 +94,6 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       final store = StoreScope.read(context);
       _store = store;
       store.addListener(_onStoreChanged);
-      Cloud.overrideUrl = store.opt<String?>('dev.cloudUrl', null);
       CloudSync.maybeSync(store);
       Missions.refreshEvents(store);
       Announcements.refresh(store);
@@ -139,13 +160,9 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   Future<void> _openShortcut(String s) async {
     if (!mounted) return;
     // Codice condiviso con il QR (la fotocamera apre easylesson://import?d=...).
+    // Sempre con conferma: il link può arrivare da chiunque (sicurezza EL-01).
     if (s.startsWith('easylesson://import')) {
-      final messenger = ScaffoldMessenger.of(context);
-      try {
-        messenger.showSnackBar(SnackBar(content: Text(await importShared(StoreScope.read(context), s))));
-      } catch (e) {
-        messenger.showSnackBar(SnackBar(content: Text(e is FormatException ? e.message : '$e')));
-      }
+      await confirmAndImport(context, s);
       return;
     }
     // QR del codice dell'account (easylesson://login?c=... / recover?r=...).
@@ -206,26 +223,61 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     final body = IndexedStack(
       index: _index,
       children: [
-        HomePage(
-          onSearch: () => _go(2),
-          onOpenMine: () => _go(1),
-          onOpenSaved: () => _go(3),
-        ),
-        _MyScheduleTab(onSearch: () => _go(2)),
-        const SearchPage(),
-        SavedPage(onSearch: () => _go(2)),
+        HomePage(onSearch: _openSearch, onOpenMine: () => _go(1), onOpenSaved: _openSaved),
+        _MyScheduleTab(onSearch: _openSearch),
+        const ClassHubPage(asTab: true),
+        const ProfilePage(asTab: true),
+        // Solo nella barra laterale (sul telefono si aprono sopra): costruite solo se servono.
+        if (_wide) const SearchPage() else const SizedBox.shrink(),
+        if (_wide) SavedPage(onSearch: _openSearch) else const SizedBox.shrink(),
       ],
     );
 
     return LayoutBuilder(builder: (context, c) {
-      if (c.maxWidth >= kGridBreakpoint) {
+      final wide = c.maxWidth >= kGridBreakpoint;
+      if (wide != _wide) {
+        _wide = wide;
+        // Da largo a stretto con Cerca/Salvati aperti: si torna alla home.
+        if (!wide && _index > 3) WidgetsBinding.instance.addPostFrameCallback((_) => _go(0));
+      }
+      if (wide) {
+        final scheme = Theme.of(context).colorScheme;
+        Widget faint(int i, IconData icon, IconData selected, String label) {
+          final on = _index == i;
+          return Opacity(
+            opacity: on ? 1 : 0.55,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => _go(i),
+                child: SizedBox(
+                  width: 72,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Column(children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        decoration: BoxDecoration(color: on ? scheme.secondaryContainer : null, borderRadius: BorderRadius.circular(16)),
+                        child: Icon(on ? selected : icon, size: 22),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(label, style: Theme.of(context).textTheme.labelMedium),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
         return Scaffold(
           body: Row(
             children: [
               SafeArea(
                 right: false,
                 child: NavigationRail(
-                  selectedIndex: _index,
+                  selectedIndex: _index <= 3 ? _index : null,
                   onDestinationSelected: _go,
                   labelType: NavigationRailLabelType.all,
                   groupAlignment: -0.9,
@@ -233,22 +285,21 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
                     padding: EdgeInsets.only(top: 8, bottom: 16),
                     child: AppLogo(size: 44),
                   ),
-                  trailing: Padding(
-                    padding: const EdgeInsets.only(top: 16),
-                    child: Column(
-                      children: [
-                        IconButton(
+                  trailing: Column(
+                    children: [
+                      const SizedBox(width: 48, child: Divider(height: 24)),
+                      faint(_search, Icons.search_rounded, Icons.search_rounded, tr('Cerca', 'Search')),
+                      faint(_saved, Icons.bookmark_border_rounded, Icons.bookmark_rounded, tr('Salvati', 'Saved')),
+                      const SizedBox(height: 8),
+                      Opacity(
+                        opacity: 0.55,
+                        child: IconButton(
                           tooltip: 'Temi',
                           onPressed: () => openThemesPage(context),
                           icon: const Icon(Icons.palette_outlined),
                         ),
-                        IconButton(
-                          tooltip: 'Impostazioni',
-                          onPressed: () => showSettingsSheet(context),
-                          icon: const Icon(Icons.settings_outlined),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                   destinations: [
                     for (final d in _destinations)
@@ -268,7 +319,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       return Scaffold(
         body: body,
         bottomNavigationBar: NavigationBar(
-          selectedIndex: _index,
+          selectedIndex: _index.clamp(0, 3),
           onDestinationSelected: _go,
           destinations: [
             for (final d in _destinations)

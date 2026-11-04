@@ -22,7 +22,7 @@ class LessonPhotos {
         imageQuality: 80,
       );
       if (picked == null) return null;
-      final dir = Directory('${(await getApplicationDocumentsDirectory()).path}${Platform.pathSeparator}easylesson_foto');
+      final dir = await folder();
       if (!await dir.exists()) await dir.create(recursive: true);
       final ext = picked.path.contains('.') ? picked.path.substring(picked.path.lastIndexOf('.')) : '.jpg';
       final dest = '${dir.path}${Platform.pathSeparator}${DateTime.now().millisecondsSinceEpoch}$ext';
@@ -34,16 +34,63 @@ class LessonPhotos {
     }
   }
 
-  static Widget image(String path, {BoxFit fit = BoxFit.cover}) => Image.file(
-        File(path),
-        fit: fit,
-        errorBuilder: (context, error, stack) => const Center(child: Icon(Icons.broken_image_outlined)),
+  /// Solo per i test: cartella al posto di quella dei documenti dell'app.
+  @visibleForTesting
+  static Directory? folderOverride;
+
+  /// La cartella privata delle foto.
+  static Future<Directory> folder() async =>
+      folderOverride ??
+      Directory('${(await getApplicationDocumentsDirectory()).path}${Platform.pathSeparator}easylesson_foto');
+
+  /// true solo se [path] è un file dentro la cartella delle foto (sicurezza EL-02: un backup può
+  /// contenere un percorso qualsiasi). Si confrontano i percorsi veri, dopo i collegamenti simbolici.
+  static Future<bool> isOwnPhoto(String path) async {
+    try {
+      final dir = await folder();
+      if (!await dir.exists()) return false;
+      final f = File(path);
+      if (!await f.exists()) return false;
+      if (await FileSystemEntity.type(path, followLinks: false) != FileSystemEntityType.file) return false;
+      final base = await dir.resolveSymbolicLinks();
+      final real = await f.resolveSymbolicLinks();
+      final sep = Platform.pathSeparator;
+      final prefix = base.endsWith(sep) ? base : '$base$sep';
+      return Platform.isWindows ? real.toLowerCase().startsWith(prefix.toLowerCase()) : real.startsWith(prefix);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static final _checked = <String, Future<bool>>{};
+
+  static Widget image(String path, {BoxFit fit = BoxFit.cover}) => FutureBuilder<bool>(
+        future: _checked.putIfAbsent(path, () => isOwnPhoto(path)),
+        builder: (context, snap) {
+          if (snap.data != true) {
+            return Center(
+              child: snap.connectionState == ConnectionState.done
+                  ? const Icon(Icons.broken_image_outlined)
+                  : const SizedBox.shrink(),
+            );
+          }
+          return Image.file(
+            File(path),
+            fit: fit,
+            errorBuilder: (context, error, stack) => const Center(child: Icon(Icons.broken_image_outlined)),
+          );
+        },
       );
 
+  /// Cancella il file solo se è davvero una foto dell'app; altrimenti si toglie solo la voce.
   static Future<void> delete(String path) async {
+    _checked.remove(path);
     try {
-      final f = File(path);
-      if (await f.exists()) await f.delete();
+      if (!await isOwnPhoto(path)) {
+        AppLog.w('foto', 'Cancellazione rifiutata: il file non è nella cartella delle foto');
+        return;
+      }
+      await File(path).delete();
     } catch (_) {/* già cancellata */}
   }
 }

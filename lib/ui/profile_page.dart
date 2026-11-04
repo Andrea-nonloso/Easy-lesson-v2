@@ -11,6 +11,8 @@ import 'achievements.dart';
 import 'class_page.dart' show openClassHub;
 import 'code_scanner.dart';
 import 'missions_page.dart';
+import 'notices.dart' show NoticesPage;
+import 'settings_sheet.dart' show showSettingsSheet;
 import 'recovery_pdf.dart';
 import 'shop_page.dart';
 import 'widgets.dart';
@@ -18,9 +20,13 @@ import 'widgets.dart';
 void openProfile(BuildContext context) =>
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ProfilePage()));
 
-/// Profilo: livello, statistiche, obiettivi, ricompense e account Easy Lesson Cloud.
+/// Profilo (3.6: scheda della barra): in alto livello, XP e serie, subito sotto le missioni,
+/// poi obiettivi, ricompense, negozio, avvisi della moderazione e account. L'ingranaggio apre le Impostazioni.
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+  const ProfilePage({super.key, this.asTab = false});
+
+  /// Scheda della barra in basso (niente freccia indietro).
+  final bool asTab;
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +44,18 @@ class ProfilePage extends StatelessWidget {
           ),
         );
     return Scaffold(
-      appBar: AppBar(title: const Text('Profilo e progressi')),
+      appBar: AppBar(
+        title: Text(asTab ? 'Profilo' : 'Profilo e progressi'),
+        automaticallyImplyLeading: !asTab,
+        actions: [
+          IconButton(
+            tooltip: 'Impostazioni',
+            onPressed: () => showSettingsSheet(context),
+            icon: const Icon(Icons.settings_outlined),
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 640),
@@ -62,6 +79,7 @@ class ProfilePage extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
+              const MissionsSummaryTile(),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.emoji_events_outlined, color: scheme.primary),
@@ -70,7 +88,6 @@ class ProfilePage extends StatelessWidget {
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => openAchievements(context),
               ),
-              const MissionsSummaryTile(),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.redeem_rounded, color: scheme.primary),
@@ -87,14 +104,24 @@ class ProfilePage extends StatelessWidget {
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => openShop(context),
               ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.groups_rounded, color: scheme.primary),
-                title: const Text('Classe e amici'),
-                subtitle: const Text('Agenda condivisa, sfide di classe, classifica'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => openClassHub(context),
-              ),
+              if (!asTab)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.groups_rounded, color: scheme.primary),
+                  title: const Text('Classe e amici'),
+                  subtitle: const Text('Agenda condivisa, sfide di classe, classifica'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => openClassHub(context),
+                ),
+              if (store.accountCode != null && store.opt<String?>('social.nick', null) != null)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.gavel_rounded, color: scheme.primary),
+                  title: const Text('Avvisi della moderazione'),
+                  subtitle: const Text('Quelli ricevuti e le conversazioni'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const NoticesPage())),
+                ),
               const SectionLabel('Account Easy Lesson'),
               const AccountPanel(),
             ],

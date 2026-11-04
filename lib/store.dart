@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show compute, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +16,7 @@ import 'school_calendar.dart';
 import 'school_extra.dart' hide isoDay;
 import 'school_life.dart';
 import 'i18n.dart';
+import 'live_sync.dart' show isLocalOnlyOption;
 import 'timetable.dart';
 import 'ui/theme.dart';
 import 'xlsx.dart';
@@ -107,6 +108,8 @@ String backupSectionOf(String key) => switch (key) {
       'el.xlsx' => 'excel',
       _ => 'opzioni',
     };
+
+List<List<String>> _parseXlsx(List<int> bytes) => readXlsx(bytes);
 
 /// Stato dell'app + persistenza locale (localStorage sul web,
 /// SharedPreferences su Android e Windows).
@@ -648,7 +651,8 @@ class AppStore extends ChangeNotifier {
   /// Importa il file Excel dell'orario: da qui in poi tutto viene calcolato
   /// sul dispositivo, senza bisogno di internet.
   Future<void> importExcelBytes(List<int> bytes, {String? name, String? url}) async {
-    final grid = readXlsx(bytes);
+    // Fuori dal thread dell'interfaccia (su web compute gira qui, ma i limiti di readXlsx valgono comunque).
+    final grid = await compute(_parseXlsx, bytes);
     final tt = Timetable.parse(grid); // lancia FormatException se il formato non va
     // Si salvano solo le celle utili (niente righe vuote in fondo).
     final trimmed = [
@@ -1128,7 +1132,17 @@ class AppStore extends ChangeNotifier {
             e.key: e.value,
       };
 
+  /// Chiavi che un backup non tocca mai: i codici dell'account e le scelte di questo dispositivo.
+  static const _neverRestored = {_kAccount, _kRecovery, _kDevMode, _kBeta};
+
+  /// Opzioni (dentro el.extras) che nessun backup può portare né cambiare (sicurezza EL-01):
+  /// stato di questo dispositivo (cloud.*, dev.* — compreso l'indirizzo del server —, missioni…)
+  /// e i regali che può dare solo il server. Restano sempre quelle di qui.
+  static bool isProtectedOption(String k) => isLocalOnlyOption(k) || k == 'stat.xpBonus' || k == 'stat.coinBonus';
+
   /// Ripristina una copia fatta con [backup]. Lancia FormatException se non è valida.
+  /// Prima controlla e prepara tutto il documento, poi scrive: un backup rovinato non lascia
+  /// la memoria a metà. Le opzioni protette ([isProtectedOption]) restano quelle di qui.
   Future<int> restore(String json) async {
     final Map<String, dynamic> m;
     try {
@@ -1138,29 +1152,80 @@ class AppStore extends ChangeNotifier {
     }
     final prefs = m['prefs'];
     if (m['easyLessonBackup'] == null || prefs is! Map) throw const FormatException('Non è un backup di Easy Lesson');
-    var n = 0;
+    final ready = <String, Object>{};
+    var skipped = 0;
     for (final e in prefs.entries) {
       final k = '${e.key}';
       final v = e.value;
-      if (!k.startsWith('el.') || k == _kAccount || k == _kRecovery) continue;
-      if (v is bool) {
-        await _prefs.setBool(k, v);
-      } else if (v is int) {
-        await _prefs.setInt(k, v);
-      } else if (v is double) {
-        await _prefs.setDouble(k, v);
-      } else if (v is String) {
-        await _prefs.setString(k, v);
-      } else if (v is List) {
-        await _prefs.setStringList(k, [for (final x in v) '$x']);
-      } else {
+      if (!k.startsWith('el.') || _neverRestored.contains(k)) {
+        skipped++;
         continue;
       }
-      n++;
+      final Object? clean = switch (k) {
+        _kExtras => _restoredExtras(v),
+        _kPhotos => _restoredPhotos(v),
+        _ => switch (v) {
+            bool() || int() || double() || String() => v,
+            List() => [for (final x in v) '$x'],
+            _ => null,
+          },
+      };
+      if (clean == null) {
+        skipped++;
+        continue;
+      }
+      ready[k] = clean;
     }
-    AppLog.i('memoria', 'Backup ripristinato: $n chiavi');
+    for (final e in ready.entries) {
+      final v = e.value;
+      if (v is bool) {
+        await _prefs.setBool(e.key, v);
+      } else if (v is int) {
+        await _prefs.setInt(e.key, v);
+      } else if (v is double) {
+        await _prefs.setDouble(e.key, v);
+      } else if (v is String) {
+        await _prefs.setString(e.key, v);
+      } else if (v is List<String>) {
+        await _prefs.setStringList(e.key, v);
+      }
+    }
+    final n = ready.length;
+    AppLog.i('memoria', 'Backup ripristinato: $n chiavi${skipped > 0 ? ' ($skipped ignorate)' : ''}');
     reload();
     return n;
+  }
+
+  /// Le opzioni del backup senza quelle protette, più quelle protette di questo dispositivo.
+  String? _restoredExtras(Object? v) {
+    final Map<String, Object?> incoming;
+    try {
+      incoming = Map<String, Object?>.from(jsonDecode(v as String) as Map);
+    } catch (_) {
+      return null;
+    }
+    final dropped = incoming.keys.where(isProtectedOption).toList();
+    if (dropped.isNotEmpty) AppLog.w('memoria', 'Backup: opzioni protette ignorate: ${dropped.join(', ')}');
+    return jsonEncode({
+      for (final e in incoming.entries)
+        if (!isProtectedOption(e.key)) e.key: e.value,
+      for (final e in _extras.entries)
+        if (isProtectedOption(e.key)) e.key: e.value,
+    });
+  }
+
+  /// Foto: solo voci ben fatte e senza percorsi strani (il controllo vero della cartella è in
+  /// LessonPhotos, prima di aprire o cancellare un file).
+  String? _restoredPhotos(Object? v) {
+    try {
+      final list = jsonDecode(v as String) as List;
+      return jsonEncode([
+        for (final j in list)
+          if (LessonPhoto.fromJson(j) case final p? when !hasPathTraversal(p.path)) p.toJson(),
+      ]);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Rilegge tutto dalla memoria del dispositivo.
@@ -1421,7 +1486,22 @@ class AppStore extends ChangeNotifier {
       );
 
   /// Unisce i progressi arrivati dal server (o da un altro telefono) con quelli di qui.
-  Future<bool> applyProgress(ProgressData remote) async {
+  /// [resetAt]: se è più nuovo dell'ultimo azzeramento già applicato, prima si cancellano obiettivi, contatori,
+  /// segni delle sorprese e oggetti usati del negozio (azzeramento deciso dalla moderazione sul server).
+  Future<bool> applyProgress(ProgressData remote, {int resetAt = 0}) async {
+    if (resetAt > opt('cloud.resetSeen', 0)) {
+      _extras.removeWhere((k, _) =>
+          k.startsWith('ach.') || k.startsWith('stat.') || k.startsWith('statmap.') || k.startsWith('egg.') || k.startsWith('shop.eq.'));
+      _extras['cloud.resetSeen'] = resetAt;
+      _extras['ach.done'] = (remote.achievements.toList()..sort()).join(',');
+      for (final e in remote.counters.entries) {
+        _extras['stat.${e.key}'] = e.value;
+      }
+      AppLog.w('cloud', 'Progressi azzerati dalla moderazione');
+      notifyListeners();
+      await _prefs.setString(_kExtras, jsonEncode(_extras));
+      return true;
+    }
     final local = progressData;
     final merged = local.merge(remote);
     if (merged.sameAs(local)) return false;

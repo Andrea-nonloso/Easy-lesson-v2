@@ -1,23 +1,50 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+
+/// Limiti del lettore (sicurezza EL-03): un file piccolo non deve poter chiedere memoria
+/// enorme. L'orario vero della scuola ha ~310 righe × 26 colonne e il foglio pesa ~0,5 MB.
+class XlsxLimits {
+  const XlsxLimits({
+    this.maxFileBytes = 15 * 1024 * 1024,
+    this.maxEntries = 500,
+    this.maxPartBytes = 40 * 1024 * 1024,
+    this.maxRows = 20000,
+    this.maxCols = 1000,
+    this.maxCells = 1000000,
+  });
+
+  final int maxFileBytes;
+  final int maxEntries;
+
+  /// Byte decompressi di un singolo file interno (foglio, testi condivisi…).
+  final int maxPartBytes;
+  final int maxRows;
+  final int maxCols;
+  final int maxCells;
+}
+
+const _tooBig = FormatException('Il file Excel è troppo grande o rovinato');
 
 /// Lettore minimale di file .xlsx (solo testo, primo foglio).
 ///
 /// Dart puro: funziona su Android, Windows, web e anche da riga di comando.
 /// Restituisce le righe del foglio come liste di stringhe (celle vuote = '').
-List<List<String>> readXlsx(List<int> bytes) {
+List<List<String>> readXlsx(List<int> bytes, {XlsxLimits limits = const XlsxLimits()}) {
+  if (bytes.length > limits.maxFileBytes) throw _tooBig;
   final Archive zip;
   try {
     zip = ZipDecoder().decodeBytes(bytes);
   } catch (_) {
     throw const FormatException('Il file non è un Excel valido (.xlsx)');
   }
+  if (zip.files.length > limits.maxEntries) throw _tooBig;
 
   String? text(String name) {
     final f = zip.findFile(name);
     if (f == null) return null;
-    return utf8.decode(f.content as List<int>, allowMalformed: true);
+    return _readPart(f, limits);
   }
 
   // Testi condivisi
@@ -30,7 +57,7 @@ List<List<String>> readXlsx(List<int> bytes) {
     }
   }
 
-  final sheetXml = text(_firstSheetPath(text) ?? '') ?? _anySheet(zip);
+  final sheetXml = text(_firstSheetPath(text) ?? '') ?? _anySheet(zip, limits);
   if (sheetXml == null) throw const FormatException('Nessun foglio trovato nel file Excel');
 
   final rows = <int, Map<int, String>>{};
@@ -52,17 +79,29 @@ List<List<String>> readXlsx(List<int> bytes) {
       if (v == null) continue;
       if (type == 's') {
         final i = int.tryParse(v);
-        value = (i != null && i < shared.length) ? shared[i] : '';
+        value = (i != null && i >= 0 && i < shared.length) ? shared[i] : '';
       } else {
         value = _unescape(v);
       }
     }
     if (value.isEmpty) continue;
-    rows.putIfAbsent(int.parse(ref.group(2)!) - 1, () => {})[_colIndex(ref.group(1)!)] = value;
+    // Coordinate controllate PRIMA di allocare qualsiasi cosa: niente righe/colonne enormi.
+    final letters = ref.group(1)!;
+    final digits = ref.group(2)!;
+    if (letters.length > 3 || digits.length > 7) throw _tooBig;
+    final r = int.parse(digits) - 1;
+    final c = _colIndex(letters);
+    if (r < 0 || r >= limits.maxRows || c < 0 || c >= limits.maxCols) throw _tooBig;
+    rows.putIfAbsent(r, () => {})[c] = value;
   }
 
   if (rows.isEmpty) return [];
   final maxRow = rows.keys.reduce((a, b) => a > b ? a : b);
+  var cells = 0;
+  for (final row in rows.values) {
+    cells += row.keys.reduce((a, b) => a > b ? a : b) + 1;
+  }
+  if (cells + maxRow + 1 > limits.maxCells) throw _tooBig;
   return [
     for (var r = 0; r <= maxRow; r++)
       if (rows[r] == null)
@@ -91,18 +130,80 @@ String? _firstSheetPath(String? Function(String) text) {
   return null;
 }
 
-String? _anySheet(Archive zip) {
+String? _anySheet(Archive zip, XlsxLimits limits) {
   for (final f in zip.files) {
     if (RegExp(r'^xl/worksheets/sheet\d+\.xml$').hasMatch(f.name)) {
-      return utf8.decode(f.content as List<int>, allowMalformed: true);
+      return _readPart(f, limits);
     }
   }
   return null;
 }
 
+/// Decomprime un file interno contando i byte veri (non quelli dichiarati): si ferma appena
+/// supera il limite, così una "zip bomb" non riempie la memoria.
+String _readPart(ArchiveFile f, XlsxLimits limits) {
+  if (f.size > limits.maxPartBytes) throw _tooBig;
+  final out = _LimitedOutput(limits.maxPartBytes);
+  try {
+    f.decompress(out);
+  } on FormatException {
+    rethrow;
+  } catch (_) {
+    throw const FormatException('Il file non è un Excel valido (.xlsx)');
+  }
+  return utf8.decode(out.getBytes(), allowMalformed: true);
+}
+
+class _LimitedOutput extends OutputMemoryStream {
+  _LimitedOutput(this.limit);
+
+  final int limit;
+
+  void _check(int more) {
+    if (length + more > limit) throw _tooBig;
+  }
+
+  @override
+  void reserve(int total) {
+    if (total > limit) throw _tooBig;
+    super.reserve(total);
+  }
+
+  @override
+  void writeByte(int value) {
+    _check(1);
+    super.writeByte(value);
+  }
+
+  @override
+  void writeBytes(List<int> bytes, {int? length}) {
+    _check(length ?? bytes.length);
+    super.writeBytes(bytes, length: length);
+  }
+
+  @override
+  void writeRange(Uint8List bytes, int start, int end) {
+    _check(end - start);
+    super.writeRange(bytes, start, end);
+  }
+
+  @override
+  void writeStream(InputStream stream) {
+    _check(stream.length);
+    super.writeStream(stream);
+  }
+
+  @override
+  void writeBackReference(int distance, int count) {
+    _check(count);
+    super.writeBackReference(distance, count);
+  }
+}
+
 int _colIndex(String letters) {
   var n = 0;
   for (final c in letters.codeUnits) {
+    if (c < 65 || c > 90) return -1;
     n = n * 26 + (c - 64);
   }
   return n - 1;

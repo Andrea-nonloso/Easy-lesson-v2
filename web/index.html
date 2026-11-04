@@ -55,6 +55,14 @@
     });
   </script>
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Funziona anche offline (vedi sw.js) e si può installare come app.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function () {});
+      });
+    }
+  </script>
 </body>
 </html>
 

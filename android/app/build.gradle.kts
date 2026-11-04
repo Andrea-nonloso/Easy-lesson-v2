@@ -53,7 +53,11 @@ android {
     buildTypes {
         release {
             // Con key.properties la firma e' sempre la stessa e gli aggiornamenti si
-            // installano sopra; senza, si usa la chiave di debug (solo per prove).
+            // installano sopra; senza, si usa la chiave di debug (solo per prove sul PC).
+            // In CI (GitHub Actions) senza chiave la build si ferma: mai una release con la chiave di debug.
+            if (!keystorePropertiesFile.exists() && System.getenv("CI") == "true") {
+                throw GradleException("Manca android/key.properties: release Android senza firma vera bloccata")
+            }
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {

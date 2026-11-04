@@ -247,6 +247,10 @@ double? neededFor(Iterable<Grade> grades, double target, {double weight = 1}) {
 // ---------------------------------------------------------------------------
 // Foto delle lezioni
 
+/// true se il percorso contiene un ".." (si esce dalla cartella) o caratteri nulli.
+bool hasPathTraversal(String path) =>
+    path.contains('\u0000') || path.split(RegExp(r'[\\/]')).any((part) => part == '..');
+
 class LessonPhoto {
   LessonPhoto({required this.id, required this.date, required this.subject, required this.path});
 

@@ -2,7 +2,7 @@ name: easy_lesson
 description: Easy Lesson 2 - l'orario delle lezioni dell'IIS Rosselli, su telefono, tablet e web. Funziona anche offline.
 publish_to: 'none'
 
-version: 3.5.0+31
+version: 3.7.0+32
 
 environment:
   sdk: '>=3.4.0 <4.0.0'

@@ -1,4 +1,61 @@
-# Easy Lesson 3.5 🎉
+# Easy Lesson 3.7 🚀
+
+Un aggiornamento di quelli che si sentono: l'app è stata riorganizzata da cima a fondo per fare spazio alle funzioni
+nuove, è più veloce da usare tutti i giorni, più sicura e si adatta meglio a ogni schermo, dal telefono piccolo al PC.
+E da questa versione c'è anche **Linux**, con il pacchetto `.deb` e l'**AppImage**.
+
+## ⚡ Ottimizzazione dell'app per le nuove funzionalità
+- **Navigazione ripensata**: la barra in basso ora ha solo quattro voci chiare, **Home · Orario · Amici · Profilo**.
+  Meno tocchi per arrivare dove serve, e niente più cose nascoste in fondo alle impostazioni.
+- **Pulsanti della scuola in home**: sotto il saluto trovi dei pulsanti tondi per **Voti** (con la media già calcolata),
+  **Assenze** (con la percentuale del limite del 25% già usata) e **Altro**, che apre tutti gli strumenti: agenda, timer,
+  zaino, prof, libri, piano di studio, modalità verifica, grafici, crediti, conti alla rovescia, calendario…
+  Scegli tu quali tenere e in che ordine: tieni premuto un pulsante oppure vai in Impostazioni → Aspetto.
+- **Scheda Amici tutta in un posto**: la tua classe, gli amici, la classifica, le richieste e il tuo codice amico,
+  senza dover passare da più pagine.
+- **Profilo più chiaro**: in alto livello, XP e serie di giorni, subito sotto le missioni, poi obiettivi, ricompense e
+  negozio. Le impostazioni si aprono dall'ingranaggio in alto.
+- **Impostazioni più snelle**: sono rimaste solo le impostazioni vere; profilo, scuola e organizzazione ora vivono
+  nelle loro schede.
+- Cerca e Salvati restano a un tocco dalla home; su tablet e PC li trovi anche nella barra laterale.
+- La gestione di eventi, avvisi e ricompense è passata all'app della moderazione: l'app di tutti i giorni è più
+  leggera e fa solo quello che serve a te.
+- Il web funziona meglio anche **offline**: una volta aperta, l'app si carica anche senza connessione.
+
+## 🛡️ Correzioni dei bug noti e controllo delle nuove vulnerabilità
+- Abbiamo ripassato l'app controllando le vulnerabilità note e, dove erano applicabili, le abbiamo chiuse.
+  Sono state rafforzate le parti che parlano con il server, la gestione dei codici dell'account e l'importazione
+  dei file (Excel, QR e dati incollati), con controlli più severi su quello che arriva da fuori.
+- Nuove prove automatiche di sicurezza, che girano a ogni versione per evitare che i problemi tornino.
+- **Avvisi della moderazione più chiari**: se ricevi un avviso, la parte social (chat, classe, amici) resta in grigio
+  finché non lo leggi e premi **"Ho letto"**. Orario, voti e tutto il resto dell'app continuano a funzionare normalmente.
+- **Incolla dal registro (beta)** ora è disponibile per tutti in Assenze e permessi.
+- Su Android la release viene firmata sempre con la chiave ufficiale: gli aggiornamenti si installano sopra senza
+  problemi.
+- Tante piccole correzioni qua e là emerse durante le prove.
+
+## 📱 Interfaccia aggiornata per tutti i dispositivi e correzioni degli overflow grafici
+- Layout rivisto per **telefoni, tablet, PC e browser**: su schermi larghi c'è la barra laterale, su quelli stretti la
+  barra in basso, e i contenuti non si allargano più del necessario.
+- **Corretti gli overflow grafici**: niente più testo che esce dai riquadri (per esempio Cerca e Salvati sugli schermi
+  più bassi, dove ora l'icona si sposta di lato per far stare tutto).
+- Controlli automatici con le schermate vere dell'app, su telefono e su schermo largo, per accorgersi subito se
+  qualcosa va fuori posto.
+- Pulsanti più grandi e leggibili, etichette per i lettori di schermo sui nuovi pulsanti della home.
+
+## 🐧 Linux
+- Nuovo: Easy Lesson per **Linux**, come pacchetto **`.deb`** (Debian, Ubuntu, Mint, Parrot…) e come **AppImage**
+  (un solo file: lo scarichi, lo rendi eseguibile e parte).
+
+## 📦 Cosa scaricare
+- **Android**: `Easy-Lesson-v3.7.0.apk` (se hai già l'app, l'aggiornamento arriva da solo).
+- **Windows**: installer `Setup` oppure lo `.zip` portatile.
+- **Linux**: `.deb` oppure `.AppImage`.
+- **Web**: sempre aggiornata su GitHub Pages, oppure lo `.zip` da mettere sul tuo server.
+
+---
+
+## Prima della 3.7: la 3.5
 
 Tutta la 3.0 (classe, amici, negozio, grafica nuova) più le novità della 3.5.
 

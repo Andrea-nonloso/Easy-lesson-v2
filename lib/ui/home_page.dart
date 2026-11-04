@@ -17,6 +17,7 @@ import 'more_pages.dart';
 import 'now_page.dart';
 import 'school_life_pages.dart';
 import 'search_page.dart';
+import 'school_shortcuts.dart';
 import 'settings_sheet.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -105,7 +106,10 @@ class HomePage extends StatelessWidget {
           const AppLogo(size: 38),
         ],
       ),
-      SizedBox(height: tight ? 8 : 14),
+      SizedBox(height: tight ? 4 : 8),
+      // 3.6: Voti, Assenze… e "Altro" (scelti dall'utente; tenendo premuto si cambiano).
+      const SchoolShortcutsRow(),
+      SizedBox(height: tight ? 4 : 8),
       Material(
         color: cardColor(context),
         borderRadius: BorderRadius.circular(28),
@@ -1002,33 +1006,39 @@ class _ShortcutCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
         onTap: onTap,
-        child: Padding(
-          padding: EdgeInsets.all(compact ? 12 : 16),
-          child: Column(
+        child: LayoutBuilder(builder: (context, box) {
+          // Troppo bassa per icona sopra e testo sotto: icona a sinistra.
+          final flat = box.maxHeight.isFinite && box.maxHeight < 84;
+          final ic = Icon(icon, color: fg, size: compact ? 22 : 26);
+          final texts = Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: fg, size: compact ? 22 : 26),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: fg),
-                  ),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(color: sub),
-                  ),
-                ],
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: fg),
+              ),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(color: sub),
               ),
             ],
-          ),
-        ),
+          );
+          return Padding(
+            padding: EdgeInsets.all(compact || flat ? 12 : 16),
+            child: flat
+                ? Row(children: [ic, const SizedBox(width: 10), Expanded(child: texts)])
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [ic, texts],
+                  ),
+          );
+        }),
       ),
     );
   }

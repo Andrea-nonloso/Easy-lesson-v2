@@ -1,5 +1,5 @@
 # Crea una release quando si pubblica un tag, es.:  git tag v2.0.1 && git push origin v2.0.1
-# Contiene: installer + zip Windows, APK Android e zip web.
+# Contiene: installer + zip Windows, APK Android, zip web, .deb e AppImage per Linux.
 # Velocizzata (4/11/2026): cache di Gradle, Gradle senza daemon, Inno Setup solo se manca.
 # (cache: true di flutter-action tiene gia' sia Flutter sia i pacchetti Dart.)
 # La versione dell'app viene presa dal tag (v2.0.1 -> 2.0.1): le app installate la
@@ -136,10 +136,30 @@ jobs:
           printf 'Package: easy-lesson\nVersion: %s\nArchitecture: amd64\nMaintainer: Andrea\nDepends: libgtk-3-0\nDescription: Easy Lesson - orario di scuola e agenda\n' "$VERSION" > $PKG/DEBIAN/control
           printf '[Desktop Entry]\nName=Easy Lesson\nExec=/opt/easy-lesson/easy_lesson\nType=Application\nCategories=Utility;\nTerminal=false\n' > $PKG/usr/share/applications/easy-lesson.desktop
           dpkg-deb --root-owner-group --build $PKG "Easy-Lesson-v${VERSION}-Linux.deb"
+      # AppImage: un solo file che parte su quasi tutte le distribuzioni (GTK 3 di sistema).
+      # Se non riesce, la release esce lo stesso con il .deb.
+      - name: Impacchetta AppImage
+        continue-on-error: true
+        run: |
+          VERSION=${{ steps.v.outputs.name }}
+          sudo apt-get install -y file
+          APP=EasyLesson.AppDir
+          mkdir -p $APP/usr/lib/easy-lesson
+          cp -r build/linux/x64/release/bundle/* $APP/usr/lib/easy-lesson/
+          printf '#!/bin/sh\nHERE="$(dirname "$(readlink -f "$0")")"\nexec "$HERE/usr/lib/easy-lesson/easy_lesson" "$@"\n' > $APP/AppRun
+          chmod +x $APP/AppRun
+          printf '[Desktop Entry]\nName=Easy Lesson\nExec=easy_lesson\nIcon=easy-lesson\nType=Application\nCategories=Education;Utility;\nTerminal=false\n' > $APP/easy-lesson.desktop
+          cp web/icons/Icon-512.png $APP/easy-lesson.png
+          curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/1.9.0/appimagetool-x86_64.AppImage \
+            || curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool --no-appstream $APP "Easy-Lesson-v${VERSION}-Linux-x86_64.AppImage"
       - uses: actions/upload-artifact@v4
         with:
           name: linux
-          path: Easy-Lesson-v*-Linux.deb
+          path: |
+            Easy-Lesson-v*-Linux.deb
+            Easy-Lesson-v*-Linux-x86_64.AppImage
 
   release:
     if: startsWith(github.ref, 'refs/tags/')

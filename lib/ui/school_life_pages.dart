@@ -160,10 +160,9 @@ class AbsencesPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Assenze e permessi'),
         actions: [
-          // Laboratorio (si accende da Sviluppatore²): importa dal registro con il testo degli screenshot.
-          if (store.opt('lab.registro', false))
-            IconButton(
-              tooltip: 'Importa dal registro',
+          // Importa dal registro incollando il testo degli screenshot (beta, per tutti dalla 3.6).
+          IconButton(
+              tooltip: 'Incolla dal registro (beta)',
               icon: const Icon(Icons.document_scanner_outlined),
               onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const RegisterImportPage())),
             ),

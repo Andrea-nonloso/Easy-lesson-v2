@@ -11,21 +11,15 @@ import '../native.dart';
 import '../store.dart';
 import '../updater.dart';
 import 'achievements.dart';
-import 'agenda_page.dart' show openAgenda;
-import 'bag_page.dart';
 import 'calendar_page.dart';
-import 'class_page.dart' show openClassHub;
 import 'customize_pages.dart';
 import 'dev_page.dart';
 import 'fun.dart';
-import 'missions_page.dart';
-import 'more_pages.dart';
-import 'photos_page.dart';
 import 'profile_page.dart';
 import 'report_pdf.dart';
 import 'school_life_pages.dart';
+import 'school_shortcuts.dart';
 import 'share_qr.dart';
-import 'shop_page.dart' show openShop;
 import 'subjects_page.dart';
 import 'theme.dart';
 import 'themes_page.dart';
@@ -182,36 +176,7 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
   final theme = Theme.of(context);
   final scheme = theme.colorScheme;
   final android = NativeBridge.supported;
-  final lv = levelOf(store);
   return [
-    _Group(
-      'profilo',
-      Icons.military_tech_outlined,
-      tr('Profilo e progressi', 'Profile and progress'),
-      'Livello ${lv.level} · ${unlockedCount(store)}/${visibleCount(store)} obiettivi'
-          '${store.accountCode == null ? '' : ' · account ☁️'}',
-      [
-        _Item(Icons.military_tech_outlined, tr('Livello e statistiche', 'Level and stats'),
-            'Livello ${lv.level} · ${lv.title} · ${lv.xp} XP', () => openProfile(context),
-            keywords: 'xp livello profilo statistiche'),
-        _Item(Icons.emoji_events_outlined, tr('Obiettivi', 'Achievements'),
-            '${unlockedCount(store)} su ${visibleCount(store)} sbloccati', () => openAchievements(context),
-            keywords: 'medaglie sfide trofei'),
-        _Item(Icons.flag_outlined, tr('Missioni', 'Missions'), '3 al giorno e 3 alla settimana, con XP in più',
-            () => openMissions(context), keywords: 'sfide giornaliere settimanali eventi'),
-        _Item(Icons.redeem_rounded, tr('Ricompense', 'Rewards'), 'Ogni 5 livelli si sblocca qualcosa',
-            () => _open(context, const RewardsPage()), keywords: 'skin premi sblocca'),
-        _Item(Icons.storefront_rounded, tr('Negozio', 'Shop'), 'Cornici, titoli, avatar e temi con le monete',
-            () => openShop(context), keywords: 'monete compra skin cornice titolo avatar temi'),
-        _Item(Icons.groups_rounded, tr('Classe e amici', 'Class and friends'),
-            store.opt<String?>('social.nick', null) == null ? 'Agenda condivisa, sfide, classifica' : 'Sei ${store.opt('social.nick', '')}',
-            () => openClassHub(context), keywords: 'classe amici classifica compagni gruppo sfide condivisa'),
-        _Item(Icons.key_rounded, tr('Account e sincronizzazione', 'Account and sync'),
-            store.accountCode == null ? 'Facoltativo: salva i progressi con un codice' : 'Collegato · progressi al sicuro',
-            () => openProfile(context), keywords: 'codice login accedi cloud server sincronizza'),
-      ],
-      color: Colors.amber.shade700,
-    ),
     _Group(
       'aspetto',
       Icons.palette_outlined,
@@ -227,6 +192,9 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
         if (android)
           _Item(Icons.apps_rounded, tr('Icona dell\'app', 'App icon'), 'Verde, blu, viola, rossa, nera…',
               () => pickAppIcon(context), keywords: 'launcher colore'),
+        _Item(Icons.apps_rounded, tr('Pulsanti della scuola in home', 'School buttons on home'),
+            '${chosenSchoolTools(store).map((t) => t.label).join(', ')} · Altro', () => editSchoolShortcuts(context),
+            keywords: 'voti assenze agenda timer zaino prof libri foto scorciatoie'),
         _Item(Icons.dashboard_customize_outlined, tr('Home e pagina iniziale', 'Home and start page'),
             'Cosa vedere nella home, emoji dei laboratori, vibrazione', () => openHomeOptions(context),
             keywords: 'sezioni scorciatoie conto alla rovescia recenti'),
@@ -253,46 +221,6 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
         ),
       ],
       color: scheme.primary,
-    ),
-    _Group(
-      'scuola',
-      Icons.school_outlined,
-      tr('Scuola', 'School'),
-      'Voti, assenze e permessi, timer, prof, zaino',
-      [
-        _Item(Icons.grade_outlined, tr('Voti e medie', 'Grades'),
-            store.grades.isEmpty ? 'E quanto ti serve alla prossima verifica' : '${store.grades.length} voti',
-            () => openGrades(context), keywords: 'media pagella trimestre quadrimestre'),
-        _Item(Icons.event_busy_outlined, tr('Assenze e permessi', 'Absences'),
-            store.absences.isEmpty ? 'Ore perse e limite del 25%' : '${store.absences.length} segnate', () => openAbsences(context),
-            keywords: 'entrata uscita ritardo'),
-        _Item(Icons.timer_outlined, tr('Timer per studiare', 'Study timer'), 'Pomodoro 25/5', () => openStudyTimer(context),
-            keywords: 'pomodoro'),
-        _Item(Icons.hourglass_bottom_rounded, tr('Modalità verifica', 'Exam mode'), 'Conto alla rovescia a tutto schermo',
-            () => openExamMode(context)),
-        _Item(Icons.menu_book_outlined, tr('Piano di studio', 'Study plan'), 'Il ripasso diviso sui giorni prima',
-            () => openStudyPlan(context), keywords: 'ripasso verifica'),
-        _Item(Icons.show_chart_rounded, tr('Grafici', 'Charts'), 'Andamento dei voti e studio per settimana',
-            () => openCharts(context)),
-        _Item(Icons.workspace_premium_outlined, tr('Crediti scolastici', 'School credits'), 'Dal 3º anno',
-            () => openCredits(context), keywords: 'maturità'),
-        if (!kIsWeb)
-          _Item(Icons.photo_library_outlined, tr('Foto delle lezioni', 'Lesson photos'),
-              store.photos.isEmpty ? 'Lavagna e appunti' : '${store.photos.length} foto', () => openPhotos(context),
-              keywords: 'lavagna appunti'),
-        _Item(
-          Icons.contact_mail_outlined,
-          tr('I miei prof', 'My teachers'),
-          store.teachers.isEmpty ? 'Ricevimento, email e note' : '${store.teachers.length} con informazioni',
-          () => openTeachers(context),
-          keywords: 'docenti ricevimento email',
-        ),
-        _Item(Icons.backpack_outlined, tr('Zaino', 'Backpack'), 'Regole: camice, tuta, calcolatrice…', () => openBag(context),
-            keywords: 'portare'),
-        _Item(Icons.library_books_outlined, tr('Libri e materiale', 'Books and supplies'),
-            'Per materia e "ogni martedì porta…"', () => openMaterials(context), keywords: 'libri quaderni zaino'),
-      ],
-      color: Colors.indigo,
     ),
     _Group(
       'orario',
@@ -365,22 +293,6 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
         if (!store.usingExcel && store.listsLoading) const LinearProgressIndicator(),
       ],
       color: Colors.teal,
-    ),
-    _Group(
-      'organizza',
-      Icons.event_note_outlined,
-      tr('Agenda e calendario', 'Planner and calendar'),
-      '${store.agendaFrom(DateTime.now()).length} cose in agenda · ${store.countdowns.length} conti alla rovescia',
-      [
-        _Item(Icons.event_note_rounded, 'Agenda', 'Compiti, verifiche, interrogazioni', () => openAgenda(context),
-            keywords: 'compiti verifiche'),
-        _Item(Icons.calendar_month_outlined, tr('Calendario del mese', 'Monthly calendar'), 'Tutto in un colpo d\'occhio',
-            () => openMonth(context)),
-        _Item(Icons.hourglass_top_rounded, tr('Conti alla rovescia', 'Countdowns'),
-            store.countdowns.isEmpty ? 'Gita, compleanno…' : '${store.countdowns.length} in corso', () => openCountdowns(context),
-            keywords: 'gita compleanno'),
-      ],
-      color: Colors.pink,
     ),
     _Group(
       'notifiche',

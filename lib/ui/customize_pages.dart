@@ -1,3 +1,4 @@
+import 'school_shortcuts.dart';
 import 'package:flutter/material.dart';
 
 import '../models.dart';
@@ -461,6 +462,14 @@ class HomeOptionsPage extends StatelessWidget {
           ),
         ),
         const SectionLabel('Cosa mostrare nella home'),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.apps_rounded),
+          title: const Text('Pulsanti della scuola'),
+          subtitle: Text('${chosenSchoolTools(store).map((t) => t.label).join(', ')} · Altro'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => editSchoolShortcuts(context),
+        ),
         sw('home.countdown', Icons.timer_outlined, 'Conto alla rovescia', 'Fine dell\'ora, fine della scuola, vacanze'),
         sw('home.agenda', Icons.event_note_outlined, 'Compiti e verifiche in arrivo', null),
         sw('home.bag', Icons.backpack_outlined, 'Zaino per domani', null),

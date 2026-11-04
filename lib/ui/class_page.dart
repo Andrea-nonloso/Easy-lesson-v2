@@ -166,7 +166,10 @@ Future<SocialProfile?> editSocialProfile(BuildContext context, {SocialProfile? c
 }
 
 class ClassHubPage extends StatefulWidget {
-  const ClassHubPage({super.key});
+  const ClassHubPage({super.key, this.asTab = false});
+
+  /// 3.6: scheda "Amici" della barra in basso (niente freccia indietro).
+  final bool asTab;
   @override
   State<ClassHubPage> createState() => _ClassHubPageState();
 }
@@ -177,6 +180,9 @@ class _ClassHubPageState extends State<ClassHubPage> {
   Object? _error;
   bool _loading = true;
 
+  /// Per quale account si è caricato (se si entra o si esce dall'account, si ricarica).
+  String? _loadedFor;
+
   @override
   void initState() {
     super.initState();
@@ -185,6 +191,7 @@ class _ClassHubPageState extends State<ClassHubPage> {
 
   Future<void> _load() async {
     final store = StoreScope.read(context);
+    _loadedFor = store.accountCode;
     if (store.accountCode == null) {
       setState(() => _loading = false);
       return;
@@ -297,10 +304,16 @@ class _ClassHubPageState extends State<ClassHubPage> {
       .push(MaterialPageRoute<void>(builder: (_) => ClassPage(classId: id)))
       .then((_) => _load());
 
+  Future<void> _openNotices() async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const NoticesPage()));
+    if (mounted) await _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final scheme = Theme.of(context).colorScheme;
+    if (store.accountCode != _loadedFor && !_loading) WidgetsBinding.instance.addPostFrameCallback((_) => _load());
     Widget body;
     if (store.accountCode == null) {
       body = ListView(
@@ -350,103 +363,155 @@ class _ClassHubPageState extends State<ClassHubPage> {
       );
     } else {
       final me = _me!;
+      // 3.6: un avviso della moderazione va letto per forza. Finché non lo leggi la parte social è grigia
+      // e si apre solo la conversazione con la moderazione. Il resto dell'app funziona.
+      final locked = me.unreadNotices > 0;
+      Widget section(String t) => Padding(
+            padding: const EdgeInsets.only(top: 16, bottom: 4),
+            child: Text(t, style: Theme.of(context).textTheme.titleMedium),
+          );
+      final social = <Widget>[
+        Card(
+          child: ListTile(
+            leading: Text(me.avatar, style: const TextStyle(fontSize: 34)),
+            title: Text(me.nickname, style: const TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: Text(me.hiddenByModeration
+                ? 'Soprannome nascosto dalla moderazione: cambialo'
+                : 'Codice amico ${me.friendCode} · ${me.weekXp} XP questa settimana'),
+            trailing: IconButton(
+              tooltip: 'Modifica',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () async {
+                final p = await editSocialProfile(context, current: me);
+                if (p != null) await _load();
+              },
+            ),
+          ),
+        ),
+        if (me.suspension != null)
+          Card(
+            color: scheme.errorContainer,
+            child: ListTile(
+              leading: Icon(Icons.block_rounded, color: scheme.onErrorContainer),
+              title: Text(me.suspension!, style: TextStyle(color: scheme.onErrorContainer)),
+              subtitle: Text('Puoi guardare, ma non scrivere.', style: TextStyle(color: scheme.onErrorContainer)),
+            ),
+          ),
+        section('La tua classe'),
+        if ((_classes ?? const []).isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text('Non sei ancora in nessuna classe. Entra con il codice di un compagno o creane una: '
+                'chat rapida, agenda condivisa e sfida della settimana.'),
+          ),
+        for (final c in _classes ?? const <ClassSummary>[])
+          Card(
+            child: ListTile(
+              leading: CircleAvatar(child: Text(c.name.characters.take(2).toString())),
+              title: Text(c.name),
+              subtitle: Text('Chat, agenda e sfide · ${c.members} ${c.members == 1 ? 'membro' : 'membri'}${c.admin ? ' · amministratore' : ''}'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => _open(c.id),
+            ),
+          ),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilledButton.tonalIcon(onPressed: () => _join(), icon: const Icon(Icons.login_rounded), label: const Text('Entra con un codice')),
+            OutlinedButton.icon(onPressed: _create, icon: const Icon(Icons.add_rounded), label: const Text('Crea una classe')),
+          ],
+        ),
+        section('Amici'),
+        Card(
+          child: ListTile(
+            leading: Icon(Icons.emoji_events_rounded, color: scheme.primary),
+            title: const Text('Classifica e richieste'),
+            subtitle: const Text('Chi ha fatto più XP questa settimana, richieste di amicizia'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const FriendsPage())).then((_) => _load()),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilledButton.tonalIcon(
+              onPressed: () => showShareCode(context,
+                  title: 'Il tuo codice amico', code: me.friendCode, link: friendLink(me.friendCode), hint: 'Inquadra con Easy Lesson'),
+              icon: const Icon(Icons.qr_code_2_rounded),
+              label: const Text('Il mio codice'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const FriendsPage())).then((_) => _load()),
+              icon: const Icon(Icons.person_add_alt_1_rounded),
+              label: const Text('Aggiungi'),
+            ),
+          ],
+        ),
+        if (me.strikes > 0)
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+            leading: Icon(Icons.gavel_rounded, color: scheme.error),
+            title: const Text('Avvisi della moderazione'),
+            subtitle: Text('${me.strikes} ${me.strikes == 1 ? 'avviso' : 'avvisi'}'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: _openNotices,
+          ),
+        const SizedBox(height: 20),
+        Text(
+          'Nella classe si usano solo frasi pronte, compiti e verifiche. '
+          'Se vedi qualcosa di brutto, tienilo premuto e segnalalo.',
+          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            style: TextButton.styleFrom(foregroundColor: scheme.error),
+            icon: const Icon(Icons.person_remove_outlined),
+            label: const Text('Cancella il profilo di classe e amici'),
+            onPressed: _deleteProfile,
+          ),
+        ),
+      ];
       body = RefreshIndicator(
         onRefresh: _load,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
-            Card(
-              child: ListTile(
-                leading: Text(me.avatar, style: const TextStyle(fontSize: 34)),
-                title: Text(me.nickname, style: const TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: Text(me.hiddenByModeration
-                    ? 'Soprannome nascosto dalla moderazione: cambialo'
-                    : 'Codice amico ${me.friendCode} · ${me.weekXp} XP questa settimana'),
-                trailing: IconButton(
-                  tooltip: 'Modifica',
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: () async {
-                    final p = await editSocialProfile(context, current: me);
-                    if (p != null) await _load();
-                  },
+            if (locked) ModLockBanner(count: me.unreadNotices, onOpen: _openNotices),
+            if (locked)
+              // Si vede ma non si tocca, in grigio.
+              IgnorePointer(
+                child: ExcludeSemantics(
+                  child: Opacity(
+                    opacity: 0.45,
+                    child: ColorFiltered(
+                      colorFilter: const ColorFilter.matrix(<double>[
+                        0.2126, 0.7152, 0.0722, 0, 0, //
+                        0.2126, 0.7152, 0.0722, 0, 0,
+                        0.2126, 0.7152, 0.0722, 0, 0,
+                        0, 0, 0, 1, 0,
+                      ]),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: social),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            if (me.suspension != null)
-              Card(
-                color: scheme.errorContainer,
-                child: ListTile(
-                  leading: Icon(Icons.block_rounded, color: scheme.onErrorContainer),
-                  title: Text(me.suspension!, style: TextStyle(color: scheme.onErrorContainer)),
-                  subtitle: Text('Puoi guardare, ma non scrivere.', style: TextStyle(color: scheme.onErrorContainer)),
-                ),
-              ),
-            if (me.strikes > 0 || me.unreadNotices > 0)
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                leading: Icon(Icons.gavel_rounded, color: scheme.error),
-                title: const Text('Avvisi della moderazione'),
-                subtitle: Text('${me.strikes} ${me.strikes == 1 ? 'avviso' : 'avvisi'}'
-                    '${me.unreadNotices > 0 ? ' · ${me.unreadNotices} da leggere' : ''}'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const NoticesPage())),
-              ),
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-              leading: Icon(Icons.emoji_people_rounded, color: scheme.primary),
-              title: const Text('Amici e classifica'),
-              subtitle: const Text('Chi ha fatto più XP questa settimana'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const FriendsPage())),
-            ),
-            const SizedBox(height: 8),
-            Text('Le mie classi', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
-            if ((_classes ?? const []).isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text('Non sei ancora in nessuna classe. Creane una o entra con il codice di un compagno.'),
-              ),
-            for (final c in _classes ?? const <ClassSummary>[])
-              Card(
-                child: ListTile(
-                  leading: CircleAvatar(child: Text(c.name.characters.take(2).toString())),
-                  title: Text(c.name),
-                  subtitle: Text('${c.members} ${c.members == 1 ? 'membro' : 'membri'}${c.admin ? ' · amministratore' : ''}'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () => _open(c.id),
-                ),
-              ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                FilledButton.icon(onPressed: () => _join(), icon: const Icon(Icons.login_rounded), label: const Text('Entra con un codice')),
-                OutlinedButton.icon(onPressed: _create, icon: const Icon(Icons.add_rounded), label: const Text('Crea una classe')),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Niente chat: nella classe si condividono solo compiti e verifiche. '
-              'Se vedi qualcosa di brutto, tienilo premuto e segnalalo.',
-              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                style: TextButton.styleFrom(foregroundColor: scheme.error),
-                icon: const Icon(Icons.person_remove_outlined),
-                label: const Text('Cancella il profilo di classe e amici'),
-                onPressed: _deleteProfile,
-              ),
-            ),
+              )
+            else
+              ...social,
           ],
         ),
       );
     }
-    return Scaffold(appBar: AppBar(title: const Text('Classe e amici')), body: body);
+    final title = widget.asTab ? 'Amici' : 'Classe e amici';
+    return Scaffold(
+      appBar: AppBar(title: Text(title), automaticallyImplyLeading: !widget.asTab),
+      body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 720), child: body)),
+    );
   }
 }
 
@@ -1050,6 +1115,43 @@ class _MembersTab extends StatelessWidget {
           },
         ),
       ],
+    );
+  }
+}
+
+/// "Hai un avviso della moderazione da leggere": l'unica cosa che si può aprire finché non lo leggi.
+class ModLockBanner extends StatelessWidget {
+  const ModLockBanner({super.key, required this.count, required this.onOpen});
+  final int count;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      color: scheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(Icons.gavel_rounded, color: scheme.onErrorContainer),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                count == 1 ? 'Hai un avviso della moderazione da leggere' : 'Hai $count avvisi della moderazione da leggere',
+                style: TextStyle(fontWeight: FontWeight.w800, color: scheme.onErrorContainer),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 6),
+          Text(
+            'Finché non lo leggi, chat, classi e amici restano in grigio. Orario, voti e il resto dell\'app funzionano.',
+            style: TextStyle(color: scheme.onErrorContainer),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(onPressed: onOpen, icon: const Icon(Icons.mark_email_unread_rounded), label: const Text('Leggi l\'avviso')),
+        ]),
+      ),
     );
   }
 }

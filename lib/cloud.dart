@@ -13,8 +13,8 @@ import 'store.dart';
 
 export 'crypto_box.dart' show normalizeAccountCode, looksLikeAccountCode, generateAccountCode;
 
-/// Indirizzo del server (Cloudflare Worker). Si può cambiare in compilazione con
-/// --dart-define=EL_CLOUD=https://… oppure dal menu sviluppatore nascosto.
+/// Indirizzo del server (Cloudflare Worker). Si può cambiare SOLO in compilazione con
+/// --dart-define=EL_CLOUD=https://… (sicurezza EL-01: nessun backup o opzione lo cambia).
 const cloudDefaultUrl = String.fromEnvironment('EL_CLOUD', defaultValue: 'https://easylesson-api.khugudvjan.cc');
 
 class CloudException implements Exception {
@@ -29,7 +29,8 @@ class CloudException implements Exception {
 class Cloud {
   Cloud._();
 
-  /// Cambiato dal menu sviluppatore nascosto (null = quello predefinito).
+  /// Solo per i test e il codice: nessuna opzione lo imposta (null = quello predefinito).
+  /// Il token dell'account va comunque solo a [cloudDefaultUrl] (vedi [raw]).
   static String? overrideUrl;
   static String get baseUrl => (overrideUrl == null || overrideUrl!.trim().isEmpty) ? cloudDefaultUrl : overrideUrl!.trim();
 
@@ -44,7 +45,12 @@ class Cloud {
   /// Chiamata generica: restituisce il corpo, o lancia CloudException con un messaggio chiaro.
   /// [code] = codice dell'account (si manda il suo token).
   static Future<String> raw(String method, String path, {String? code, String? bearer, Object? body}) async {
-    final req = http.Request(method, _u(path));
+    final uri = _u(path);
+    if ((code != null || bearer != null) && !isTrustedServer(uri)) {
+      AppLog.w('cloud', 'Token NON mandato a un server diverso da quello ufficiale: ${uri.host}');
+      throw CloudException('Server non attendibile: il codice dell\'account non viene usato');
+    }
+    final req = http.Request(method, uri);
     if (code != null) req.headers['authorization'] = 'Bearer ${await authToken(code)}';
     if (bearer != null) req.headers['authorization'] = 'Bearer $bearer';
     if (body != null) {
@@ -69,6 +75,15 @@ class Cloud {
     } catch (_) {}
     AppLog.w('cloud', '$method $path: ${res.statusCode} $msg');
     throw CloudException(msg, res.statusCode);
+  }
+
+  /// Il token si manda solo al server ufficiale, in HTTPS (http solo per un server di prova
+  /// sul computer, se l'indirizzo ufficiale stesso è localhost).
+  static bool isTrustedServer(Uri u) {
+    final official = Uri.parse(cloudDefaultUrl);
+    if (u.host != official.host || u.port != official.port) return false;
+    if (u.scheme == 'https') return true;
+    return u.scheme == 'http' && official.scheme == 'http' && (u.host == 'localhost' || u.host == '127.0.0.1');
   }
 
   static Future<Map<String, dynamic>> _json(String method, String path, {String? code, String? bearer, Object? body}) async {
@@ -122,12 +137,24 @@ class Cloud {
     return KeyBundle.fromJson(j['keys']);
   }
 
-  static Future<ProgressData> pullProgress(String code) async =>
-      ProgressData.fromJson(await _json('GET', '/progress', code: code));
+  /// Ora (ms) dell'ultimo azzeramento dei progressi fatto dalla moderazione (0 = mai), dall'ultima risposta.
+  static int lastResetAt = 0;
 
-  /// Manda i progressi e riceve l'unione con quelli del server.
-  static Future<ProgressData> pushProgress(String code, ProgressData p) async =>
-      ProgressData.fromJson(await _json('PUT', '/progress', code: code, body: p.toJson()));
+  static int _resetOf(Map<String, dynamic> j) => (j['resetAt'] as num?)?.toInt() ?? 0;
+
+  static Future<ProgressData> pullProgress(String code) async {
+    final j = await _json('GET', '/progress', code: code);
+    lastResetAt = _resetOf(j);
+    return ProgressData.fromJson(j);
+  }
+
+  /// Manda i progressi e riceve l'unione con quelli del server. [resetSeen] = ultimo azzeramento già applicato qui:
+  /// se il server ne ha uno più nuovo, non unisce quello che mandiamo e ci rimanda i progressi azzerati.
+  static Future<ProgressData> pushProgress(String code, ProgressData p, {int resetSeen = 0}) async {
+    final j = await _json('PUT', '/progress', code: code, body: {...p.toJson(), 'resetSeen': resetSeen});
+    lastResetAt = _resetOf(j);
+    return ProgressData.fromJson(j);
+  }
 
   /// Ora (del server, ms) dell'ultimo backup caricato da qui.
   static int? lastUploadAt;
@@ -141,18 +168,6 @@ class Cloud {
   static Future<String> downloadBackup(String code) => raw('GET', '/backup', code: code);
 
   static Future<void> deleteBackup(String code) => raw('DELETE', '/backup', code: code);
-
-  /// Controlla il PIN del menu sviluppatore nascosto (lo decide il server).
-  static Future<bool> devUnlock(String pin) async {
-    try {
-      final j = await _json('POST', '/dev/unlock', body: {'pin': pin});
-      devSession = j['session'] as String?;
-      return j['ok'] == true;
-    } on CloudException catch (e) {
-      if (e.status == 403) return false;
-      rethrow;
-    }
-  }
 
   static Future<List<Map<String, dynamic>>> rewards() async {
     final j = await _json('GET', '/rewards');
@@ -177,50 +192,6 @@ class Cloud {
     final list = j['announcements'];
     return list is List ? [for (final a in list) if (a is Map) Map<String, dynamic>.from(a)] : const [];
   }
-
-  // ---------------------------------------------------------------- amministrazione (Sviluppatore²)
-
-  /// Sessione data dal server con la password del menu nascosto (12 ore). Solo in memoria.
-  static String? devSession;
-
-  static Future<Map<String, dynamic>> admin(String method, String path, {Object? body}) {
-    final s = devSession;
-    if (s == null) throw CloudException('Riapri Sviluppatore² con la password');
-    return _json(method, '/admin/$path', bearer: s, body: body);
-  }
-
-  static Future<Map<String, dynamic>> adminStats() => admin('GET', 'stats');
-
-  /// Tutte le righe di una tabella (announcements, events, rewards).
-  static Future<List<Map<String, dynamic>>> adminRows(String table) async {
-    final out = <Map<String, dynamic>>[];
-    var after = '';
-    for (var i = 0; i < 50; i++) {
-      final j = await admin('GET', 'dump?table=$table&limit=200&after=${Uri.encodeQueryComponent(after)}');
-      final rows = j['rows'];
-      if (rows is List) out.addAll([for (final r in rows) if (r is Map) Map<String, dynamic>.from(r)]);
-      final next = j['next'];
-      if (next is! String || next.isEmpty) break;
-      after = next;
-    }
-    return out;
-  }
-
-  static Future<void> adminSave(String table, Map<String, dynamic> row) =>
-      admin('POST', 'load', body: {'table': table, 'rows': [row]});
-
-  static Future<void> adminDelete(String table, String id) => admin('DELETE', 'row/$table/${Uri.encodeComponent(id)}');
-
-  static Future<Map<String, dynamic>> adminCleanup() => admin('POST', 'cleanup');
-
-  /// Segnalazioni aperte (classe e amici), raggruppate per cosa è stato segnalato.
-  static Future<List<Map<String, dynamic>>> adminReports() async {
-    final l = (await admin('GET', 'reports'))['reports'];
-    return l is List ? [for (final r in l) if (r is Map) Map<String, dynamic>.from(r)] : const [];
-  }
-
-  /// action: dismiss | hide | delete | restore
-  static Future<void> adminResolve(String reportId, String action) => admin('POST', 'reports/$reportId', body: {'action': action});
 
   static String rewardFileUrl(String file) => _u('/rewards/file/${Uri.encodeComponent(file)}').toString();
 }
@@ -299,7 +270,7 @@ class CloudAccount {
     CloudKeys.forget();
     await store.setAccountCode(code);
     await store.setRecoveryCode(null);
-    await store.applyProgress(await Cloud.pullProgress(code));
+    await store.applyProgress(await Cloud.pullProgress(code), resetAt: Cloud.lastResetAt);
     await CloudSync.syncNow(store, quiet: true);
     await CloudVault.save(store);
     return me;
@@ -321,7 +292,7 @@ class CloudAccount {
     }
     await store.setAccountCode(newCode);
     await store.setRecoveryCode(recoveryCode);
-    await store.applyProgress(await Cloud.pullProgress(newCode));
+    await store.applyProgress(await Cloud.pullProgress(newCode), resetAt: Cloud.lastResetAt);
     await CloudVault.save(store);
     AppLog.i('cloud', 'Account recuperato con il codice di recupero');
     return newCode;
@@ -427,7 +398,12 @@ class CloudSync {
     if (_busy) return 'Sincronizzazione già in corso';
     _busy = true;
     try {
-      final merged = await Cloud.pushProgress(code, store.progressData);
+      var merged = await Cloud.pushProgress(code, store.progressData, resetSeen: store.opt('cloud.resetSeen', 0));
+      if (Cloud.lastResetAt > store.opt('cloud.resetSeen', 0)) {
+        // La moderazione ha azzerato i progressi: si azzera qui e si rimanda la versione pulita.
+        await store.applyProgress(merged, resetAt: Cloud.lastResetAt);
+        merged = await Cloud.pushProgress(code, store.progressData, resetSeen: store.opt('cloud.resetSeen', 0));
+      }
       await store.applyProgress(merged);
       await store.setOpt('cloud.lastSync', DateTime.now().toIso8601String());
       var msg = 'Progressi sincronizzati';
@@ -481,7 +457,7 @@ class CloudSync {
     final m = Map<String, dynamic>.from(jsonDecode(await Cloud.downloadBackup(code)) as Map);
     await store.setOpt('cloud.seenAt', at);
     if (m['from'] == await deviceId(store)) return 0;
-    final remote = Map<String, Object?>.from((m['prefs'] as Map?) ?? const {});
+    final remote = withoutPlainSensitive(Map<String, Object?>.from((m['prefs'] as Map?) ?? const {}));
     if (m['secret'] != null) {
       try {
         remote.addAll(await openJson(m['secret'], await CloudKeys.dek(store)));
@@ -508,6 +484,17 @@ class CloudSync {
     }));
     AppLog.i('cloud', 'Sincronizzazione: ${merged.changed.length} cambiamenti da un altro dispositivo');
     return merged.changed.length;
+  }
+
+  /// Sicurezza EL-04: i dati sensibili si accettano solo dalla parte cifrata e autenticata
+  /// (AES-GCM). Se arrivano in chiaro in "prefs" (server manomesso, backup sostituito) si scartano.
+  static Map<String, T> withoutPlainSensitive<T>(Map<String, T> prefs) {
+    final bad = prefs.keys.where(isSensitiveKey).toList();
+    if (bad.isNotEmpty) {
+      AppLog.w('cloud', 'Backup: ${bad.length} dati sensibili in chiaro scartati (${bad.join(', ')})');
+      prefs.removeWhere((k, _) => isSensitiveKey(k));
+    }
+    return prefs;
   }
 
   /// Sezioni del backup scelte dall'utente.
@@ -558,7 +545,7 @@ class CloudSync {
     } catch (_) {
       throw CloudException('Il backup sul server è rovinato');
     }
-    final prefs = Map<String, dynamic>.from((m['prefs'] as Map?) ?? const {});
+    final prefs = withoutPlainSensitive(Map<String, dynamic>.from((m['prefs'] as Map?) ?? const {}));
     if (m['secret'] != null) {
       try {
         prefs.addAll(await openJson(m['secret'], await CloudKeys.dek(store)));
