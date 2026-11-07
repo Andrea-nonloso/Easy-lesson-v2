@@ -1,5 +1,6 @@
 import 'agenda.dart' show dateOnly;
 import 'models.dart';
+import 'i18n.dart';
 
 /// Vita scolastica: assenze/entrate/uscite, voti, foto delle lezioni, studio.
 /// Dart puro (testabile senza Flutter).
@@ -40,8 +41,8 @@ class AbsenceEntry {
   String get emoji => emojiOf(kind);
 
   String get label => switch (kind) {
-        'entrata' => 'Entrata alla $hourª ora',
-        'uscita' => 'Uscita dopo la $hourª ora',
+        'entrata' => tr('Entrata alla $hourª ora', 'Late entry at period $hour'),
+        'uscita' => tr('Uscita dopo la $hourª ora', 'Early exit after period $hour'),
         _ => 'Assenza',
       };
 
@@ -242,6 +243,46 @@ double? neededFor(Iterable<Grade> grades, double target, {double weight = 1}) {
   }
   if (w == 0) return target;
   return (target * (w + weight) - sum) / weight;
+}
+
+/// Lo stesso voto da prendere in [count] prove (peso [weight] ciascuna) per arrivare a [target] di media.
+double neededForMany(Iterable<Grade> grades, double target, {int count = 1, double weight = 1}) {
+  var sum = 0.0;
+  var w = 0.0;
+  for (final g in grades) {
+    sum += g.value * g.weight;
+    w += g.weight;
+  }
+  final add = count * weight;
+  return (target * (w + add) - sum) / add;
+}
+
+/// Arrotonda per eccesso al quarto di voto (6, 6+, 6½, 7-…): il voto "che basta" davvero.
+double roundUpGrade(double v) => (v * 4 - 1e-9).ceil() / 4;
+
+/// Piano per arrivare a [target]: con quante prove (al massimo [max]) e con che voto in ognuna.
+///   - (count: 0, grade: 0)  = ce l'hai già (basta anche un 1 nella prossima);
+///   - (count: n, grade: v)  = n prove con almeno v (v ≤ 10, arrotondato al quarto per eccesso);
+///   - null                  = non ci arrivi neanche con [max] prove da 10.
+({int count, double grade})? planToReach(Iterable<Grade> grades, double target, {double weight = 1, int max = 5}) {
+  final list = grades.toList();
+  if (list.isNotEmpty && neededFor(list, target, weight: weight)! <= 1) return (count: 0, grade: 0);
+  for (var n = 1; n <= max; n++) {
+    final v = neededForMany(list, target, count: n, weight: weight);
+    if (v <= 10) return (count: n, grade: roundUpGrade(v.clamp(1, 10)).clamp(1, 10).toDouble());
+  }
+  return null;
+}
+
+/// Frase per l'utente: "Ti serve almeno 6½ nella prossima prova", "Con 2 prove: almeno 8 in tutte e due"…
+String planText(({int count, double grade})? p, double target) {
+  final t = Grade.format(target);
+  if (p == null) return tr('Per questo periodo il $t è troppo lontano, anche con 5 prove da 10 😬', 'For this term the $t is too far, even with 5 tests at 10 😬');
+  if (p.count == 0) return tr('Il $t ce l\'hai già, anche con un 1 nella prossima 😎', 'You\'ve already got the $t, even with a 1 on the next one 😎');
+  final v = Grade.format(p.grade);
+  if (p.count == 1) return tr('Ti serve almeno $v nella prossima prova', 'You need at least $v in the next test');
+  final tutte = p.count == 2 ? tr('tutte e due', 'both') : tr('tutte e ${p.count}', 'all ${p.count}');
+  return tr('Con una prova sola non basta neanche un 10. Con ${p.count} prove: almeno $v in $tutte', 'One test isn\'t enough, not even a 10. With ${p.count} tests: at least $v in $tutte');
 }
 
 // ---------------------------------------------------------------------------

@@ -8,6 +8,7 @@ import '../models.dart';
 import '../store.dart';
 import 'code_scanner.dart';
 import 'color_lab.dart' show applyThemeCode, themeCodeOf;
+import '../i18n.dart';
 
 /// Condivisione con il QR: il codice è un link easylesson://import?d=...
 /// La fotocamera del telefono lo riconosce e apre l'app (Android);
@@ -35,11 +36,11 @@ List<(String, String, String)> shareOptions(AppStore store) {
   final mine = store.myMainRef;
   final backup = store.backup();
   return [
-    if (mine != null) ('orario', 'Il mio orario (${mine.displayName})', _encode({'k': 'orario', 'r': mine.key})),
-    ('tema', 'Il mio tema', _encode({'k': 'tema', 'c': themeCodeOf(store)})),
+    if (mine != null) ('orario', tr('Il mio orario (${mine.displayName})', 'My timetable (${mine.displayName})'), _encode({'k': 'orario', 'r': mine.key})),
+    ('tema', tr('Il mio tema', 'My theme'), _encode({'k': 'tema', 'c': themeCodeOf(store)})),
     if (nicknames.isNotEmpty || subjectEmojis.isNotEmpty)
-      ('nick', 'Soprannomi ed emoji', _encode({'k': 'nick', 'n': nicknames, 'e': subjectEmojis})),
-    if (backup.length < 2200) ('backup', 'Tutto (backup)', _encode({'k': 'backup', 'b': backup})),
+      ('nick', tr('Soprannomi ed emoji', 'Nicknames and emoji'), _encode({'k': 'nick', 'n': nicknames, 'e': subjectEmojis})),
+    if (backup.length < 2200) ('backup', tr('Tutto (backup)', 'Everything (backup)'), _encode({'k': 'backup', 'b': backup})),
   ];
 }
 
@@ -76,7 +77,7 @@ class _ShareSheetState extends State<_ShareSheet> {
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       child: Column(
         children: [
-          Text('Condividi con un QR', style: Theme.of(context).textTheme.titleLarge),
+          Text(tr('Condividi con un QR', 'Share with a QR'), style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
           Wrap(
             spacing: 6,
@@ -98,19 +99,19 @@ class _ShareSheetState extends State<_ShareSheet> {
             child: QrImageView(data: o.$3, size: 260, backgroundColor: Colors.white),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Il tuo amico lo inquadra con la fotocamera del telefono (con Easy Lesson installata) '
-            'oppure copia il codice e lo incolla in Impostazioni → Importa un codice.',
+          Text(
+            tr('Il tuo amico lo inquadra con la fotocamera del telefono (con Easy Lesson installata) '
+            'oppure copia il codice e lo incolla in Impostazioni → Importa un codice.', 'Your friend scans it with the phone camera (with Easy Lesson installed) or copies the code and pastes it in Settings → Import a code.'),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           TextButton.icon(
             onPressed: () {
               Clipboard.setData(ClipboardData(text: o.$3));
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Codice copiato')));
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Codice copiato', 'Code copied'))));
             },
             icon: const Icon(Icons.copy_rounded),
-            label: const Text('Copia il codice'),
+            label: Text(tr('Copia il codice', 'Copy the code')),
           ),
         ],
       ),
@@ -127,22 +128,22 @@ class _ShareSheetState extends State<_ShareSheet> {
     case 'orario':
       final ref = ScheduleRef.fromKey('${m['r']}');
       if (ref == null) return null;
-      return (title: 'Salvare un orario?', text: 'Verrà salvato l\'orario di ${ref.displayName}.', risky: false);
+      return (title: tr('Salvare un orario?', 'Save a timetable?'), text: tr('Verrà salvato l\'orario di ${ref.displayName}.', 'The timetable of ${ref.displayName} will be saved.'), risky: false);
     case 'tema':
-      return (title: 'Applicare un tema?', text: 'Il tema dell\'app cambierà con quello condiviso.', risky: false);
+      return (title: tr('Applicare un tema?', 'Apply a theme?'), text: tr('Il tema dell\'app cambierà con quello condiviso.', 'The app theme will change to the shared one.'), risky: false);
     case 'nick':
       final n = (m['n'] as Map?)?.length ?? 0;
       final e = (m['e'] as Map?)?.length ?? 0;
-      return (title: 'Importare i soprannomi?', text: 'Soprannomi ed emoji delle materie ($n + $e) verranno sostituiti.', risky: false);
+      return (title: tr('Importare i soprannomi?', 'Import the nicknames?'), text: tr('Soprannomi ed emoji delle materie ($n + $e) verranno sostituiti.', 'Subject nicknames and emoji ($n + $e) will be replaced.'), risky: false);
     case 'backup':
       return (
-        title: 'Ripristinare un backup?',
-        text: 'Orari, agenda, voti, assenze e impostazioni di questo dispositivo verranno sostituiti con quelli '
-            'del backup. Fallo solo se il backup è tuo. Account, server e opzioni del dispositivo non cambiano.',
+        title: tr('Ripristinare un backup?', 'Restore a backup?'),
+        text: tr('Orari, agenda, voti, assenze e impostazioni di questo dispositivo verranno sostituiti con quelli '
+            'del backup. Fallo solo se il backup è tuo. Account, server e opzioni del dispositivo non cambiano.', 'Timetables, planner, grades, absences and settings on this device will be replaced with those in the backup. Only do it if the backup is yours. Account, server and device options don\'t change.'),
         risky: true,
       );
   }
-  return (title: 'Codice sconosciuto', text: 'Codice di una versione più nuova: aggiorna l\'app.', risky: false);
+  return (title: tr('Codice sconosciuto', 'Unknown code'), text: tr('Codice di una versione più nuova: aggiorna l\'app.', 'Code from a newer version: update the app.'), risky: false);
 }
 
 /// Mostra cosa farà il codice e lo applica solo dopo "Importa" (sicurezza EL-01: un link
@@ -152,7 +153,7 @@ Future<void> confirmAndImport(BuildContext context, String text, {bool onlyRisky
   final messenger = ScaffoldMessenger.of(context);
   final d = describeShared(text);
   if (d == null) {
-    messenger.showSnackBar(const SnackBar(content: Text('Codice non valido')));
+    messenger.showSnackBar(SnackBar(content: Text(tr('Codice non valido', 'Invalid code'))));
     return;
   }
   if (!onlyRisky || d.risky) {
@@ -163,8 +164,8 @@ Future<void> confirmAndImport(BuildContext context, String text, {bool onlyRisky
         title: Text(d.title),
         content: Text(d.text),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Importa')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Importa', 'Import'))),
         ],
       ),
     );
@@ -181,17 +182,17 @@ Future<void> confirmAndImport(BuildContext context, String text, {bool onlyRisky
 /// L'interfaccia passa da [confirmAndImport]: qui non si chiede niente.
 Future<String> importShared(AppStore store, String text) async {
   final m = decodeShare(text);
-  if (m == null) throw const FormatException('Codice non valido');
+  if (m == null) throw FormatException(tr('Codice non valido', 'Invalid code'));
   switch (m['k']) {
     case 'orario':
       final ref = ScheduleRef.fromKey('${m['r']}');
-      if (ref == null) throw const FormatException('Codice non valido');
+      if (ref == null) throw FormatException(tr('Codice non valido', 'Invalid code'));
       await store.fetchSchedule(ref);
       if (!(store.cached(ref)?.favorite ?? true)) await store.toggleFavorite(ref);
-      return 'Orario di ${ref.displayName} salvato';
+      return tr('Orario di ${ref.displayName} salvato', 'Timetable of ${ref.displayName} saved');
     case 'tema':
-      if (!await applyThemeCode(store, '${m['c']}')) throw const FormatException('Tema non valido');
-      return 'Tema applicato 🎨';
+      if (!await applyThemeCode(store, '${m['c']}')) throw FormatException(tr('Tema non valido', 'Invalid theme'));
+      return tr('Tema applicato 🎨', 'Theme applied 🎨');
     case 'nick':
       final n = Map<String, String>.from(m['n'] as Map? ?? const {});
       final e = Map<String, String>.from(m['e'] as Map? ?? const {});
@@ -201,9 +202,9 @@ Future<String> importShared(AppStore store, String text) async {
       return '${{...n.keys, ...e.keys}.length} soprannomi importati';
     case 'backup':
       final c = await store.restore('${m['b']}');
-      return 'Backup ripristinato ($c impostazioni)';
+      return tr('Backup ripristinato ($c impostazioni)', 'Backup restored ($c settings)');
   }
-  throw const FormatException('Codice di una versione più nuova: aggiorna l\'app');
+  throw FormatException(tr('Codice di una versione più nuova: aggiorna l\'app', 'Code from a newer version: update the app'));
 }
 
 /// Dialogo "Importa un codice" (per chi non può inquadrare il QR).
@@ -214,7 +215,7 @@ Future<void> importCodeDialog(BuildContext context) async {
   final v = await showDialog<String>(
     context: context,
     builder: (c) => AlertDialog(
-      title: const Text('Importa un codice'),
+      title: Text(tr('Importa un codice', 'Import a code')),
       content: TextField(
         controller: ctrl,
         autofocus: true,
@@ -223,7 +224,7 @@ Future<void> importCodeDialog(BuildContext context) async {
           hintText: 'easylesson://import?d=…',
           suffixIcon: qrScannerSupported
               ? IconButton(
-                  tooltip: 'Scansiona il QR',
+                  tooltip: tr('Scansiona il QR', 'Scan the QR'),
                   icon: const Icon(Icons.qr_code_scanner_rounded),
                   onPressed: () async {
                     final v = await scanQr(c);
@@ -234,8 +235,8 @@ Future<void> importCodeDialog(BuildContext context) async {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annulla')),
-        FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: const Text('Importa')),
+        TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annulla', 'Cancel'))),
+        FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: Text(tr('Importa', 'Import'))),
       ],
     ),
   );

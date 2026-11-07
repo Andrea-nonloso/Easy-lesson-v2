@@ -5,6 +5,7 @@ import '../store.dart';
 import 'profile_page.dart';
 import 'theme.dart';
 import 'widgets.dart';
+import '../i18n.dart';
 
 /// Setup al primo avvio: nome, orario personale, tema preferito, codice (facoltativo).
 /// Quattro passi semplici, poi si entra nella home.
@@ -66,7 +67,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       }
     } catch (e) {
       messenger.showSnackBar(SnackBar(
-        content: Text('Orario non scaricato ($e): potrai riprovare dalla home'),
+        content: Text(tr('Orario non scaricato ($e): potrai riprovare dalla home', 'Timetable not downloaded ($e): you can try again from the home screen')),
       ));
     } finally {
       await store.completeSetup();
@@ -151,7 +152,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                             duration: const Duration(milliseconds: 250),
                             curve: Curves.easeOut,
                           ),
-                          child: const Text('Indietro'),
+                          child: Text(tr('Indietro', 'Back')),
                         ),
                       const Spacer(),
                       FilledButton.icon(
@@ -162,7 +163,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                 child: CircularProgressIndicator(strokeWidth: 2.2),
                               )
                             : Icon(_step < 3 ? Icons.arrow_forward_rounded : Icons.check_rounded),
-                        label: Text(_step < 3 ? 'Continua' : 'Inizia'),
+                        label: Text(_step < 3 ? tr('Continua', 'Continue') : tr('Inizia', 'Start')),
                       ),
                     ],
                   ),
@@ -190,10 +191,10 @@ class _NameStep extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
       children: [
-        Text('Come ti chiami?', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+        Text(tr('Come ti chiami?', 'What\'s your name?'), style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
         Text(
-          'Lo useremo solo per il saluto nella home. Puoi anche saltare.',
+          tr('Lo useremo solo per il saluto nella home. Puoi anche saltare.', 'We\'ll only use it for the greeting on the home screen. You can also skip.'),
           style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
         ),
         const SizedBox(height: 24),
@@ -201,7 +202,7 @@ class _NameStep extends StatelessWidget {
           controller: controller,
           autofocus: false,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(hintText: 'Il tuo nome'),
+          decoration: InputDecoration(hintText: tr('Il tuo nome', 'Your name')),
           onSubmitted: (_) {},
         ),
       ],
@@ -249,17 +250,17 @@ class _ScheduleStep extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Il tuo orario', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+              Text(tr('Il tuo orario', 'Your timetable'), style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
               Text(
-                'Scegli la tua classe o il tuo nome: verra scaricato subito e restera disponibile anche offline.',
+                tr('Scegli la tua classe o il tuo nome: verra scaricato subito e restera disponibile anche offline.', 'Choose your class or your name: it\'ll be downloaded right away and stay available offline too.'),
                 style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
               ),
               const SizedBox(height: 16),
               SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(value: false, icon: Icon(Icons.groups_rounded), label: Text('Classe')),
-                  ButtonSegment(value: true, icon: Icon(Icons.person_rounded), label: Text('Docente')),
+                segments: [
+                  ButtonSegment(value: false, icon: const Icon(Icons.groups_rounded), label: Text(tr('Classe', 'Class'))),
+                  ButtonSegment(value: true, icon: const Icon(Icons.person_rounded), label: Text(tr('Docente', 'Teacher'))),
                 ],
                 selected: {prof},
                 onSelectionChanged: (s) => onKind(s.first),
@@ -268,7 +269,7 @@ class _ScheduleStep extends StatelessWidget {
               TextField(
                 controller: controller,
                 decoration: InputDecoration(
-                  hintText: prof ? 'Cerca il tuo cognome…' : 'Cerca la tua classe…',
+                  hintText: prof ? tr('Cerca il tuo cognome…', 'Search your surname…') : tr('Cerca la tua classe…', 'Search your class…'),
                   prefixIcon: const Icon(Icons.search_rounded),
                 ),
                 onChanged: onQuery,
@@ -285,13 +286,13 @@ class _ScheduleStep extends StatelessWidget {
                       : FilledButton.tonalIcon(
                           onPressed: () => store.refreshLists(),
                           icon: const Icon(Icons.refresh_rounded),
-                          label: const Text('Carica gli elenchi'),
+                          label: Text(tr('Carica gli elenchi', 'Load the lists')),
                         ),
                 )
               : results.isEmpty
               ? Center(
                   child: Text(
-                    'Nessun risultato',
+                    tr('Nessun risultato', 'No results'),
                     style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                 )
@@ -346,10 +347,10 @@ class _ThemeStep extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
       children: [
-        Text('Scegli il tema', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+        Text(tr('Scegli il tema', 'Choose the theme'), style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
         Text(
-          'Potrai cambiarlo quando vuoi dalla pagina Temi.',
+          tr('Potrai cambiarlo quando vuoi dalla pagina Temi.', 'You can change it whenever you like from the Themes page.'),
           style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
         ),
         const SizedBox(height: 20),
@@ -442,13 +443,13 @@ class _AccountStep extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
       children: [
-        Text('Salva i tuoi progressi', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+        Text(tr('Salva i tuoi progressi', 'Save your progress'), style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
         Text(
           has
-              ? 'Fatto! Livello e obiettivi vengono salvati con il tuo codice.'
-              : 'Easy Lesson ha livelli, missioni e più di 150 obiettivi. Con un codice segreto li ritrovi anche '
-                  'cambiando telefono. Puoi anche saltare e farlo dopo dalle impostazioni.',
+              ? tr('Fatto! Livello e obiettivi vengono salvati con il tuo codice.', 'Done! Level and achievements are saved with your code.')
+              : tr('Easy Lesson ha livelli, missioni e più di 150 obiettivi. Con un codice segreto li ritrovi anche '
+                  'cambiando telefono. Puoi anche saltare e farlo dopo dalle impostazioni.', 'Easy Lesson has levels, missions and more than 150 achievements. With a secret code you find them again even when you change phone. You can also skip and do it later from the settings.'),
           style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
         ),
         const SizedBox(height: 24),

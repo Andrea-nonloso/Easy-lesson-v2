@@ -28,7 +28,7 @@ class AppMenuButton extends StatelessWidget {
     final all = [
       ...items,
       AppMenuItem(Icons.search_rounded, tr('Cerca in tutto', 'Search everything'), () => openGlobalSearch(context)),
-      AppMenuItem(Icons.event_note_rounded, 'Agenda', () => openAgenda(context)),
+      AppMenuItem(Icons.event_note_rounded, tr('Agenda', 'Planner'), () => openAgenda(context)),
       AppMenuItem(Icons.calendar_month_outlined, tr('Calendario', 'Calendar'), () => openMonth(context)),
       AppMenuItem(Icons.person_search_rounded, tr('Adesso a scuola', 'At school now'), () => openNowAtSchool(context)),
       AppMenuItem(Icons.grade_outlined, tr('Voti', 'Grades'), () => openGrades(context)),
@@ -39,7 +39,7 @@ class AppMenuButton extends StatelessWidget {
       AppMenuItem(Icons.settings_outlined, tr('Impostazioni', 'Settings'), () => showSettingsSheet(context)),
     ];
     return PopupMenuButton<int>(
-      tooltip: 'Altre opzioni',
+      tooltip: tr('Altre opzioni', 'More options'),
       icon: Icon(Icons.more_vert_rounded, color: Theme.of(context).colorScheme.onSurface),
       onSelected: (i) => all[i].onTap(),
       itemBuilder: (_) => [

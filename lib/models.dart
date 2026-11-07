@@ -14,9 +14,9 @@ class ScheduleRef {
   String get displayName => prof ? nick(teacherLabel(name)) : nick(name.toUpperCase());
 
   String get kindLabel {
-    if (!prof) return 'Classe';
+    if (!prof) return tr('Classe', 'Class');
     final s = teacherSubject(name);
-    return s == null ? 'Docente' : 'Docente · $s';
+    return s == null ? tr('Docente', 'Teacher') : tr('Docente · $s', 'Teacher · $s');
   }
 
   static ScheduleRef? fromKey(String key) {
@@ -359,7 +359,7 @@ Map<String, dynamic> decodeOrario(String body) {
     d = jsonDecode(s);
   }
   if (d is Map) return Map<String, dynamic>.from(d);
-  throw const FormatException('Orario non trovato');
+  throw FormatException(tr('Orario non trovato', 'Timetable not found'));
 }
 
 const _dayNamesIt = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'i18n.dart';
 
 /// Limiti del lettore (sicurezza EL-03): un file piccolo non deve poter chiedere memoria
 /// enorme. L'orario vero della scuola ha ~310 righe × 26 colonne e il foglio pesa ~0,5 MB.
@@ -25,7 +26,7 @@ class XlsxLimits {
   final int maxCells;
 }
 
-const _tooBig = FormatException('Il file Excel è troppo grande o rovinato');
+FormatException get _tooBig => FormatException(tr('Il file Excel è troppo grande o rovinato', 'The Excel file is too big or damaged'));
 
 /// Lettore minimale di file .xlsx (solo testo, primo foglio).
 ///
@@ -37,7 +38,7 @@ List<List<String>> readXlsx(List<int> bytes, {XlsxLimits limits = const XlsxLimi
   try {
     zip = ZipDecoder().decodeBytes(bytes);
   } catch (_) {
-    throw const FormatException('Il file non è un Excel valido (.xlsx)');
+    throw FormatException(tr('Il file non è un Excel valido (.xlsx)', 'The file isn\'t a valid Excel file (.xlsx)'));
   }
   if (zip.files.length > limits.maxEntries) throw _tooBig;
 
@@ -58,7 +59,7 @@ List<List<String>> readXlsx(List<int> bytes, {XlsxLimits limits = const XlsxLimi
   }
 
   final sheetXml = text(_firstSheetPath(text) ?? '') ?? _anySheet(zip, limits);
-  if (sheetXml == null) throw const FormatException('Nessun foglio trovato nel file Excel');
+  if (sheetXml == null) throw FormatException(tr('Nessun foglio trovato nel file Excel', 'No sheet found in the Excel file'));
 
   final rows = <int, Map<int, String>>{};
   final cellRe = RegExp(r'<c\b([^>]*?)(?:/>|>([\s\S]*?)</c>)');
@@ -149,7 +150,7 @@ String _readPart(ArchiveFile f, XlsxLimits limits) {
   } on FormatException {
     rethrow;
   } catch (_) {
-    throw const FormatException('Il file non è un Excel valido (.xlsx)');
+    throw FormatException(tr('Il file non è un Excel valido (.xlsx)', 'The file isn\'t a valid Excel file (.xlsx)'));
   }
   return utf8.decode(out.getBytes(), allowMalformed: true);
 }

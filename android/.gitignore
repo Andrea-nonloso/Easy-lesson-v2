@@ -13,3 +13,6 @@ key.properties
 **/*.keystore
 **/*.jks
 
+
+# 3.8: configurazione di Firebase (in GitHub Actions arriva dal segreto GOOGLE_SERVICES_JSON)
+app/google-services.json

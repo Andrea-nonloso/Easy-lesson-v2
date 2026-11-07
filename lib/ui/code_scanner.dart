@@ -3,6 +3,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../native.dart';
 import '../store.dart';
+import '../i18n.dart';
 
 /// Lo scanner c'è solo su Android (mobile_scanner non supporta Windows; sul web si incolla).
 bool get qrScannerSupported => NativeBridge.supported;
@@ -34,8 +35,8 @@ String recoveryLink(String code) => 'easylesson://recover?r=${Uri.encodeQueryCom
 }
 
 /// Apre la fotocamera e restituisce il primo QR letto (null = annullato).
-Future<String?> scanQr(BuildContext context, {String title = 'Inquadra il QR'}) =>
-    Navigator.of(context).push<String>(MaterialPageRoute(builder: (_) => _ScannerPage(title: title)));
+Future<String?> scanQr(BuildContext context, {String? title}) =>
+    Navigator.of(context).push<String>(MaterialPageRoute(builder: (_) => _ScannerPage(title: title ?? tr('Inquadra il QR', 'Scan the QR'))));
 
 class _ScannerPage extends StatefulWidget {
   const _ScannerPage({required this.title});
@@ -75,7 +76,7 @@ class _ScannerPageState extends State<_ScannerPage> {
           title: Text(widget.title),
           actions: [
             IconButton(
-              tooltip: 'Torcia',
+              tooltip: tr('Torcia', 'Flashlight'),
               onPressed: () => _controller.toggleTorch(),
               icon: const Icon(Icons.flashlight_on_rounded),
             ),
@@ -95,14 +96,14 @@ class _ScannerPageState extends State<_ScannerPage> {
                 ),
               ),
             ),
-            const Positioned(
+            Positioned(
               left: 24,
               right: 24,
               bottom: 40,
               child: Text(
-                'Inquadra il QR del foglio di recupero o di un altro telefono',
+                tr('Inquadra il QR del foglio di recupero o di un altro telefono', 'Scan the QR of the recovery sheet or of another phone'),
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 15),
+                style: const TextStyle(color: Colors.white, fontSize: 15),
               ),
             ),
           ],

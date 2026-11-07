@@ -11,7 +11,7 @@ Future<String?> saveBytesFile(
   String name,
   List<int> data, {
   String mime = 'application/octet-stream',
-  String title = 'Salva il file',
+  String? title,
 }) async {
   final url = 'data:$mime;base64,${base64Encode(data)}';
   final doc = globalContext.getProperty<JSObject>('document'.toJS);

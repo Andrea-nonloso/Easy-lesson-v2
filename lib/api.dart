@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'models.dart';
+import 'i18n.dart';
 
 class ApiException implements Exception {
   ApiException(this.message);
@@ -28,17 +29,17 @@ class EasyLessonApi {
   static const _timeout = Duration(seconds: 30);
 
   Future<String> _get(String pathAndQuery) async {
-    Object lastError = ApiException('Connessione non disponibile');
+    Object lastError = ApiException(tr('Connessione non disponibile', 'Connection not available'));
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
         final res = await _client.get(Uri.parse('$baseUrl$pathAndQuery')).timeout(_timeout);
         if (res.statusCode == 200) return utf8.decode(res.bodyBytes);
-        lastError = ApiException('Il server ha risposto con errore ${res.statusCode}');
+        lastError = ApiException(tr('Il server ha risposto con errore ${res.statusCode}', 'The server replied with error ${res.statusCode}'));
         if (res.statusCode >= 400 && res.statusCode < 500) break;
       } on TimeoutException {
-        lastError = ApiException('Il server non risponde');
+        lastError = ApiException(tr('Il server non risponde', 'The server isn\'t responding'));
       } catch (_) {
-        lastError = ApiException('Connessione non disponibile');
+        lastError = ApiException(tr('Connessione non disponibile', 'Connection not available'));
       }
       if (attempt == 0) await Future<void>.delayed(const Duration(seconds: 1));
     }
@@ -48,7 +49,7 @@ class EasyLessonApi {
   /// `which` = 'studs' (classi) oppure 'profs' (docenti).
   Future<List<String>> lista(String which) async {
     final d = jsonDecode(await _get('/getListe?lista=$which'));
-    if (d is! List) throw ApiException('Risposta non valida dal server');
+    if (d is! List) throw ApiException(tr('Risposta non valida dal server', 'Invalid response from the server'));
     return d.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toSet().toList();
   }
 
@@ -63,7 +64,7 @@ class EasyLessonApi {
     try {
       return decodeOrario(body);
     } on FormatException {
-      throw ApiException('Orario non trovato');
+      throw ApiException(tr('Orario non trovato', 'Timetable not found'));
     }
   }
 }

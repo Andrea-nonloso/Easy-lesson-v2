@@ -56,6 +56,28 @@ void main() {
     expect(neededFor(g, 6, weight: 0.5), closeTo(8, 0.001)); // (6*2.5 - 11) / 0.5
   });
 
+  test('quanto mi serve: una prova, più prove, già fatto, impossibile (3.8)', () {
+    Grade v(double x) => Grade(id: '$x', date: monday, subject: 'Mate', value: x);
+    // 5 e 6: per il 6 serve un 7 nella prossima
+    expect(planToReach([v(5), v(6)], 6), (count: 1, grade: 7.0));
+    expect(planText(planToReach([v(5), v(6)], 6), 6), 'Ti serve almeno 7 nella prossima prova');
+    // 3, 3, 4: per il 6 un 10 non basta (servirebbe 14); con due prove: (6*5 - 10) / 2 = 10
+    expect(neededForMany([v(3), v(3), v(4)], 6, count: 2), 10);
+    expect(planToReach([v(3), v(3), v(4)], 6), (count: 2, grade: 10.0));
+    expect(planText(planToReach([v(3), v(3), v(4)], 6), 6), 'Con una prova sola non basta neanche un 10. Con 2 prove: almeno 10 in tutte e due');
+    // arrotondamento per eccesso al quarto: 6,1 -> 6+
+    expect(roundUpGrade(6.1), 6.25);
+    expect(roundUpGrade(6.5), 6.5);
+    // già fatto
+    expect(planToReach([v(9), v(8)], 6), (count: 0, grade: 0.0));
+    expect(planText((count: 0, grade: 0.0), 6), contains('ce l\'hai già'));
+    // impossibile anche con 5 prove
+    expect(planToReach([for (var i = 0; i < 20; i++) v(2)], 8), isNull);
+    expect(planText(null, 8), contains('troppo lontano'));
+    // nessun voto: basta il voto obiettivo
+    expect(planToReach(const [], 6), (count: 1, grade: 6.0));
+  });
+
   test('settimana A/B', () {
     final anchorB = DateTime(2026, 11, 2); // questa è B
     expect(isWeekB(DateTime(2026, 11, 4), anchorB), isTrue);

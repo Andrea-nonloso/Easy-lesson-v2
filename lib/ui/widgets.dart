@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import 'theme.dart';
+import '../i18n.dart';
 
 /// Colori stabili per materia (stessa materia = stesso colore).
 class SubjectColors {
@@ -30,10 +31,10 @@ class SubjectColors {
 String relativeTime(DateTime t) {
   final d = DateTime.now().difference(t);
   if (d.inMinutes < 1) return 'adesso';
-  if (d.inMinutes < 60) return '${d.inMinutes} min fa';
-  if (d.inHours < 24) return '${d.inHours} h fa';
-  if (d.inDays == 1) return 'ieri';
-  if (d.inDays < 7) return '${d.inDays} giorni fa';
+  if (d.inMinutes < 60) return tr('${d.inMinutes} min fa', '${d.inMinutes} min ago');
+  if (d.inHours < 24) return tr('${d.inHours} h fa', '${d.inHours} h ago');
+  if (d.inDays == 1) return tr('ieri', 'yesterday');
+  if (d.inDays < 7) return tr('${d.inDays} giorni fa', '${d.inDays} days ago');
   return '${t.day}/${t.month}/${t.year}';
 }
 

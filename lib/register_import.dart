@@ -1,5 +1,6 @@
 import 'agenda.dart' show dateOnly;
 import 'school_life.dart';
+import 'i18n.dart';
 
 /// Importa assenze, ritardi e uscite dal testo del registro elettronico (app "RF").
 ///
@@ -24,14 +25,18 @@ class RegisterEntry {
   String get key => '${date.year}-${date.month}-${date.day}-$kind';
 
   String get label => switch (kind) {
-        'entrata' => 'Ritardo${time == null ? '' : ' (entra alle $time)'} · entrata alla $hourª ora',
-        'uscita' => 'Uscita${time == null ? '' : ' alle $time'} · dopo la $hourª ora',
-        _ => 'Assenza',
+        'entrata' => appEnglish
+            ? 'Late${time == null ? '' : ' (in at $time)'} · entry at period $hour'
+            : 'Ritardo${time == null ? '' : ' (entra alle $time)'} · entrata alla $hourª ora',
+        'uscita' => appEnglish
+            ? 'Early exit${time == null ? '' : ' at $time'} · after period $hour'
+            : 'Uscita${time == null ? '' : ' alle $time'} · dopo la $hourª ora',
+        _ => tr('Assenza', 'Absence'),
       };
 
   String get note => [
-        if (kind == 'entrata') 'ritardo${time == null ? '' : ' $time'}',
-        if (kind == 'uscita' && time != null) 'uscita $time',
+        if (kind == 'entrata') '${tr('ritardo', 'late')}${time == null ? '' : ' $time'}',
+        if (kind == 'uscita' && time != null) '${tr('uscita', 'exit')} $time',
         if (!counts) 'non concorre al calcolo',
         'dal registro',
       ].join(' · ');

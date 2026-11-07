@@ -1,4 +1,5 @@
 import 'store.dart';
+import 'i18n.dart';
 
 /// Negozio (3.0): si spendono monete guadagnate con l'XP.
 ///
@@ -27,50 +28,50 @@ class ShopItem {
   final String description;
 }
 
-const shopSlots = {
-  'frame': ('Cornici', 'Intorno al distintivo del livello'),
-  'title': ('Titoli', 'Al posto del nome del livello'),
-  'avatar': ('Avatar', 'Emoji speciali per classe e amici'),
-  'theme': ('Temi', 'Colori nuovi per tutta l\'app'),
+Map<String, (String, String)> get shopSlots => {
+  'frame': (tr('Cornici', 'Frames'), tr('Intorno al distintivo del livello', 'Around the level badge')),
+  'title': (tr('Titoli', 'Titles'), tr('Al posto del nome del livello', 'Instead of the level name')),
+  'avatar': ('Avatar', tr('Emoji speciali per classe e amici', 'Special emoji for class and friends')),
+  'theme': (tr('Temi', 'Themes'), tr('Colori nuovi per tutta l\'app', 'New colors for the whole app')),
 };
 
-const shopItems = <ShopItem>[
+List<ShopItem> get shopItems => <ShopItem>[
   // Cornici del distintivo (disegnate in ui/shop_page.dart: frameColors)
-  ShopItem('frame.wood', 'frame', 'Legno intagliato', 60, '🪵'),
-  ShopItem('frame.fire', 'frame', 'Fuoco', 150, '🔥'),
-  ShopItem('frame.ice', 'frame', 'Ghiaccio', 150, '🧊'),
-  ShopItem('frame.leaf', 'frame', 'Foglie', 150, '🍃'),
-  ShopItem('frame.gold', 'frame', 'Oro', 300, '🥇', minLevel: 5),
-  ShopItem('frame.neon', 'frame', 'Neon', 350, '💡', minLevel: 8),
-  ShopItem('frame.rainbow', 'frame', 'Arcobaleno', 450, '🌈', minLevel: 10),
-  ShopItem('frame.galaxy', 'frame', 'Galassia', 700, '🌌', minLevel: 15),
+  const ShopItem('frame.wood', 'frame', 'Legno intagliato', 60, '🪵'),
+  const ShopItem('frame.fire', 'frame', 'Fuoco', 150, '🔥'),
+  const ShopItem('frame.ice', 'frame', 'Ghiaccio', 150, '🧊'),
+  const ShopItem('frame.leaf', 'frame', 'Foglie', 150, '🍃'),
+  const ShopItem('frame.gold', 'frame', 'Oro', 300, '🥇', minLevel: 5),
+  const ShopItem('frame.neon', 'frame', 'Neon', 350, '💡', minLevel: 8),
+  const ShopItem('frame.rainbow', 'frame', 'Arcobaleno', 450, '🌈', minLevel: 10),
+  const ShopItem('frame.galaxy', 'frame', 'Galassia', 700, '🌌', minLevel: 15),
   // Titoli
-  ShopItem('title.secchione', 'title', 'Il Secchione', 100, '🤓'),
-  ShopItem('title.puntuale', 'title', 'Spaccasecondo', 100, '⏰'),
-  ShopItem('title.nottambulo', 'title', 'Nottambulo', 120, '🦉'),
-  ShopItem('title.campanella', 'title', 'Signore della campanella', 150, '🔔'),
-  ShopItem('title.ninja', 'title', 'Ninja dei compiti', 200, '🥷', minLevel: 5),
-  ShopItem('title.detective', 'title', 'Detective dell\'orario', 200, '🕵️', minLevel: 5),
-  ShopItem('title.prof', 'title', 'Quasi prof', 300, '👩‍🏫', minLevel: 10),
-  ShopItem('title.leggenda', 'title', 'Leggenda vivente', 600, '🌟', minLevel: 20),
+  ShopItem('title.secchione', 'title', tr('Il Secchione', 'The Nerd'), 100, '🤓'),
+  const ShopItem('title.puntuale', 'title', 'Spaccasecondo', 100, '⏰'),
+  const ShopItem('title.nottambulo', 'title', 'Nottambulo', 120, '🦉'),
+  ShopItem('title.campanella', 'title', tr('Signore della campanella', 'Lord of the bell'), 150, '🔔'),
+  ShopItem('title.ninja', 'title', tr('Ninja dei compiti', 'Homework ninja'), 200, '🥷', minLevel: 5),
+  ShopItem('title.detective', 'title', tr('Detective dell\'orario', 'Timetable detective'), 200, '🕵️', minLevel: 5),
+  const ShopItem('title.prof', 'title', 'Quasi prof', 300, '👩‍🏫', minLevel: 10),
+  const ShopItem('title.leggenda', 'title', 'Leggenda vivente', 600, '🌟', minLevel: 20),
   // Avatar speciali
-  ShopItem('avatar.drago', 'avatar', 'Drago', 80, '🐉'),
-  ShopItem('avatar.leone', 'avatar', 'Leone', 80, '🦁'),
-  ShopItem('avatar.lupo', 'avatar', 'Lupo', 80, '🐺'),
-  ShopItem('avatar.squalo', 'avatar', 'Squalo', 80, '🦈'),
-  ShopItem('avatar.robot', 'avatar', 'Robot', 120, '🤖'),
-  ShopItem('avatar.alieno', 'avatar', 'Alieno', 120, '👽'),
-  ShopItem('avatar.mago', 'avatar', 'Mago', 150, '🧙'),
-  ShopItem('avatar.ninja', 'avatar', 'Ninja', 150, '🥷'),
-  ShopItem('avatar.eroe', 'avatar', 'Supereroe', 200, '🦸', minLevel: 5),
-  ShopItem('avatar.corona', 'avatar', 'Corona', 400, '👑', minLevel: 12),
+  const ShopItem('avatar.drago', 'avatar', 'Drago', 80, '🐉'),
+  const ShopItem('avatar.leone', 'avatar', 'Leone', 80, '🦁'),
+  const ShopItem('avatar.lupo', 'avatar', 'Lupo', 80, '🐺'),
+  const ShopItem('avatar.squalo', 'avatar', 'Squalo', 80, '🦈'),
+  const ShopItem('avatar.robot', 'avatar', 'Robot', 120, '🤖'),
+  const ShopItem('avatar.alieno', 'avatar', 'Alieno', 120, '👽'),
+  const ShopItem('avatar.mago', 'avatar', 'Mago', 150, '🧙'),
+  const ShopItem('avatar.ninja', 'avatar', 'Ninja', 150, '🥷'),
+  const ShopItem('avatar.eroe', 'avatar', 'Supereroe', 200, '🦸', minLevel: 5),
+  const ShopItem('avatar.corona', 'avatar', 'Corona', 400, '👑', minLevel: 12),
   // Temi (definiti in ui/theme.dart: shopThemes, id = 'shop_<nome>')
-  ShopItem('theme.ciliegio', 'theme', 'Ciliegio', 300, '🌸'),
-  ShopItem('theme.caramella', 'theme', 'Caramella', 300, '🍬'),
-  ShopItem('theme.abisso', 'theme', 'Abisso', 400, '🐋', minLevel: 4),
-  ShopItem('theme.matrix', 'theme', 'Matrix', 450, '💚', minLevel: 6),
-  ShopItem('theme.oro', 'theme', 'Nero e oro', 550, '🖤', minLevel: 10),
-  ShopItem('theme.cosmo', 'theme', 'Cosmo', 800, '🪐', minLevel: 15),
+  const ShopItem('theme.ciliegio', 'theme', 'Ciliegio', 300, '🌸'),
+  const ShopItem('theme.caramella', 'theme', 'Caramella', 300, '🍬'),
+  const ShopItem('theme.abisso', 'theme', 'Abisso', 400, '🐋', minLevel: 4),
+  const ShopItem('theme.matrix', 'theme', 'Matrix', 450, '💚', minLevel: 6),
+  const ShopItem('theme.oro', 'theme', 'Nero e oro', 550, '🖤', minLevel: 10),
+  const ShopItem('theme.cosmo', 'theme', 'Cosmo', 800, '🪐', minLevel: 15),
 ];
 
 ShopItem? shopItem(String id) {
@@ -101,9 +102,9 @@ class Shop {
 
   /// null = comprato; altrimenti il motivo.
   static Future<String?> buy(AppStore s, ShopItem item, {required int totalXp, required int level}) async {
-    if (owns(s, item.id)) return 'Ce l\'hai già';
-    if (level < item.minLevel) return 'Serve il livello ${item.minLevel}';
-    if (balance(totalXp, s) < item.price) return 'Non hai abbastanza monete';
+    if (owns(s, item.id)) return tr('Ce l\'hai già', 'You already have it');
+    if (level < item.minLevel) return tr('Serve il livello ${item.minLevel}', 'You need level ${item.minLevel}');
+    if (balance(totalXp, s) < item.price) return tr('Non hai abbastanza monete', 'You don\'t have enough coins');
     await s.setOpt('stat.own.${item.id}', 1);
     await s.bump('coinsSpent', item.price);
     await s.bump('shopBought');

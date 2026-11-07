@@ -7,6 +7,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// 3.8: notifiche push dei messaggi ad app chiusa (Firebase Cloud Messaging). Solo se c'è android/app/google-services.json:
+// non è nel repository pubblico (.gitignore); in GitHub Actions lo scrive il segreto GOOGLE_SERVICES_JSON.
+// Senza, l'app si costruisce e funziona uguale: Push.kt vede che Firebase non c'è e non fa niente.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 // Chiave di firma per le release (android/key.properties, mai nel repository).
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
@@ -80,4 +87,7 @@ flutter {
 dependencies {
     // 2.7.0: Block Store di Google, per ritrovare il codice Easy Lesson su un telefono nuovo (CodeVault.kt).
     implementation("com.google.android.gms:play-services-auth-blockstore:16.4.0")
+    // 3.8: notifiche push (Push.kt). Senza google-services.json Firebase non parte.
+    implementation(platform("com.google.firebase:firebase-bom:35.0.2"))
+    implementation("com.google.firebase:firebase-messaging")
 }

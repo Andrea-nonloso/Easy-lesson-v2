@@ -8,9 +8,12 @@ import 'bag_page.dart';
 import 'more_pages.dart';
 import 'photos_page.dart';
 import 'school_life_pages.dart';
+import 'theme.dart';
+import '../i18n.dart';
 
-// 3.6: gli strumenti della scuola non stanno più nelle impostazioni, ma in una riga di pulsanti tondi
-// in home (sotto il saluto). L'utente sceglie quali e in che ordine; "Altro" apre l'elenco completo.
+// 3.6: gli strumenti della scuola non stanno più nelle impostazioni, ma in home.
+// 3.8 "minimal": tre riquadri con un numero in fondo alla home (SchoolTilesRow), di base Voti, Assenze e Agenda.
+// L'utente sceglie quali e in che ordine (tenendo premuto); "Altro" apre l'elenco completo.
 
 class SchoolTool {
   const SchoolTool(this.id, this.icon, this.label, this.open, {this.badge, this.color});
@@ -26,7 +29,7 @@ class SchoolTool {
 
 /// Opzione con gli id scelti, in ordine.
 const kSchoolShortcutsOpt = 'home.school';
-const defaultSchoolShortcuts = ['voti', 'assenze'];
+const defaultSchoolShortcuts = ['voti', 'assenze', 'agenda'];
 
 String? _gradesBadge(AppStore s) {
   final by = <String, List<Grade>>{};
@@ -51,23 +54,23 @@ String? _absencesBadge(AppStore s) {
 
 /// Tutti gli strumenti, nell'ordine dell'elenco completo.
 List<SchoolTool> schoolTools() => [
-      const SchoolTool('voti', Icons.grade_rounded, 'Voti', openGrades, badge: _gradesBadge, color: Colors.amber),
-      const SchoolTool('assenze', Icons.event_busy_rounded, 'Assenze', openAbsences, badge: _absencesBadge, color: Colors.redAccent),
-      SchoolTool('agenda', Icons.event_note_rounded, 'Agenda', openAgenda, badge: (s) {
+      SchoolTool('voti', Icons.grade_rounded, tr('Voti', 'Grades'), openGrades, badge: _gradesBadge, color: Colors.amber),
+      SchoolTool('assenze', Icons.event_busy_rounded, tr('Assenze', 'Absences'), openAbsences, badge: _absencesBadge, color: Colors.redAccent),
+      SchoolTool('agenda', Icons.event_note_rounded, tr('Agenda', 'Planner'), openAgenda, badge: (s) {
         final n = s.agendaFrom(DateTime.now()).length;
         return n == 0 ? null : '$n';
       }, color: Colors.teal),
       SchoolTool('timer', Icons.timer_rounded, 'Timer', (c) => openStudyTimer(c), color: Colors.deepOrange),
-      const SchoolTool('zaino', Icons.backpack_rounded, 'Zaino', openBag, color: Colors.brown),
-      const SchoolTool('prof', Icons.contact_mail_rounded, 'Prof', openTeachers, color: Colors.indigo),
-      const SchoolTool('libri', Icons.library_books_rounded, 'Libri', openMaterials, color: Colors.blueGrey),
-      if (!kIsWeb) SchoolTool('foto', Icons.photo_library_rounded, 'Foto', (c) => openPhotos(c), color: Colors.purple),
-      const SchoolTool('piano', Icons.menu_book_rounded, 'Piano di studio', openStudyPlan, color: Colors.green),
-      SchoolTool('verifica', Icons.hourglass_bottom_rounded, 'Modalità verifica', (c) => openExamMode(c), color: Colors.pink),
-      const SchoolTool('grafici', Icons.show_chart_rounded, 'Grafici', openCharts, color: Colors.cyan),
-      const SchoolTool('crediti', Icons.workspace_premium_rounded, 'Crediti', openCredits, color: Colors.orange),
-      const SchoolTool('conti', Icons.hourglass_top_rounded, 'Conti alla rovescia', openCountdowns, color: Colors.lightBlue),
-      const SchoolTool('mese', Icons.calendar_month_rounded, 'Calendario', openMonth, color: Colors.lime),
+      SchoolTool('zaino', Icons.backpack_rounded, tr('Zaino', 'Backpack'), openBag, color: Colors.brown),
+      SchoolTool('prof', Icons.contact_mail_rounded, tr('Prof', 'Teachers'), openTeachers, color: Colors.indigo),
+      SchoolTool('libri', Icons.library_books_rounded, tr('Libri', 'Books'), openMaterials, color: Colors.blueGrey),
+      if (!kIsWeb) SchoolTool('foto', Icons.photo_library_rounded, tr('Foto', 'Photos'), (c) => openPhotos(c), color: Colors.purple),
+      SchoolTool('piano', Icons.menu_book_rounded, tr('Piano di studio', 'Study plan'), openStudyPlan, color: Colors.green),
+      SchoolTool('verifica', Icons.hourglass_bottom_rounded, tr('Modalità verifica', 'Test mode'), (c) => openExamMode(c), color: Colors.pink),
+      SchoolTool('grafici', Icons.show_chart_rounded, tr('Grafici', 'Charts'), openCharts, color: Colors.cyan),
+      SchoolTool('crediti', Icons.workspace_premium_rounded, tr('Crediti', 'Credits'), openCredits, color: Colors.orange),
+      SchoolTool('conti', Icons.hourglass_top_rounded, tr('Conti alla rovescia', 'Countdowns'), openCountdowns, color: Colors.lightBlue),
+      SchoolTool('mese', Icons.calendar_month_rounded, tr('Calendario', 'Calendar'), openMonth, color: Colors.lime),
     ];
 
 /// Gli strumenti scelti per la riga (quelli che non esistono più si saltano).
@@ -79,13 +82,12 @@ List<SchoolTool> chosenSchoolTools(AppStore store) {
 }
 
 class _RoundButton extends StatelessWidget {
-  const _RoundButton({required this.icon, required this.label, required this.onTap, this.onLongPress, this.badge, this.color});
+  const _RoundButton({required this.icon, required this.label, required this.onTap, this.badge, this.color});
   final IconData icon;
   final String label;
   final String? badge;
   final Color? color;
   final VoidCallback onTap;
-  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +99,6 @@ class _RoundButton extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
-        onLongPress: onLongPress,
         child: SizedBox(
           width: 74,
           child: Padding(
@@ -131,27 +132,62 @@ class _RoundButton extends StatelessWidget {
   }
 }
 
-/// La riga in home. Tenendo premuto un pulsante si sceglie cosa mettere.
-class SchoolShortcutsRow extends StatelessWidget {
-  const SchoolShortcutsRow({super.key});
+/// In fondo alla home (3.8): al massimo tre riquadri con il loro numero (media, % del limite delle assenze,
+/// compiti in arrivo) e "Altro". Tenendo premuto si sceglie cosa mettere.
+class SchoolTilesRow extends StatelessWidget {
+  const SchoolTilesRow({super.key});
 
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
-    final tools = chosenSchoolTools(store);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final tools = chosenSchoolTools(store).take(3).toList();
     void edit() => editSchoolShortcuts(context);
-    return SizedBox(
-      height: 92,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.zero,
-        children: [
-          for (final t in tools)
-            _RoundButton(icon: t.icon, label: t.label, color: t.color, badge: t.badge?.call(store), onTap: () => t.open(context), onLongPress: edit),
-          _RoundButton(icon: Icons.apps_rounded, label: 'Altro', onTap: () => openAllSchoolTools(context), onLongPress: edit),
+    Widget tile(SchoolTool t) {
+      final v = t.badge?.call(store);
+      return Material(
+        color: cardColor(context),
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => t.open(context),
+          onLongPress: edit,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(t.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
+              const SizedBox(height: 4),
+              SizedBox(
+                height: 28,
+                child: v == null
+                    ? Align(alignment: Alignment.centerLeft, child: Icon(t.icon, size: 22, color: t.color ?? scheme.primary))
+                    : Text(v, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+              ),
+            ]),
+          ),
+        ),
+      );
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(children: [
+        for (var i = 0; i < tools.length; i++) ...[
+          if (i > 0) const SizedBox(width: 10),
+          Expanded(child: tile(tools[i])),
         ],
+        if (tools.isEmpty) Expanded(child: Text(tr('Tieni premuto per scegliere', 'Press and hold to choose'), style: TextStyle(color: scheme.onSurfaceVariant))),
+      ]),
+      Align(
+        alignment: Alignment.centerRight,
+        child: TextButton.icon(
+          onPressed: () => openAllSchoolTools(context),
+          onLongPress: edit,
+          icon: const Icon(Icons.apps_rounded, size: 18),
+          label: Text(tr('Altro', 'More')),
+        ),
       ),
-    );
+    ]);
   }
 }
 
@@ -167,9 +203,9 @@ class AllSchoolToolsPage extends StatelessWidget {
     final store = StoreScope.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scuola'),
+        title: Text(tr('Scuola', 'School')),
         actions: [
-          TextButton.icon(onPressed: () => editSchoolShortcuts(context), icon: const Icon(Icons.edit_rounded), label: const Text('Riga in home')),
+          TextButton.icon(onPressed: () => editSchoolShortcuts(context), icon: const Icon(Icons.edit_rounded), label: Text(tr('Riga in home', 'Home row'))),
         ],
       ),
       body: GridView.extent(
@@ -225,19 +261,20 @@ class _ShortcutsEditorState extends State<_ShortcutsEditor> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
             child: Row(children: [
-              Expanded(child: Text('Pulsanti in home', style: Theme.of(context).textTheme.titleLarge)),
+              Expanded(child: Text(tr('Pulsanti in home', 'Home buttons'), style: Theme.of(context).textTheme.titleLarge)),
               TextButton(
                 onPressed: () async {
                   setState(() => _on = List.of(defaultSchoolShortcuts));
                   await _save();
                 },
-                child: const Text('Predefiniti'),
+                child: Text(tr('Predefiniti', 'Defaults')),
               ),
             ]),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Text('Accendi quelli che vuoi e trascinali per cambiare l\'ordine. "Altro" c\'è sempre.'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(tr('Accendi quelli che vuoi e trascinali per cambiare l\'ordine. In home se ne vedono tre, '
+                'con il loro numero; "Altro" c\'è sempre.', 'Turn on the ones you want and drag them to change the order. Three show on the home screen, with their number; "More" is always there.')),
           ),
           Expanded(
             child: ReorderableListView.builder(

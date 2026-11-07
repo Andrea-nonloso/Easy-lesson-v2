@@ -1,6 +1,7 @@
 // 3.6: barra Home · Orario · Amici · Profilo; Cerca e Salvati solo nella barra laterale;
 // riga dei pulsanti della scuola; Impostazioni senza Profilo/Scuola/Agenda.
 // Con SCREENS=1 salva anche le immagini delle schermate (per guardarle).
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:easy_lesson/api.dart';
@@ -10,32 +11,14 @@ import 'package:easy_lesson/ui/home_shell.dart';
 import 'package:easy_lesson/ui/school_shortcuts.dart';
 import 'package:easy_lesson/ui/theme.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-final _screens = Platform.environment['SCREENS'] == '1';
+import 'fonts.dart';
 
-Future<void> _fonts() async {
-  final dir = '${Platform.environment['FLUTTER_ROOT'] ?? '${Platform.environment['HOME']}/dev/flutter'}/bin/cache/artifacts/material_fonts';
-  if (!Directory(dir).existsSync()) return;
-  final roboto = FontLoader('Roboto');
-  for (final f in ['Roboto-Regular.ttf', 'Roboto-Medium.ttf', 'Roboto-Bold.ttf']) {
-    roboto.addFont(File('$dir/$f').readAsBytes().then((b) => ByteData.view(b.buffer)));
-  }
-  await roboto.load();
-  final hind = FontLoader('Hind');
-  for (final f in ['Light', 'Regular', 'Medium', 'Bold']) {
-    hind.addFont(File('assets/fonts/HindSiliguri-$f.ttf').readAsBytes().then((b) => ByteData.view(b.buffer)));
-  }
-  await hind.load();
-  final easy = FontLoader('EasyIcons')..addFont(File('assets/fonts/MyFlutterApp.ttf').readAsBytes().then((b) => ByteData.view(b.buffer)));
-  await easy.load();
-  final icons = FontLoader('MaterialIcons')..addFont(File('$dir/MaterialIcons-Regular.otf').readAsBytes().then((b) => ByteData.view(b.buffer)));
-  await icons.load();
-}
+final _screens = Platform.environment['SCREENS'] == '1';
 
 Future<AppStore> _store() async {
   SharedPreferences.setMockInitialValues({'el.username': 'Andrea', 'el.setupDone': true});
@@ -65,7 +48,7 @@ Future<void> _settle(WidgetTester t) async {
 }
 
 void main() {
-  setUpAll(_fonts);
+  setUpAll(loadTestFonts);
 
   testWidgets('telefono: 4 voci, niente Cerca/Salvati nella barra; pulsanti della scuola in home', (t) async {
     final store = await _store();
@@ -108,9 +91,33 @@ void main() {
     await _settle(t);
   });
 
+  testWidgets('home minimal con il proprio orario: card, lezioni del giorno, tre riquadri (3.8)', (t) async {
+    Map<String, dynamic> day(List<String> l) => {for (var i = 0; i < l.length; i++) 'ora${i + 1}': l[i], 'lab3': 'W Info 1'};
+    final raw = {
+      for (var d = 0; d < 6; d++)
+        'giorno$d': day(['Matematica\nRossi', 'Matematica\nRossi', 'Informatica\nBianchi', 'Inglese\nVerdi', 'Storia\nNeri', 'Italiano\nNeri']),
+    };
+    final now = DateTime.now().toIso8601String();
+    SharedPreferences.setMockInitialValues({
+      'el.username': 'Andrea',
+      'el.setupDone': true,
+      'el.mine': 'c:1A IT',
+      'el.schedules': jsonEncode([
+        {'name': '1A IT', 'prof': false, 'raw': raw, 'updatedAt': now, 'lastOpened': now, 'favorite': true},
+      ]),
+    });
+    final store = await AppStore.create(api: EasyLessonApi(client: MockClient((_) async => http.Response('[]', 200))));
+    await _pumpShell(t, store, const Size(390, 844));
+    expect(find.text('Voti'), findsOneWidget);
+    expect(find.text('Agenda'), findsOneWidget);
+    expect(find.text('Imposta il tuo orario'), findsNothing);
+    await _shot(t, 'telefono_home_orario');
+    await _settle(t);
+  });
+
   testWidgets('pulsanti della scuola: scelta e ordine salvati', (t) async {
     final store = await _store();
-    expect(chosenSchoolTools(store).map((x) => x.id), ['voti', 'assenze']);
+    expect(chosenSchoolTools(store).map((x) => x.id), ['voti', 'assenze', 'agenda']);
     await store.setOpt(kSchoolShortcutsOpt, ['agenda', 'boh', 'voti']);
     expect(chosenSchoolTools(store).map((x) => x.id), ['agenda', 'voti']);
     expect(schoolTools().map((x) => x.id).toSet().length, schoolTools().length);

@@ -4,6 +4,7 @@ import '../models.dart';
 import '../school_life.dart';
 import '../store.dart';
 import 'photos.dart';
+import '../i18n.dart';
 
 void openPhotos(BuildContext context, {String? subject}) =>
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PhotosPage(subject: subject)));
@@ -88,7 +89,7 @@ void _viewPhoto(BuildContext context, LessonPhoto p) {
         title: Text('${p.subject} · ${p.date.day}/${p.date.month}'),
         actions: [
           IconButton(
-            tooltip: 'Elimina',
+            tooltip: tr('Elimina', 'Delete'),
             icon: const Icon(Icons.delete_outline_rounded),
             onPressed: () async {
               await store.removePhoto(p);
@@ -119,15 +120,15 @@ class PhotosPage extends StatelessWidget {
       (groups['${p.subject}|${p.date.toIso8601String()}'] ??= []).add(p);
     }
     return Scaffold(
-      appBar: AppBar(title: Text(subject == null ? 'Foto delle lezioni' : 'Foto · $subject')),
+      appBar: AppBar(title: Text(subject == null ? tr('Foto delle lezioni', 'Lesson photos') : tr('Foto · $subject', 'Photos · $subject'))),
       body: !LessonPhotos.supported
-          ? const Center(child: Text('Le foto si possono fare dall\'app Android o Windows'))
+          ? Center(child: Text(tr('Le foto si possono fare dall\'app Android o Windows', 'Photos can be taken from the Android or Windows app')))
           : list.isEmpty
-              ? const Center(
+              ? Center(
                   child: Padding(
-                    padding: EdgeInsets.all(32),
+                    padding: const EdgeInsets.all(32),
                     child: Text(
-                      'Nessuna foto. Tocca una lezione nell\'orario e fotografa la lavagna o gli appunti 📸',
+                      tr('Nessuna foto. Tocca una lezione nell\'orario e fotografa la lavagna o gli appunti 📸', 'No photos. Tap a lesson in the timetable and take a photo of the board or your notes 📸'),
                       textAlign: TextAlign.center,
                     ),
                   ),

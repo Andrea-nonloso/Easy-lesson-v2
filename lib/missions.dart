@@ -6,6 +6,7 @@
 library;
 
 import 'progress.dart' show dayKey;
+import 'i18n.dart';
 
 class MissionDef {
   const MissionDef(
@@ -35,36 +36,36 @@ class MissionDef {
   final bool notOnWeb;
 }
 
-const dailyMissions = <MissionDef>[
-  MissionDef('d_prof', '🧑‍🏫', 'Apri l\'orario di un prof', 'profViews', 1, 10),
-  MissionDef('d_class', '🏫', 'Guarda l\'orario di 2 classi', 'classViews', 2, 10),
-  MissionDef('d_views5', '👀', 'Apri 5 orari', 'views', 5, 15),
-  MissionDef('d_done', '✅', 'Segna un compito come fatto', 'agendaDone', 1, 15),
-  MissionDef('d_agenda', '📝', 'Aggiungi qualcosa in agenda', 'agendaAdded', 1, 10),
-  MissionDef('d_study25', '🍅', 'Studia 25 minuti con il timer', 'studied', 25, 20),
-  MissionDef('d_study50', '📖', 'Studia 50 minuti con il timer', 'studied', 50, 30),
-  MissionDef('d_break', '🥪', 'Apri l\'app durante la ricreazione', 'breakOpens', 1, 15, schoolDay: true),
-  MissionDef('d_bell', '🔔', 'Controlla l\'orario prima della prima campanella', 'beforeBell', 1, 15, schoolDay: true),
-  MissionDef('d_last', '🏁', 'Apri l\'app durante l\'ultima ora', 'lastHourOpens', 1, 15, schoolDay: true),
-  MissionDef('d_sessions3', '🔁', 'Apri l\'app 3 volte oggi', 'sessions', 3, 10),
-  MissionDef('d_settings', '⚙️', 'Dai un\'occhiata alle impostazioni', 'settingsOpens', 1, 10),
-  MissionDef('d_theme', '🎨', 'Cambia tema', 'themeChanges', 1, 10),
-  MissionDef('d_grade', '📊', 'Segna un voto', 'gradesAdded', 1, 15),
-  MissionDef('d_bag', '🎒', 'Spunta qualcosa nello zaino', 'bagTicks', 1, 10),
-  MissionDef('d_photo', '📸', 'Fotografa la lavagna', 'photosAdded', 1, 15, notOnWeb: true),
-  MissionDef('d_countdown', '⏳', 'Aggiungi un conto alla rovescia', 'countdowns', 1, 10),
-  MissionDef('d_teacher', '👩‍🏫', 'Salva un\'informazione su un prof', 'teachers', 1, 10),
+List<MissionDef> get dailyMissions => <MissionDef>[
+  MissionDef('d_prof', '🧑‍🏫', tr('Apri l\'orario di un prof', 'Open a teacher\'s timetable'), 'profViews', 1, 10),
+  MissionDef('d_class', '🏫', tr('Guarda l\'orario di 2 classi', 'View the timetable of 2 classes'), 'classViews', 2, 10),
+  MissionDef('d_views5', '👀', tr('Apri 5 orari', 'Open 5 timetables'), 'views', 5, 15),
+  MissionDef('d_done', '✅', tr('Segna un compito come fatto', 'Mark a homework as done'), 'agendaDone', 1, 15),
+  MissionDef('d_agenda', '📝', tr('Aggiungi qualcosa in agenda', 'Add something to the planner'), 'agendaAdded', 1, 10),
+  MissionDef('d_study25', '🍅', tr('Studia 25 minuti con il timer', 'Study 25 minutes with the timer'), 'studied', 25, 20),
+  MissionDef('d_study50', '📖', tr('Studia 50 minuti con il timer', 'Study 50 minutes with the timer'), 'studied', 50, 30),
+  MissionDef('d_break', '🥪', tr('Apri l\'app durante la ricreazione', 'Open the app during the break'), 'breakOpens', 1, 15, schoolDay: true),
+  MissionDef('d_bell', '🔔', tr('Controlla l\'orario prima della prima campanella', 'Check the timetable before the first bell'), 'beforeBell', 1, 15, schoolDay: true),
+  MissionDef('d_last', '🏁', tr('Apri l\'app durante l\'ultima ora', 'Open the app during the last period'), 'lastHourOpens', 1, 15, schoolDay: true),
+  MissionDef('d_sessions3', '🔁', tr('Apri l\'app 3 volte oggi', 'Open the app 3 times today'), 'sessions', 3, 10),
+  MissionDef('d_settings', '⚙️', tr('Dai un\'occhiata alle impostazioni', 'Take a look at the settings'), 'settingsOpens', 1, 10),
+  const MissionDef('d_theme', '🎨', 'Cambia tema', 'themeChanges', 1, 10),
+  MissionDef('d_grade', '📊', tr('Segna un voto', 'Add a grade'), 'gradesAdded', 1, 15),
+  const MissionDef('d_bag', '🎒', 'Spunta qualcosa nello zaino', 'bagTicks', 1, 10),
+  MissionDef('d_photo', '📸', tr('Fotografa la lavagna', 'Take a photo of the board'), 'photosAdded', 1, 15, notOnWeb: true),
+  MissionDef('d_countdown', '⏳', tr('Aggiungi un conto alla rovescia', 'Add a countdown'), 'countdowns', 1, 10),
+  MissionDef('d_teacher', '👩‍🏫', tr('Salva un\'informazione su un prof', 'Save some info about a teacher'), 'teachers', 1, 10),
 ];
 
-const weeklyMissions = <MissionDef>[
-  MissionDef('w_days5', '📅', 'Apri l\'app in 5 giorni diversi', 'days', 5, 75),
-  MissionDef('w_study120', '⏱️', 'Studia 2 ore con il timer', 'studied', 120, 100),
-  MissionDef('w_done5', '🏆', 'Segna 5 compiti come fatti', 'agendaDone', 5, 60),
-  MissionDef('w_grades3', '🗃️', 'Segna 3 voti', 'gradesAdded', 3, 60),
-  MissionDef('w_views30', '🔭', 'Apri 30 orari', 'views', 30, 50),
-  MissionDef('w_prof15', '🕵️', 'Apri 15 volte orari di prof', 'profViews', 15, 50),
-  MissionDef('w_dailies10', '🎯', 'Completa 10 missioni giornaliere', 'missionsDone', 10, 100),
-  MissionDef('w_break3', '🥤', 'Apri l\'app in 3 ricreazioni', 'breakOpens', 3, 60),
+List<MissionDef> get weeklyMissions => <MissionDef>[
+  MissionDef('w_days5', '📅', tr('Apri l\'app in 5 giorni diversi', 'Open the app on 5 different days'), 'days', 5, 75),
+  MissionDef('w_study120', '⏱️', tr('Studia 2 ore con il timer', 'Study 2 hours with the timer'), 'studied', 120, 100),
+  MissionDef('w_done5', '🏆', tr('Segna 5 compiti come fatti', 'Mark 5 homework as done'), 'agendaDone', 5, 60),
+  MissionDef('w_grades3', '🗃️', tr('Segna 3 voti', 'Add 3 grades'), 'gradesAdded', 3, 60),
+  MissionDef('w_views30', '🔭', tr('Apri 30 orari', 'Open 30 timetables'), 'views', 30, 50),
+  MissionDef('w_prof15', '🕵️', tr('Apri 15 volte orari di prof', 'Open teachers\' timetables 15 times'), 'profViews', 15, 50),
+  MissionDef('w_dailies10', '🎯', tr('Completa 10 missioni giornaliere', 'Complete 10 daily missions'), 'missionsDone', 10, 100),
+  MissionDef('w_break3', '🥤', tr('Apri l\'app in 3 ricreazioni', 'Open the app during 3 breaks'), 'breakOpens', 3, 60),
 ];
 
 /// Bonus quando si completano tutte e 3.

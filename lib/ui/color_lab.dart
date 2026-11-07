@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../log.dart';
 import '../store.dart';
 import 'theme.dart';
+import '../i18n.dart';
 
 // ---------------------------------------------------------------------------
 // Easter egg: troppi menu dei colori
@@ -78,18 +79,18 @@ class _ZeroCustomizationState extends State<_ZeroCustomization> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'È la terza volta che apri un menù per un colore, quindi ora ti guardi '
-                    '30 secondi di assolutamente zero personalizzazione. E questo scritto nero su bianco.',
+                  Text(
+                    tr('È la terza volta che apri un menù per un colore, quindi ora ti guardi '
+                    '30 secondi di assolutamente zero personalizzazione. E questo scritto nero su bianco.', 'It\'s the third time you open a menu for a color, so now you get 30 seconds of absolutely zero customization. And that\'s in black and white.'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: black, fontSize: 22, fontWeight: FontWeight.w700, height: 1.3),
+                    style: const TextStyle(color: black, fontSize: 22, fontWeight: FontWeight.w700, height: 1.3),
                   ),
                   const SizedBox(height: 32),
                   Text(
                     '$_left',
                     style: const TextStyle(color: black, fontSize: 56, fontWeight: FontWeight.w700),
                   ),
-                  const Text('secondi', style: TextStyle(color: black, fontSize: 16)),
+                  Text(tr('secondi', 'seconds'), style: const TextStyle(color: black, fontSize: 16)),
                 ],
               ),
             ),
@@ -225,8 +226,8 @@ class _ColorDialogState extends State<_ColorDialog> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Ricetta: ${drops(_r(_c))} gocce di rosso, ${drops(_g(_c))} di verde e ${drops(_b(_c))} di blu '
-                'da ½ ml, su tela di cotone bianco puro 🧵',
+                tr('Ricetta: ${drops(_r(_c))} gocce di rosso, ${drops(_g(_c))} di verde e ${drops(_b(_c))} di blu '
+                'da ½ ml, su tela di cotone bianco puro 🧵', 'Recipe: ${drops(_r(_c))} drops of red, ${drops(_g(_c))} of green and ${drops(_b(_c))} of blue of ½ ml, on pure white cotton canvas 🧵'),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
               ),
               const SizedBox(height: 14),
@@ -247,7 +248,7 @@ class _ColorDialogState extends State<_ColorDialog> {
                     child: TextField(
                       controller: _dec,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Decimale', isDense: true),
+                      decoration: InputDecoration(labelText: tr('Decimale', 'Decimal'), isDense: true),
                       onChanged: (v) {
                         final c = _parseDecimal(v);
                         if (c != null) _set(c, fromDec: true);
@@ -281,8 +282,8 @@ class _ColorDialogState extends State<_ColorDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla')),
-        FilledButton(onPressed: () => Navigator.pop(context, _c), child: const Text('Usa')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annulla', 'Cancel'))),
+        FilledButton(onPressed: () => Navigator.pop(context, _c), child: Text(tr('Usa', 'Use'))),
       ],
     );
   }
@@ -352,7 +353,7 @@ class _ThemeLabPageState extends State<ThemeLabPage> {
       card: _card?.toARGB32(),
       nav: _nav?.toARGB32(),
     );
-    messenger.showSnackBar(const SnackBar(content: Text('Tema salvato e attivato')));
+    messenger.showSnackBar(SnackBar(content: Text(tr('Tema salvato e attivato', 'Theme saved and applied'))));
   }
 
   void _copyCode() {
@@ -363,7 +364,7 @@ class _ThemeLabPageState extends State<ThemeLabPage> {
         "  background: ${c(_bg)}, card: ${c(_card)}, nav: ${c(_nav)},\n"
         "),";
     Clipboard.setData(ClipboardData(text: code));
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Codice del tema copiato')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Codice del tema copiato', 'Theme code copied'))));
   }
 
   @override
@@ -391,7 +392,7 @@ class _ThemeLabPageState extends State<ThemeLabPage> {
         ),
         trailing: canAuto && !auto
             ? IconButton(
-                tooltip: 'Torna automatico',
+                tooltip: tr('Torna automatico', 'Back to automatic'),
                 onPressed: () => setState(() => apply(null)),
                 icon: const Icon(Icons.auto_fix_high_rounded),
               )
@@ -405,11 +406,11 @@ class _ThemeLabPageState extends State<ThemeLabPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Laboratorio colori'),
+        title: Text(tr('Laboratorio colori', 'Color lab')),
         actions: [
-          IconButton(tooltip: 'Copia come codice', onPressed: _copyCode, icon: const Icon(Icons.code_rounded)),
+          IconButton(tooltip: tr('Copia come codice', 'Copy as code'), onPressed: _copyCode, icon: const Icon(Icons.code_rounded)),
           const SizedBox(width: 4),
-          FilledButton(onPressed: _save, child: const Text('Salva')),
+          FilledButton(onPressed: _save, child: Text(tr('Salva', 'Save'))),
           const SizedBox(width: 12),
         ],
       ),
@@ -432,26 +433,26 @@ class _ThemeLabPageState extends State<ThemeLabPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('Anteprima', style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w700, fontSize: 18)),
+                      Text(tr('Anteprima', 'Preview'), style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w700, fontSize: 18)),
                       const SizedBox(height: 10),
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(18)),
-                        child: Text('ADESSO · Matematica',
+                        child: Text(tr('ADESSO · Matematica', 'NOW · Maths'),
                             style: TextStyle(color: scheme.onPrimary, fontWeight: FontWeight.w700)),
                       ),
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(color: pal.card, borderRadius: BorderRadius.circular(18)),
-                        child: Text('Card · Informatica 💻', style: TextStyle(color: scheme.onSurface)),
+                        child: Text(tr('Card · Informatica 💻', 'Card · Computer science 💻'), style: TextStyle(color: scheme.onSurface)),
                       ),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
                         children: [
-                          FilledButton(onPressed: () {}, child: const Text('Bottone')),
-                          OutlinedButton(onPressed: () {}, child: const Text('Secondario')),
+                          FilledButton(onPressed: () {}, child: Text(tr('Bottone', 'Button'))),
+                          OutlinedButton(onPressed: () {}, child: Text(tr('Secondario', 'Secondary'))),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -478,23 +479,23 @@ class _ThemeLabPageState extends State<ThemeLabPage> {
               ),
               const SizedBox(height: 12),
               SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'system', label: Text('Automatico')),
-                  ButtonSegment(value: 'light', label: Text('Chiaro')),
-                  ButtonSegment(value: 'dark', label: Text('Scuro')),
+                segments: [
+                  ButtonSegment(value: 'system', label: Text(tr('Automatico', 'Automatic'))),
+                  ButtonSegment(value: 'light', label: Text(tr('Chiaro', 'Light'))),
+                  ButtonSegment(value: 'dark', label: Text(tr('Scuro', 'Dark'))),
                 ],
                 selected: {_mode},
                 onSelectionChanged: (s) => setState(() => _mode = s.first),
               ),
               const SizedBox(height: 8),
-              row('Accento', 'dal tema', _seed, false, (c) => _seed = c ?? _seed, canAuto: false),
-              row('Sfondo', 'dal tema', pal.background, _bg == null, (c) => _bg = c),
-              row('Card', 'dal tema', pal.card, _card == null, (c) => _card = c),
-              row('Barra in basso', 'dal tema', pal.nav, _nav == null, (c) => _nav = c),
+              row(tr('Accento', 'Accent'), tr('dal tema', 'from theme'), _seed, false, (c) => _seed = c ?? _seed, canAuto: false),
+              row(tr('Sfondo', 'Background'), tr('dal tema', 'from theme'), pal.background, _bg == null, (c) => _bg = c),
+              row('Card', tr('dal tema', 'from theme'), pal.card, _card == null, (c) => _card = c),
+              row(tr('Barra in basso', 'Bottom bar'), tr('dal tema', 'from theme'), pal.nav, _nav == null, (c) => _nav = c),
               const SizedBox(height: 8),
               Text(
-                'Tocca un colore per scriverlo in HEX, RGB, decimale o tonalità/saturazione/luminosità. '
-                '"Salva" lo applica come "Il tuo tema".',
+                tr('Tocca un colore per scriverlo in HEX, RGB, decimale o tonalità/saturazione/luminosità. '
+                '"Salva" lo applica come "Il tuo tema".', 'Tap a color to write it in HEX, RGB, decimal or hue/saturation/lightness. "Save" applies it as "Your theme".'),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ],
@@ -535,7 +536,7 @@ Future<bool> applyThemeCode(AppStore store, String code) async {
     final mode = m['m'] as String? ?? 'system';
     if (!const ['system', 'light', 'dark'].contains(mode)) return false;
     await store.setCustomTheme(
-      name: m['n'] as String? ?? 'Tema condiviso',
+      name: m['n'] as String? ?? tr('Tema condiviso', 'Shared theme'),
       seed: seed,
       mode: mode,
       oled: m['o'] == true,
@@ -555,25 +556,25 @@ Future<void> shareThemeDialog(BuildContext context) {
   return showDialog<void>(
     context: context,
     builder: (c) => AlertDialog(
-      title: const Text('Condividi il tuo tema'),
+      title: Text(tr('Condividi il tuo tema', 'Share your theme')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Manda questo codice a un compagno: lo incolla in Temi → Importa tema.'),
+          Text(tr('Manda questo codice a un compagno: lo incolla in Temi → Importa tema.', 'Send this code to a classmate: they paste it in Themes → Import theme.')),
           const SizedBox(height: 12),
           SelectableText(code, style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5)),
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Chiudi')),
+        TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Chiudi', 'Close'))),
         FilledButton.icon(
           icon: const Icon(Icons.copy_rounded),
-          label: const Text('Copia'),
+          label: Text(tr('Copia', 'Copy')),
           onPressed: () {
             Clipboard.setData(ClipboardData(text: code));
             Navigator.pop(c);
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Codice copiato')));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Codice copiato', 'Code copied'))));
           },
         ),
       ],
@@ -588,17 +589,17 @@ Future<void> importThemeDialog(BuildContext context) async {
   final code = await showDialog<String>(
     context: context,
     builder: (c) => AlertDialog(
-      title: const Text('Importa un tema'),
+      title: Text(tr('Importa un tema', 'Import a theme')),
       content: TextField(
         controller: ctrl,
         autofocus: true,
         minLines: 1,
         maxLines: 4,
-        decoration: const InputDecoration(hintText: 'Incolla il codice (EL1-…)'),
+        decoration: InputDecoration(hintText: tr('Incolla il codice (EL1-…)', 'Paste the code (EL1-…)')),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annulla')),
-        FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: const Text('Importa')),
+        TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annulla', 'Cancel'))),
+        FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: Text(tr('Importa', 'Import'))),
       ],
     ),
   );
@@ -606,6 +607,6 @@ Future<void> importThemeDialog(BuildContext context) async {
   if (code == null || code.trim().isEmpty) return;
   final ok = await applyThemeCode(store, code);
   messenger.showSnackBar(SnackBar(
-    content: Text(ok ? 'Tema importato e attivato 🎨' : 'Codice non valido'),
+    content: Text(ok ? tr('Tema importato e attivato 🎨', 'Theme imported and applied 🎨') : tr('Codice non valido', 'Invalid code')),
   ));
 }

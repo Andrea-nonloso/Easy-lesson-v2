@@ -7,6 +7,7 @@ import 'log.dart';
 import 'missions.dart';
 import 'progress.dart' show isoDay;
 import 'store.dart';
+import 'i18n.dart';
 
 /// Valore attuale di una metrica delle missioni (sempre crescente, o quasi).
 int missionMetric(AppStore s, String metric) => switch (metric) {
@@ -164,7 +165,7 @@ class Missions {
         await s.setOpt('$p.bonus', true);
         await s.setOpt('stat.missionXp', s.stat('missionXp') + bonus);
         await s.bump(weekly ? 'weeklyFull' : 'dailyFull');
-        out.add(weekly ? '🌟 Settimana perfetta! +$bonus XP' : '⭐ Tutte le missioni di oggi! +$bonus XP');
+        out.add(weekly ? tr('🌟 Settimana perfetta! +$bonus XP', '🌟 Perfect week! +$bonus XP') : tr('⭐ Tutte le missioni di oggi! +$bonus XP', '⭐ All of today\'s missions! +$bonus XP'));
       }
     }
     return out;

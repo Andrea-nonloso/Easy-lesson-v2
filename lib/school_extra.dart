@@ -1,6 +1,7 @@
 import 'agenda.dart';
 import 'models.dart';
 import 'school_life.dart';
+import 'i18n.dart';
 
 /// 2.6: orario cambiato, piano di studio, periodi e pagella, crediti, prof,
 /// materiale e promemoria settimanali, conti alla rovescia. Dart puro (testato).
@@ -37,11 +38,11 @@ List<String> scheduleDiff(WeekSchedule before, WeekSchedule after) {
         final tx = x == null || x.rawLines.length < 2 ? '' : x.rawLines[1];
         final ty = y == null || y.rawLines.length < 2 ? '' : y.rawLines[1];
         if (tx != ty && tx.isNotEmpty && ty.isNotEmpty) {
-          out.add('${d < dayNames.length ? dayNames[d] : 'Giorno ${d + 1}'} ${h + 1}ª ora ($wx): $tx → $ty');
+          out.add('${d < dayNames.length ? dayNames[d] : '${tr('Giorno', 'Day')} ${d + 1}'} ${tr('${h + 1}ª ora', 'period ${h + 1}')} ($wx): $tx → $ty');
         }
         continue;
       }
-      out.add('${d < dayNames.length ? dayNames[d] : 'Giorno ${d + 1}'} ${h + 1}ª ora: $wx → $wy');
+      out.add('${d < dayNames.length ? dayNames[d] : '${tr('Giorno', 'Day')} ${d + 1}'} ${tr('${h + 1}ª ora', 'period ${h + 1}')}: $wx → $wy');
     }
   }
   return out;

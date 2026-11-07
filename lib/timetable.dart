@@ -1,4 +1,5 @@
 import 'models.dart';
+import 'i18n.dart';
 
 /// Sezioni del file Excel della scuola.
 enum Section { docenti, sostegno, laboratori }
@@ -79,7 +80,7 @@ class Timetable {
       if (grid[i].where((v) => _dayIndex(v) != null).length >= 2) header = i;
     }
     if (header < 0 || header + 1 >= grid.length) {
-      throw const FormatException('Non trovo la riga dei giorni (Lunedì, Martedì…) nel file Excel');
+      throw FormatException(tr('Non trovo la riga dei giorni (Lunedì, Martedì…) nel file Excel', 'Can\'t find the row of days (Monday, Tuesday…) in the Excel file'));
     }
     final dayRow = grid[header];
     final romanRow = grid[header + 1];
@@ -99,7 +100,7 @@ class Timetable {
       }
     }
     if (colDay.isEmpty) {
-      throw const FormatException('Non trovo le ore (I, II, III…) sotto i giorni nel file Excel');
+      throw FormatException(tr('Non trovo le ore (I, II, III…) sotto i giorni nel file Excel', 'Can\'t find the periods (I, II, III…) under the days in the Excel file'));
     }
 
     final entries = <TimetableEntry>[];
@@ -121,7 +122,7 @@ class Timetable {
         entries.add(TimetableEntry(section, name, colDay[c]!, colHour[c]!, v));
       }
     }
-    if (entries.isEmpty) throw const FormatException('Il file Excel non contiene lezioni');
+    if (entries.isEmpty) throw FormatException(tr('Il file Excel non contiene lezioni', 'The Excel file contains no lessons'));
 
     final days = colDay.values.reduce((a, b) => a > b ? a : b) + 1;
     final hours = colHour.values.reduce((a, b) => a > b ? a : b) + 1;
@@ -292,6 +293,6 @@ class Timetable {
       (t) => !(teacherCode(t)?.startsWith('B') ?? false),
       orElse: () => teachers.first,
     );
-    return teacherSubject(main) ?? 'Lezione';
+    return teacherSubject(main) ?? tr('Lezione', 'Lesson');
   }
 }

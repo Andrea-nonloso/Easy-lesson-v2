@@ -7,6 +7,7 @@ import 'schedule_screen.dart';
 import 'settings_sheet.dart';
 import 'theme.dart';
 import 'widgets.dart';
+import '../i18n.dart';
 
 void openSchedule(BuildContext context, ScheduleRef ref) {
   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ScheduleScreen(ref: ref)));
@@ -55,10 +56,10 @@ class _SearchPageState extends State<SearchPage> {
       } else {
         content = EmptyState(
           icon: Icons.wifi_off_rounded,
-          title: 'Elenchi non disponibili',
+          title: tr('Elenchi non disponibili', 'Lists not available'),
           message: store.listsError != null
-              ? '${store.listsError}. Serve la connessione la prima volta.'
-              : 'Nessun elemento trovato.',
+              ? tr('${store.listsError}. Serve la connessione la prima volta.', '${store.listsError}. A connection is needed the first time.')
+              : tr('Nessun elemento trovato.', 'Nothing found.'),
           action: Wrap(
             alignment: WrapAlignment.center,
             spacing: 12,
@@ -67,12 +68,12 @@ class _SearchPageState extends State<SearchPage> {
               FilledButton.icon(
                 onPressed: () => store.refreshLists(),
                 icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Riprova'),
+                label: Text(tr('Riprova', 'Try again')),
               ),
               OutlinedButton.icon(
                 onPressed: () => pickAndImportExcel(context),
                 icon: const Icon(Icons.upload_file_rounded),
-                label: const Text('Importa orario Excel'),
+                label: Text(tr('Importa orario Excel', 'Import Excel timetable')),
               ),
             ],
           ),
@@ -81,10 +82,10 @@ class _SearchPageState extends State<SearchPage> {
     } else if (results.isEmpty) {
       content = EmptyState(
         icon: Icons.search_off_rounded,
-        title: 'Nessun risultato',
+        title: tr('Nessun risultato', 'No results'),
         message: bySubject
-            ? 'Nessuna materia corrisponde a "$_q".'
-            : 'Nessun${_prof ? ' docente' : 'a classe'} corrisponde a "$_q".',
+            ? tr('Nessuna materia corrisponde a "$_q".', 'No subject matches "$_q".')
+            : _prof ? tr('Nessun docente corrisponde a "$_q".', 'No teacher matches "$_q".') : tr('Nessuna classe corrisponde a "$_q".', 'No class matches "$_q".'),
       );
     } else {
       content = _prof
@@ -98,11 +99,11 @@ class _SearchPageState extends State<SearchPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cerca orario'),
+        title: Text(tr('Cerca orario', 'Search timetable')),
         actions: [
           AppMenuButton(items: [
-            AppMenuItem(Icons.sync_rounded, 'Aggiorna elenchi', () => store.refreshLists()),
-            AppMenuItem(Icons.upload_file_rounded, 'Importa file Excel', () => pickAndImportExcel(context)),
+            AppMenuItem(Icons.sync_rounded, tr('Aggiorna elenchi', 'Update lists'), () => store.refreshLists()),
+            AppMenuItem(Icons.upload_file_rounded, tr('Importa file Excel', 'Import Excel file'), () => pickAndImportExcel(context)),
           ]),
           const SizedBox(width: 4),
         ],
@@ -118,9 +119,9 @@ class _SearchPageState extends State<SearchPage> {
                   width: double.infinity,
                   child: SegmentedButton<bool>(
                     showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment(value: false, icon: Icon(Icons.groups_outlined), label: Text('Classi')),
-                      ButtonSegment(value: true, icon: Icon(Icons.person_outline_rounded), label: Text('Docenti')),
+                    segments: [
+                      ButtonSegment(value: false, icon: const Icon(Icons.groups_outlined), label: Text(tr('Classi', 'Classes'))),
+                      ButtonSegment(value: true, icon: const Icon(Icons.person_outline_rounded), label: Text(tr('Docenti', 'Teachers'))),
                     ],
                     selected: {_prof},
                     onSelectionChanged: (s) => setState(() => _prof = s.first),
@@ -133,13 +134,13 @@ class _SearchPageState extends State<SearchPage> {
                   child: Row(
                     children: [
                       Text(
-                        'Cerca per',
+                        tr('Cerca per', 'Search by'),
                         style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                       ),
                       const SizedBox(width: 10),
                       ChoiceChip(
                         avatar: const Icon(Icons.badge_outlined, size: 18),
-                        label: const Text('Nome'),
+                        label: Text(tr('Nome', 'Name')),
                         selected: !_bySubject,
                         showCheckmark: false,
                         onSelected: (_) => setState(() => _bySubject = false),
@@ -147,7 +148,7 @@ class _SearchPageState extends State<SearchPage> {
                       const SizedBox(width: 8),
                       ChoiceChip(
                         avatar: const Icon(Icons.menu_book_outlined, size: 18),
-                        label: const Text('Materia'),
+                        label: Text(tr('Materia', 'Subject')),
                         selected: _bySubject,
                         showCheckmark: false,
                         onSelected: (_) => setState(() => _bySubject = true),
@@ -166,13 +167,13 @@ class _SearchPageState extends State<SearchPage> {
                   autocorrect: false,
                   decoration: InputDecoration(
                     hintText: !_prof
-                        ? 'Cerca una classe, es. 3A'
-                        : (_bySubject ? 'Cerca una materia, es. Matematica' : 'Cerca un docente…'),
+                        ? tr('Cerca una classe, es. 3A', 'Search for a class, e.g. 3A')
+                        : (_bySubject ? tr('Cerca una materia, es. Matematica', 'Search for a subject, e.g. Maths') : tr('Cerca un docente…', 'Search for a teacher…')),
                     prefixIcon: const Icon(Icons.search_rounded),
                     suffixIcon: _q.isEmpty
                         ? null
                         : IconButton(
-                            tooltip: 'Cancella',
+                            tooltip: tr('Cancella', 'Delete'),
                             icon: const Icon(Icons.close_rounded),
                             onPressed: () {
                               _ctrl.clear();
@@ -213,7 +214,7 @@ class _SearchPageState extends State<SearchPage> {
                   child: Text(
                     store.usingExcel
                         ? 'Dal file ${store.excelName ?? 'Excel'}'
-                        : 'Elenchi aggiornati ${relativeTime(store.listsUpdatedAt!)}',
+                        : '${tr('Elenchi aggiornati', 'Lists updated')} ${relativeTime(store.listsUpdatedAt!)}',
                     style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
                 ),
@@ -236,14 +237,14 @@ class _ClassGrid extends StatelessWidget {
     final groups = <String, List<String>>{};
     for (final n in names) {
       final y = RegExp(r'^\d+').firstMatch(n.trim())?.group(0);
-      groups.putIfAbsent(y == null ? 'Altre' : '$yª', () => []).add(n);
+      groups.putIfAbsent(y == null ? '' : '$yª', () => []).add(n);
     }
     final theme = Theme.of(context);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       children: [
         for (final e in groups.entries) ...[
-          SectionLabel(e.key == 'Altre' ? 'Altre' : 'Classi ${e.key}'),
+          SectionLabel(e.key.isEmpty ? tr('Altre', 'Others') : '${tr('Classi', 'Classes')} ${e.key}'),
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -298,7 +299,7 @@ class _TeacherList extends StatelessWidget {
     final scheme = theme.colorScheme;
     // Lista piatta con intestazioni (iniziale del cognome oppure materia).
     String group(String n) {
-      if (bySubject) return teacherSubject(n) ?? 'Sostegno e altri';
+      if (bySubject) return teacherSubject(n) ?? tr('Sostegno e altri', 'Support and others');
       final label = teacherLabel(n);
       return label.isEmpty ? '#' : label[0].toUpperCase();
     }

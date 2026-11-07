@@ -11,18 +11,20 @@ import '../shop.dart';
 import '../store.dart';
 import 'achievements_extra.dart';
 import 'missions_page.dart' show openMissions;
+import '../i18n.dart';
+import 'achievements_en.dart';
 
 /// Categorie degli obiettivi (per la pagina e i filtri).
-const achievementCategories = [
-  ('inizio', '🚀', 'Primi passi'),
-  ('missioni', '🚩', 'Missioni'),
-  ('costanza', '🔥', 'Costanza'),
-  ('orario', '🔭', 'Orario'),
-  ('organizza', '🗂️', 'Organizzazione'),
-  ('studio', '📚', 'Studio e voti'),
-  ('stile', '🎨', 'Stile e collezione'),
-  ('classe', '👥', 'Classe e amici'),
-  ('segreti', '🤫', 'Segreti'),
+List<(String, String, String)> get achievementCategories => [
+  ('inizio', '🚀', tr('Primi passi', 'First steps')),
+  ('missioni', '🚩', tr('Missioni', 'Missions')),
+  ('costanza', '🔥', tr('Costanza', 'Consistency')),
+  ('orario', '🔭', tr('Orario', 'Timetable')),
+  ('organizza', '🗂️', tr('Organizzazione', 'Organization')),
+  ('studio', '📚', tr('Studio e voti', 'Study and grades')),
+  ('stile', '🎨', tr('Stile e collezione', 'Style and collection')),
+  ('classe', '👥', tr('Classe e amici', 'Class and friends')),
+  ('segreti', '🤫', tr('Segreti', 'Secrets')),
 ];
 
 /// Obiettivi e medaglie. Si sbloccano da soli guardando cosa c'è nello store.
@@ -32,8 +34,8 @@ class Achievement {
   const Achievement(
     this.id,
     this.emoji,
-    this.title,
-    this.how,
+    this.titleIt,
+    this.howIt,
     this.check, {
     this.tier = Tier.bronze,
     this.category = 'inizio',
@@ -43,8 +45,12 @@ class Achievement {
   });
   final String id;
   final String emoji;
-  final String title;
-  final String how;
+  final String titleIt;
+  final String howIt;
+
+  /// Titolo e come si sblocca nella lingua dell'app (inglese: achievements_en.dart).
+  String get title => appEnglish ? (achievementsEn[id]?.$1 ?? titleIt) : titleIt;
+  String get how => appEnglish ? (achievementsEn[id]?.$2 ?? howIt) : howIt;
   final bool Function(AppStore s) check;
   final Tier tier;
   final String category;
@@ -536,7 +542,7 @@ Future<void> checkAchievements(BuildContext context) async {
   if (missionMsgs.isNotEmpty && context.mounted) {
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
       content: Text(missionMsgs.join('\n')),
-      action: SnackBarAction(label: 'Missioni', onPressed: () => openMissions(context)),
+      action: SnackBarAction(label: tr('Missioni', 'Missions'), onPressed: () => openMissions(context)),
     ));
   }
   final done = unlockedIds(store);
@@ -561,22 +567,22 @@ Future<void> checkAchievements(BuildContext context) async {
   final shownAfter = revealLimit(unlockedCount(store));
   if (shownAfter > shownBefore) {
     messenger?.showSnackBar(SnackBar(
-      content: Text('👀 Nuovi obiettivi da scoprire: ora ne vedi $shownAfter'),
-      action: SnackBarAction(label: 'Vedi', onPressed: () => openAchievements(context)),
+      content: Text(tr('👀 Nuovi obiettivi da scoprire: ora ne vedi $shownAfter', '👀 New achievements to discover: now you see $shownAfter')),
+      action: SnackBarAction(label: tr('Vedi', 'See'), onPressed: () => openAchievements(context)),
     ));
   }
   // Al primo avvio non si festeggia "Benvenuto" sopra a tutto il resto.
   final show = fresh.where((a) => a.id != 'first').toList();
   if (show.length > 2) {
     messenger?.showSnackBar(SnackBar(
-      content: Text('🏆 ${show.length} obiettivi sbloccati · +${show.fold(0, (a, b) => a + b.tier.xp)} XP'),
-      action: SnackBarAction(label: 'Vedi', onPressed: () => openAchievements(context)),
+      content: Text(tr('🏆 ${show.length} obiettivi sbloccati · +${show.fold(0, (a, b) => a + b.tier.xp)} XP', '🏆 ${show.length} achievements unlocked · +${show.fold(0, (a, b) => a + b.tier.xp)} XP')),
+      action: SnackBarAction(label: tr('Vedi', 'See'), onPressed: () => openAchievements(context)),
     ));
   } else {
     for (final a in show) {
       messenger?.showSnackBar(SnackBar(
         content: Text('${a.emoji} ${a.title} · +${a.tier.xp} XP'),
-        action: SnackBarAction(label: 'Vedi', onPressed: () => openAchievements(context)),
+        action: SnackBarAction(label: tr('Vedi', 'See'), onPressed: () => openAchievements(context)),
       ));
     }
   }
@@ -589,13 +595,13 @@ Future<void> showLevelUp(BuildContext context, int level) => showDialog<void>(
       context: context,
       builder: (c) => AlertDialog(
         icon: LevelBadge(level: level, size: 72),
-        title: Text('Livello $level!'),
+        title: Text(tr('Livello $level!', 'Level $level!')),
         content: Text(
           'Ora sei "${levelTitle(level)}".\n\n'
           '${level % 5 == 0 ? '🎁 Hai sbloccato una ricompensa: guardala in Profilo → Ricompense.' : 'Prossima ricompensa al livello ${(level ~/ 5 + 1) * 5}.'}',
           textAlign: TextAlign.center,
         ),
-        actions: [FilledButton(onPressed: () => Navigator.pop(c), child: const Text('Grande!'))],
+        actions: [FilledButton(onPressed: () => Navigator.pop(c), child: Text(tr('Grande!', 'Great!')))],
       ),
     );
 
@@ -694,7 +700,7 @@ class LevelCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Livello ${lv.level} · ${shopItem(Shop.equipped(store, 'title') ?? '')?.name ?? lv.title}',
+                    Text('${tr('Livello', 'Level')} ${lv.level} · ${shopItem(Shop.equipped(store, 'title') ?? '')?.name ?? lv.title}',
                         style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 6),
                     ClipRRect(
@@ -703,7 +709,7 @@ class LevelCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${lv.inLevel}/${lv.needed} XP · ${unlockedCount(store)}/${visibleCount(store)} obiettivi'
+                      '${lv.inLevel}/${lv.needed} XP · ${unlockedCount(store)}/${visibleCount(store)} ${tr('obiettivi', 'achievements')}'
                       '${store.accountCode == null ? '' : ' · ☁️'}',
                       style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                     ),
@@ -747,10 +753,10 @@ class _AchievementsPageState extends State<AchievementsPage> {
     ]..sort((a, b) => (done.contains(a.id) ? 0 : 1).compareTo(done.contains(b.id) ? 0 : 1));
     return Scaffold(
       appBar: AppBar(
-        title: Text('Obiettivi · $unlocked/${visible.length}'),
+        title: Text(tr('Obiettivi · $unlocked/${visible.length}', 'Achievements · $unlocked/${visible.length}')),
         actions: [
           IconButton(
-            tooltip: _onlyLocked ? 'Mostra tutti' : 'Solo da sbloccare',
+            tooltip: _onlyLocked ? tr('Mostra tutti', 'Show all') : tr('Solo da sbloccare', 'Only locked'),
             onPressed: () => setState(() => _onlyLocked = !_onlyLocked),
             icon: Icon(_onlyLocked ? Icons.lock_rounded : Icons.lock_open_rounded),
           ),
@@ -773,8 +779,8 @@ class _AchievementsPageState extends State<AchievementsPage> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
-                    '🔓 Sbloccane ancora $missing per scoprire altri '
-                    '${revealLimit(unlocked + missing) - visible.length} obiettivi',
+                    tr('🔓 Sbloccane ancora $missing per scoprire altri ${revealLimit(unlocked + missing) - visible.length} obiettivi',
+                        '🔓 Unlock $missing more to discover ${revealLimit(unlocked + missing) - visible.length} other achievements'),
                     style: TextStyle(color: scheme.onSecondaryContainer, fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -790,7 +796,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
                   Padding(
                     padding: const EdgeInsets.only(right: 6),
                     child: ChoiceChip(
-                      label: const Text('Tutti'),
+                      label: Text(tr('Tutti', 'All')),
                       selected: _category == null,
                       onSelected: (_) => setState(() => _category = null),
                     ),
@@ -866,11 +872,11 @@ class _AchievementCard extends StatelessWidget {
               child: Text(unlocked ? a.emoji : (hidden ? '❓' : '🔒'), style: const TextStyle(fontSize: 36)),
             ),
             const SizedBox(height: 6),
-            Text(hidden ? 'Segreto' : a.title,
+            Text(hidden ? tr('Segreto', 'Secret') : a.title,
                 textAlign: TextAlign.center, maxLines: 2, style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             Text(
-              hidden ? 'Scoprilo da solo…' : a.how,
+              hidden ? tr('Scoprilo da solo…', 'Find it out yourself…') : a.how,
               textAlign: TextAlign.center,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
@@ -929,20 +935,20 @@ String? easterMessage(AppStore s, DateTime now) {
   final y = s.calendar.yearOf(now);
   final today = dateOnly(now);
   if (now.hour < 5) {
-    return '🦉 Sono le ${TimeSlot.fmt(now.hour * 60 + now.minute)}… che ci fai sveglio? Domani hai scuola, vai a dormire!';
+    return tr('🦉 Sono le ${TimeSlot.fmt(now.hour * 60 + now.minute)}… che ci fai sveglio? Domani hai scuola, vai a dormire!', '🦉 It\'s ${TimeSlot.fmt(now.hour * 60 + now.minute)}… what are you doing up? You have school tomorrow, go to sleep!');
   }
   if (y != null && today == dateOnly(y.end)) return '🏖️ ULTIMO GIORNO DI SCUOLA! Ce l\'hai fatta, buone vacanze! 🎉';
-  if (y != null && today == dateOnly(y.start)) return '🎒 Primo giorno di scuola: si ricomincia! Forza 💪';
+  if (y != null && today == dateOnly(y.start)) return tr('🎒 Primo giorno di scuola: si ricomincia! Forza 💪', '🎒 First day of school: here we go again! Come on 💪');
   if (y != null) {
     final left = daysBetween(today, y.end);
-    if (left > 0 && left <= 10) return '⏳ Mancano $left giorni alla fine della scuola!';
+    if (left > 0 && left <= 10) return tr('⏳ Mancano $left giorni alla fine della scuola!', '⏳ $left days until the end of school!');
   }
-  if (now.month == 12 && now.day == 25) return '🎄 Buon Natale! Oggi niente orario, solo panettone';
-  if (now.month == 1 && now.day == 1) return '🎆 Buon anno! Che sia pieno di 10 (e di ponti)';
+  if (now.month == 12 && now.day == 25) return tr('🎄 Buon Natale! Oggi niente orario, solo panettone', '🎄 Merry Christmas! No timetable today, just panettone');
+  if (now.month == 1 && now.day == 1) return tr('🎆 Buon anno! Che sia pieno di 10 (e di ponti)', '🎆 Happy New Year! May it be full of 10s (and long weekends)');
   if (now.month == 4 && now.day == 1) return '🐟 Oggi la scuola è chiusa per sempre! …pesce d\'aprile';
-  if (now.month == 10 && now.day == 31) return '🎃 Dolcetto o interrogazione?';
-  if (now.weekday == DateTime.friday && now.hour >= 14) return '😎 È venerdì pomeriggio: weekend in arrivo!';
-  if (now.weekday == DateTime.monday && now.hour < 9) return '☕ Lunedì mattina. Coraggio.';
+  if (now.month == 10 && now.day == 31) return tr('🎃 Dolcetto o interrogazione?', '🎃 Trick or quiz?');
+  if (now.weekday == DateTime.friday && now.hour >= 14) return tr('😎 È venerdì pomeriggio: weekend in arrivo!', '😎 It\'s Friday afternoon: the weekend is coming!');
+  if (now.weekday == DateTime.monday && now.hour < 9) return tr('☕ Lunedì mattina. Coraggio.', '☕ Monday morning. Be brave.');
   return null;
 }
 

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../announcements.dart';
 import '../cloud.dart';
 import '../i18n.dart';
+import '../live.dart';
 import '../mission_engine.dart';
 import '../native.dart';
 import '../social.dart';
@@ -60,7 +61,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   }
 
   static List<({IconData icon, IconData selected, String label})> get _destinations => [
-        (icon: Icons.home_outlined, selected: Icons.home_rounded, label: 'Home'),
+        (icon: Icons.home_outlined, selected: Icons.home_rounded, label: tr('Home', 'Home')),
         (icon: Icons.today_outlined, selected: Icons.today_rounded, label: tr('Orario', 'Timetable')),
         (icon: Icons.people_outline_rounded, selected: Icons.people_rounded, label: tr('Amici', 'Friends')),
         (icon: Icons.account_circle_outlined, selected: Icons.account_circle_rounded, label: tr('Profilo', 'Profile')),
@@ -109,6 +110,9 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       });
       NativeBridge.scheduleSync(store);
       DesktopBridge.init(store);
+      // Canale in diretta (chat istantanee, pallini, "sta scrivendo"): solo con l'account.
+      _lastCode = store.accountCode;
+      Live.instance.start(store);
       _checkScheduleChanges();
       _achTimer = Timer(const Duration(seconds: 3), () {
         if (mounted) checkAchievements(context);
@@ -145,9 +149,15 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   }
 
   Timer? _achTimer;
+  String? _lastCode;
 
   void _onStoreChanged() {
     if (_store != null) NativeBridge.scheduleSync(_store!);
+    // Account creato, cambiato o tolto: il canale in diretta riparte con quello nuovo.
+    if (_store != null && _store!.accountCode != _lastCode) {
+      _lastCode = _store!.accountCode;
+      Live.instance.restart();
+    }
     // Sincronizzazione completa: un minuto dopo l'ultimo cambiamento.
     if (_store != null && CloudSync.live(_store!)) CloudSync.schedule(_store!, delay: const Duration(seconds: 60));
     // Obiettivi: si controllano un attimo dopo l'ultimo cambiamento.
@@ -194,8 +204,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     if (info == null || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       duration: const Duration(seconds: 15),
-      content: Text('È disponibile Easy Lesson ${info.version}${info.prerelease ? ' (beta)' : ''}'),
-      action: SnackBarAction(label: 'Aggiorna', onPressed: () => Updater.open(info)),
+      content: Text('${tr('È disponibile Easy Lesson', 'Easy Lesson is available:')} ${info.version}${info.prerelease ? ' (beta)' : ''}'),
+      action: SnackBarAction(label: tr('Aggiorna', 'Update'), onPressed: () => Updater.open(info)),
     ));
   }
 
@@ -206,10 +216,10 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     if (await store.refreshMine()) {
       final list = store.scheduleChanges ?? const [];
       await NativeBridge.notifyNow(
-        'L\'orario è cambiato! 🔄',
+        tr('L\'orario è cambiato! 🔄', 'The timetable has changed! 🔄'),
         list.length == 1 ? list.first : '${list.length} modifiche: ${list.take(3).join(' · ')}',
       );
-      DesktopBridge.notify('L\'orario è cambiato! 🔄', list.take(3).join('\n'));
+      DesktopBridge.notify(tr('L\'orario è cambiato! 🔄', 'The timetable has changed! 🔄'), list.take(3).join('\n'));
     }
   }
 
@@ -294,7 +304,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
                       Opacity(
                         opacity: 0.55,
                         child: IconButton(
-                          tooltip: 'Temi',
+                          tooltip: tr('Temi', 'Themes'),
                           onPressed: () => openThemesPage(context),
                           icon: const Icon(Icons.palette_outlined),
                         ),
@@ -302,10 +312,10 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
                     ],
                   ),
                   destinations: [
-                    for (final d in _destinations)
+                    for (final (i, d) in _destinations.indexed)
                       NavigationRailDestination(
-                        icon: Icon(d.icon),
-                        selectedIcon: Icon(d.selected),
+                        icon: _NavIcon(icon: d.icon, friends: i == 2),
+                        selectedIcon: _NavIcon(icon: d.selected, friends: i == 2),
                         label: Text(d.label),
                       ),
                   ],
@@ -322,12 +332,39 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           selectedIndex: _index.clamp(0, 3),
           onDestinationSelected: _go,
           destinations: [
-            for (final d in _destinations)
-              NavigationDestination(icon: Icon(d.icon), selectedIcon: Icon(d.selected), label: d.label),
+            for (final (i, d) in _destinations.indexed)
+              NavigationDestination(
+                icon: _NavIcon(icon: d.icon, friends: i == 2),
+                selectedIcon: _NavIcon(icon: d.selected, friends: i == 2),
+                label: d.label,
+              ),
           ],
         ),
       );
     });
+  }
+}
+
+/// Icona della barra; su "Amici" il pallino con i messaggi non letti (canale in diretta).
+class _NavIcon extends StatelessWidget {
+  const _NavIcon({required this.icon, this.friends = false});
+  final IconData icon;
+  final bool friends;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!friends) return Icon(icon);
+    return ListenableBuilder(
+      listenable: Live.instance,
+      builder: (context, _) {
+        final n = Live.instance.totalUnread;
+        return Badge(
+          isLabelVisible: n > 0,
+          label: Text(n > 99 ? '99+' : '$n'),
+          child: Icon(icon),
+        );
+      },
+    );
   }
 }
 
@@ -348,13 +385,13 @@ class _MyScheduleTab extends StatelessWidget {
       ),
       body: EmptyState(
         icon: Icons.school_outlined,
-        title: 'Ciao!',
+        title: tr('Ciao!', 'Hi!'),
         message:
-            'Scegli la tua classe o il tuo nome e imposta "il mio orario": lo troverai sempre qui, anche senza connessione.',
+            tr('Scegli la tua classe o il tuo nome e imposta "il mio orario": lo troverai sempre qui, anche senza connessione.', 'Choose your class or your name and set "my timetable": you\'ll always find it here, even offline.'),
         action: FilledButton.icon(
           onPressed: onSearch,
           icon: const Icon(Icons.search_rounded),
-          label: const Text('Trova il tuo orario'),
+          label: Text(tr('Trova il tuo orario', 'Find your timetable')),
         ),
       ),
     );

@@ -34,9 +34,9 @@ class AgendaItem {
       };
 
   static String labelOf(String kind) => switch (kind) {
-        'verifica' => 'Verifica',
+        'verifica' => tr('Verifica', 'Test'),
         'interrogazione' => 'Interrogazione',
-        'compito' => 'Compiti',
+        'compito' => tr('Compiti', 'Homework'),
         _ => 'Promemoria',
       };
 

@@ -44,6 +44,20 @@ class MainActivity : FlutterActivity() {
                         LessonWidget.updateAll(this)
                         result.success(true)
                     }
+                    // 3.8: notifiche push con Firebase (Push.kt). null/false se l'APK è senza Firebase.
+                    "pushToken" -> Push.token(applicationContext, result)
+                    "pushOff" -> Push.off(applicationContext, result)
+                    // 3.8: sticker dalla cartella di WhatsApp (selettore di Android, vedi StickerImport.kt).
+                    "importWhatsAppStickers" -> StickerImport.start(this, result)
+                    // 3.8: nuovo messaggio (dal canale in diretta). id 8000-8999, uno per chat: si aggiorna, non si accumula.
+                    "notifyChat" -> {
+                        val o = JSONObject(call.arguments as? String ?: "{}")
+                        Reminders.show(
+                            this, 8000 + (o.optInt("id", 0) % 1000), o.optString("title", "Easy Lesson"),
+                            o.optString("body", ""), "chat"
+                        )
+                        result.success(true)
+                    }
                     "testNotification" -> {
                         val o = JSONObject(call.arguments as? String ?: "{}")
                         Reminders.show(
@@ -122,6 +136,13 @@ class MainActivity : FlutterActivity() {
                 result.error("native", e.message, null)
             }
         }
+    }
+
+    @Deprecated("Serve per il selettore di cartelle (StickerImport)")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (StickerImport.onResult(this, requestCode, resultCode, data)) return
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
     }
 
     override fun onNewIntent(intent: Intent) {

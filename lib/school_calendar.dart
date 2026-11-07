@@ -1,3 +1,4 @@
+import 'i18n.dart';
 /// Calendario scolastico: inizio e fine delle lezioni, vacanze e festività.
 /// Dart puro (riusabile dal bot). Dati della Regione Lazio; i giorni decisi dalla
 /// scuola (ponti, sospensioni) si aggiungono dalle impostazioni.
@@ -37,7 +38,7 @@ class Closure {
         return DateTime(v[0], v[1], v[2]);
       }
 
-      return Closure(p(m['from'] as String), p(m['to'] as String), m['name'] as String? ?? 'Niente scuola', '📌');
+      return Closure(p(m['from'] as String), p(m['to'] as String), m['name'] as String? ?? tr('Niente scuola', 'No school'), '📌');
     } catch (_) {
       return null;
     }
@@ -60,25 +61,25 @@ int daysBetween(DateTime a, DateTime b) =>
     DateTime.utc(b.year, b.month, b.day).difference(DateTime.utc(a.year, a.month, a.day)).inDays;
 
 /// Calendari noti. Ogni anno se ne aggiunge uno (delibera della Regione Lazio).
-final schoolYears = <SchoolYear>[
+List<SchoolYear> get schoolYears => <SchoolYear>[
   SchoolYear('2025/26', _d(2025, 9, 15), _d(2026, 6, 8), [
     Closure(_d(2025, 11, 1), _d(2025, 11, 1), 'Ognissanti', '🕯️'),
     Closure(_d(2025, 12, 8), _d(2025, 12, 8), 'Immacolata', '✨'),
-    Closure(_d(2025, 12, 23), _d(2026, 1, 6), 'Vacanze di Natale', '🎄'),
-    Closure(_d(2026, 4, 2), _d(2026, 4, 7), 'Vacanze di Pasqua', '🐣'),
-    Closure(_d(2026, 4, 25), _d(2026, 4, 25), 'Festa della Liberazione', '🇮🇹'),
-    Closure(_d(2026, 5, 1), _d(2026, 5, 1), 'Festa dei lavoratori', '🛠️'),
-    Closure(_d(2026, 6, 2), _d(2026, 6, 2), 'Festa della Repubblica', '🇮🇹'),
+    Closure(_d(2025, 12, 23), _d(2026, 1, 6), tr('Vacanze di Natale', 'Christmas holidays'), '🎄'),
+    Closure(_d(2026, 4, 2), _d(2026, 4, 7), tr('Vacanze di Pasqua', 'Easter holidays'), '🐣'),
+    Closure(_d(2026, 4, 25), _d(2026, 4, 25), tr('Festa della Liberazione', 'Liberation Day'), '🇮🇹'),
+    Closure(_d(2026, 5, 1), _d(2026, 5, 1), tr('Festa dei lavoratori', 'Labour Day'), '🛠️'),
+    Closure(_d(2026, 6, 2), _d(2026, 6, 2), tr('Festa della Repubblica', 'Republic Day'), '🇮🇹'),
   ]),
   SchoolYear('2026/27', _d(2026, 9, 15), _d(2027, 6, 8), [
-    Closure(_d(2026, 9, 29), _d(2026, 9, 29), 'San Michele, patrono di Aprilia', '⛪'),
+    Closure(_d(2026, 9, 29), _d(2026, 9, 29), tr('San Michele, patrono di Aprilia', 'St. Michael, patron of Aprilia'), '⛪'),
     Closure(_d(2026, 11, 1), _d(2026, 11, 1), 'Ognissanti', '🕯️'),
     Closure(_d(2026, 12, 8), _d(2026, 12, 8), 'Immacolata', '✨'),
-    Closure(_d(2026, 12, 23), _d(2027, 1, 6), 'Vacanze di Natale', '🎄'),
-    Closure(_d(2027, 3, 25), _d(2027, 3, 30), 'Vacanze di Pasqua', '🐣'),
-    Closure(_d(2027, 4, 25), _d(2027, 4, 25), 'Festa della Liberazione', '🇮🇹'),
-    Closure(_d(2027, 5, 1), _d(2027, 5, 1), 'Festa dei lavoratori', '🛠️'),
-    Closure(_d(2027, 6, 2), _d(2027, 6, 2), 'Festa della Repubblica', '🇮🇹'),
+    Closure(_d(2026, 12, 23), _d(2027, 1, 6), tr('Vacanze di Natale', 'Christmas holidays'), '🎄'),
+    Closure(_d(2027, 3, 25), _d(2027, 3, 30), tr('Vacanze di Pasqua', 'Easter holidays'), '🐣'),
+    Closure(_d(2027, 4, 25), _d(2027, 4, 25), tr('Festa della Liberazione', 'Liberation Day'), '🇮🇹'),
+    Closure(_d(2027, 5, 1), _d(2027, 5, 1), tr('Festa dei lavoratori', 'Labour Day'), '🛠️'),
+    Closure(_d(2027, 6, 2), _d(2027, 6, 2), tr('Festa della Repubblica', 'Republic Day'), '🇮🇹'),
   ]),
 ];
 
@@ -133,11 +134,11 @@ class SchoolCalendar {
     }
     if (y != null) {
       final toEnd = daysBetween(today, y.end);
-      if (toEnd > 0) out.add((name: 'Fine della scuola', emoji: '🏁', days: toEnd));
+      if (toEnd > 0) out.add((name: tr('Fine della scuola', 'End of school'), emoji: '🏁', days: toEnd));
       if (today.isAfter(y.end)) {
         final next = schoolYears.where((s) => s.start.isAfter(today)).toList();
         if (next.isNotEmpty) {
-          out.add((name: 'Primo giorno di scuola', emoji: '🎒', days: daysBetween(today, next.first.start)));
+          out.add((name: tr('Primo giorno di scuola', 'First day of school'), emoji: '🎒', days: daysBetween(today, next.first.start)));
         }
       }
     }

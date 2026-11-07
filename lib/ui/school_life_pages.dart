@@ -14,6 +14,7 @@ import 'more_pages.dart' show openCharts, openCredits;
 import 'register_import_page.dart';
 import 'report_pdf.dart';
 import 'widgets.dart';
+import '../i18n.dart';
 
 void openAbsences(BuildContext context) =>
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AbsencesPage()));
@@ -56,17 +57,17 @@ Future<void> addAbsenceDialog(BuildContext context, {String kind = 'assenza', Da
     context: context,
     builder: (c) => StatefulBuilder(
       builder: (c, setState) => AlertDialog(
-        title: const Text('Assenze e permessi'),
+        title: Text(tr('Assenze e permessi', 'Absences and permits')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'assenza', label: Text('Assente')),
-                  ButtonSegment(value: 'entrata', label: Text('Entro dopo')),
-                  ButtonSegment(value: 'uscita', label: Text('Esco prima')),
+                segments: [
+                  ButtonSegment(value: 'assenza', label: Text(tr('Assente', 'Absent'))),
+                  ButtonSegment(value: 'entrata', label: Text(tr('Entro dopo', 'Late entry'))),
+                  ButtonSegment(value: 'uscita', label: Text(tr('Esco prima', 'Early exit'))),
                 ],
                 selected: {k},
                 onSelectionChanged: (s) => setState(() {
@@ -85,25 +86,25 @@ Future<void> addAbsenceDialog(BuildContext context, {String kind = 'assenza', Da
               ),
               if (k != 'assenza') ...[
                 const SizedBox(height: 12),
-                Text(k == 'entrata' ? 'Entro alla…' : 'Esco dopo la…'),
+                Text(k == 'entrata' ? tr('Entro alla…', 'I come in at…') : tr('Esco dopo la…', 'I leave after…')),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
                   children: [
                     for (var h = k == 'entrata' ? 2 : 1; h <= (k == 'entrata' ? maxHours : maxHours - 1); h++)
-                      ChoiceChip(label: Text('$hª ora'), selected: hour == h, onSelected: (_) => setState(() => hour = h)),
+                      ChoiceChip(label: Text(tr('$hª ora', 'Period $h')), selected: hour == h, onSelected: (_) => setState(() => hour = h)),
                   ],
                 ),
               ],
               const SizedBox(height: 12),
-              TextField(controller: note, decoration: const InputDecoration(labelText: 'Nota (facoltativa)')),
+              TextField(controller: note, decoration: InputDecoration(labelText: tr('Nota (facoltativa)', 'Note (optional)'))),
               if (!dateOnly(day).isBefore(dateOnly(now))) ...[
                 const SizedBox(height: 12),
                 Text(
                   k == 'assenza'
-                      ? 'Quel giorno niente notifiche delle lezioni né silenzioso.'
-                      : 'Widget, notifiche e riepilogo della sera terranno conto dell\'orario.',
+                      ? tr('Quel giorno niente notifiche delle lezioni né silenzioso.', 'That day no lesson notifications and no silent mode.')
+                      : tr('Widget, notifiche e riepilogo della sera terranno conto dell\'orario.', 'Widget, notifications and evening summary will take the timetable into account.'),
                   style: Theme.of(c).textTheme.bodySmall,
                 ),
               ],
@@ -111,8 +112,8 @@ Future<void> addAbsenceDialog(BuildContext context, {String kind = 'assenza', Da
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Salva')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Salva', 'Save'))),
         ],
       ),
     ),
@@ -151,18 +152,18 @@ class AbsencesPage extends StatelessWidget {
           child: ListTile(
             contentPadding: EdgeInsets.zero,
             leading: Text(a.emoji, style: const TextStyle(fontSize: 24)),
-            title: Text('${a.label}${planned ? ' · in programma' : ''}'),
+            title: Text('${a.label}${planned ? tr(' · in programma', ' · planned') : ''}'),
             subtitle: Text([_date(a.date), if (a.note.isNotEmpty) a.note].join(' · ')),
           ),
         );
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Assenze e permessi'),
+        title: Text(tr('Assenze e permessi', 'Absences and permits')),
         actions: [
           // Importa dal registro incollando il testo degli screenshot (beta, per tutti dalla 3.6).
           IconButton(
-              tooltip: 'Incolla dal registro (beta)',
+              tooltip: tr('Incolla dal registro (beta)', 'Paste from the register (beta)'),
               icon: const Icon(Icons.document_scanner_outlined),
               onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const RegisterImportPage())),
             ),
@@ -171,13 +172,13 @@ class AbsencesPage extends StatelessWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => addAbsenceDialog(context),
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Segna'),
+        label: Text(tr('Segna', 'Mark')),
       ),
       body: _body([
         if (stats == null)
-          const Padding(
-            padding: EdgeInsets.only(top: 16),
-            child: Text('Imposta "il mio orario" per contare le ore perse per materia.'),
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: Text(tr('Imposta "il mio orario" per contare le ore perse per materia.', 'Set "my timetable" to count the hours missed per subject.')),
           )
         else
           Card(
@@ -186,11 +187,11 @@ class AbsencesPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${stats.lost} ore perse', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                  Text(tr('${stats.lost} ore perse', '${stats.lost} hours missed'), style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 4),
                   Text(
-                    'Limite: ${stats.limitHours} ore (25% di ${stats.yearHours} ore all\'anno) · '
-                    '${stats.days} giorni interi',
+                    tr('Limite: ${stats.limitHours} ore (25% di ${stats.yearHours} ore all\'anno) · '
+                    '${stats.days} giorni interi', 'Limit: ${stats.limitHours} hours (25% of ${stats.yearHours} hours a year) · ${stats.days} full days'),
                     style: TextStyle(color: scheme.onSurfaceVariant),
                   ),
                   const SizedBox(height: 12),
@@ -205,8 +206,8 @@ class AbsencesPage extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     stats.left > 0
-                        ? '${(stats.ratio * 100).toStringAsFixed(1)}% · puoi perdere ancora ${stats.left} ore'
-                        : '⚠️ Hai superato il limite: parlane con il coordinatore (ci sono deroghe per motivi di salute)',
+                        ? tr('${(stats.ratio * 100).toStringAsFixed(1)}% · puoi perdere ancora ${stats.left} ore', '${(stats.ratio * 100).toStringAsFixed(1)}% · you can still miss ${stats.left} hours')
+                        : tr('⚠️ Hai superato il limite: parlane con il coordinatore (ci sono deroghe per motivi di salute)', '⚠️ You\'ve gone over the limit: talk to the coordinator (there are exceptions for health reasons)'),
                     style: TextStyle(color: level(stats.ratio), fontWeight: FontWeight.w600),
                   ),
                 ],
@@ -219,22 +220,22 @@ class AbsencesPage extends StatelessWidget {
           children: [
             ActionChip(
               avatar: const Text('⏰'),
-              label: const Text('Domani entro dopo'),
+              label: Text(tr('Domani entro dopo', 'Late entry tomorrow')),
               onPressed: () => addAbsenceDialog(context, kind: 'entrata'),
             ),
             ActionChip(
               avatar: const Text('🚪'),
-              label: const Text('Domani esco prima'),
+              label: Text(tr('Domani esco prima', 'Early exit tomorrow')),
               onPressed: () => addAbsenceDialog(context, kind: 'uscita'),
             ),
           ],
         ),
         if (future.isNotEmpty) ...[
-          const SectionLabel('In programma'),
+          SectionLabel(tr('In programma', 'Planned')),
           for (final a in future) entry(a, planned: true),
         ],
         if (stats != null && stats.bySubject.isNotEmpty) ...[
-          const SectionLabel('Per materia'),
+          SectionLabel(tr('Per materia', 'By subject')),
           for (final e in (stats.bySubject.entries.toList()..sort((a, b) => b.value.compareTo(a.value))))
             Builder(builder: (context) {
               final year = AbsenceStats.subjectYearHours(week!, e.key);
@@ -250,14 +251,14 @@ class AbsencesPage extends StatelessWidget {
               );
             }),
         ],
-        const SectionLabel('Storico'),
+        SectionLabel(tr('Storico', 'History')),
         if (past.isEmpty)
-          Text('Nessuna assenza. Grande! 💪', style: TextStyle(color: scheme.onSurfaceVariant)),
+          Text(tr('Nessuna assenza. Grande! 💪', 'No absences. Great! 💪'), style: TextStyle(color: scheme.onSurfaceVariant)),
         for (final a in past) entry(a),
         const SizedBox(height: 12),
         Text(
-          'Il conto è una stima: $schoolWeeks settimane di lezione con il tuo orario attuale. '
-          'Il numero ufficiale è quello del registro elettronico.',
+          tr('Il conto è una stima: $schoolWeeks settimane di lezione con il tuo orario attuale. '
+          'Il numero ufficiale è quello del registro elettronico.', 'The count is an estimate: $schoolWeeks weeks of lessons with your current timetable. The official number is the one in the electronic register.'),
           style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
         ),
       ]),
@@ -291,7 +292,7 @@ Future<void> addGradeDialog(BuildContext context, {String subject = ''}) async {
       builder: (c, setState) {
         final v = Grade.parse(value.text);
         return AlertDialog(
-          title: const Text('Nuovo voto'),
+          title: Text(tr('Nuovo voto', 'New grade')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -302,14 +303,14 @@ Future<void> addGradeDialog(BuildContext context, {String subject = ''}) async {
                   autofocus: true,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
-                    labelText: 'Voto',
+                    labelText: tr('Voto', 'Grade'),
                     hintText: '7, 6½, 6+, 8-, 6/7',
                     helperText: v == null ? null : '= ${v.toStringAsFixed(2)}',
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 12),
-                TextField(controller: subj, decoration: const InputDecoration(labelText: 'Materia')),
+                TextField(controller: subj, decoration: InputDecoration(labelText: tr('Materia', 'Subject'))),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
@@ -325,10 +326,10 @@ Future<void> addGradeDialog(BuildContext context, {String subject = ''}) async {
                 ),
                 const SizedBox(height: 12),
                 SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'scritto', label: Text('Scritto')),
-                    ButtonSegment(value: 'orale', label: Text('Orale')),
-                    ButtonSegment(value: 'pratico', label: Text('Pratico')),
+                  segments: [
+                    ButtonSegment(value: 'scritto', label: Text(tr('Scritto', 'Written'))),
+                    ButtonSegment(value: 'orale', label: Text(tr('Orale', 'Oral'))),
+                    ButtonSegment(value: 'pratico', label: Text(tr('Pratico', 'Practical'))),
                   ],
                   selected: {kind},
                   onSelectionChanged: (s) => setState(() => kind = s.first),
@@ -336,7 +337,7 @@ Future<void> addGradeDialog(BuildContext context, {String subject = ''}) async {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    const Text('Peso'),
+                    Text(tr('Peso', 'Weight')),
                     const SizedBox(width: 12),
                     Expanded(
                       child: SegmentedButton<double>(
@@ -360,15 +361,15 @@ Future<void> addGradeDialog(BuildContext context, {String subject = ''}) async {
                     if (d != null) setState(() => day = d);
                   },
                 ),
-                TextField(controller: note, decoration: const InputDecoration(labelText: 'Argomento (facoltativo)')),
+                TextField(controller: note, decoration: InputDecoration(labelText: tr('Argomento (facoltativo)', 'Topic (optional)'))),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
+            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
             FilledButton(
               onPressed: v == null || subj.text.trim().isEmpty ? null : () => Navigator.pop(c, true),
-              child: const Text('Salva'),
+              child: Text(tr('Salva', 'Save')),
             ),
           ],
         );
@@ -379,7 +380,7 @@ Future<void> addGradeDialog(BuildContext context, {String subject = ''}) async {
   if (ok == true && v != null) {
     await store.addGrade(date: day, subject: subj.text, value: v, weight: weight, kind: kind, note: note.text);
     if (v >= 9.99 && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🔟 DIECI?! Qualcuno offre la pizza 🍕')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('🔟 DIECI?! Qualcuno offre la pizza 🍕', '🔟 A TEN?! Someone\'s buying pizza 🍕'))));
     }
   }
 }
@@ -405,9 +406,9 @@ class GradesPage extends StatelessWidget {
     final overall = avgs.isEmpty ? null : avgs.reduce((a, b) => a + b) / avgs.length;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Voti'),
+        title: Text(tr('Voti', 'Grades')),
         actions: [
-          IconButton(tooltip: 'Grafici', onPressed: () => openCharts(context), icon: const Icon(Icons.show_chart_rounded)),
+          IconButton(tooltip: tr('Grafici', 'Charts'), onPressed: () => openCharts(context), icon: const Icon(Icons.show_chart_rounded)),
           PopupMenuButton<String>(
             onSelected: (v) {
               switch (v) {
@@ -421,10 +422,10 @@ class GradesPage extends StatelessWidget {
               }
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(value: 'pdf', child: Text('📄 Resoconto PDF per i genitori')),
-              const PopupMenuItem(value: 'credits', child: Text('🎓 Crediti scolastici')),
-              CheckedPopupMenuItem(value: 'tri', checked: mode == 'tri', child: const Text('Trimestre e pentamestre')),
-              CheckedPopupMenuItem(value: 'quad', checked: mode == 'quad', child: const Text('Due quadrimestri')),
+              PopupMenuItem(value: 'pdf', child: Text(tr('📄 Resoconto PDF per i genitori', '📄 PDF report for parents'))),
+              PopupMenuItem(value: 'credits', child: Text(tr('🎓 Crediti scolastici', '🎓 School credits'))),
+              CheckedPopupMenuItem(value: 'tri', checked: mode == 'tri', child: Text(tr('Trimestre e pentamestre', 'Trimester and pentamester'))),
+              CheckedPopupMenuItem(value: 'quad', checked: mode == 'quad', child: Text(tr('Due quadrimestri', 'Two semesters'))),
             ],
           ),
         ],
@@ -432,7 +433,7 @@ class GradesPage extends StatelessWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => addGradeDialog(context),
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Voto'),
+        label: Text(tr('Voto', 'Grade')),
       ),
       body: _body([
         Card(
@@ -444,7 +445,7 @@ class GradesPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Media generale', style: TextStyle(color: scheme.onSurfaceVariant)),
+                      Text(tr('Media generale', 'Overall average'), style: TextStyle(color: scheme.onSurfaceVariant)),
                       Text(
                         overall == null ? '—' : overall.toStringAsFixed(2),
                         style: theme.textTheme.displaySmall?.copyWith(
@@ -452,7 +453,7 @@ class GradesPage extends StatelessWidget {
                           color: overall == null ? null : gradeColor(context, overall),
                         ),
                       ),
-                      Text('${shown.length} voti · ${subjects.length} materie',
+                      Text(tr('${shown.length} voti · ${subjects.length} materie', '${shown.length} grades · ${subjects.length} subjects'),
                           style: TextStyle(color: scheme.onSurfaceVariant)),
                     ],
                   ),
@@ -465,7 +466,7 @@ class GradesPage extends StatelessWidget {
         const SizedBox(height: 8),
         SegmentedButton<int>(
           segments: [
-            const ButtonSegment(value: 0, label: Text('Tutto l\'anno')),
+            ButtonSegment(value: 0, label: Text(tr('Tutto l\'anno', 'Whole year'))),
             ButtonSegment(value: 1, label: Text(periodName(1, mode: mode))),
             ButtonSegment(value: 2, label: Text(periodName(2, mode: mode))),
           ],
@@ -473,17 +474,22 @@ class GradesPage extends StatelessWidget {
           onSelectionChanged: (s) => store.setOpt('grades.view', s.first == 0 ? null : s.first),
         ),
         if (subjects.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(top: 24),
-            child: Text('Aggiungi il primo voto con il tasto qui sotto. Si salvano solo su questo dispositivo.'),
+          Padding(
+            padding: const EdgeInsets.only(top: 24),
+            child: Text(tr('Aggiungi il primo voto con il tasto qui sotto. Si salvano solo su questo dispositivo.', 'Add the first grade with the button below. They\'re only saved on this device.')),
           ),
-        if (subjects.isNotEmpty) const SectionLabel('Per materia'),
+        if (subjects.isNotEmpty) SectionLabel(tr('Per materia', 'By subject')),
         for (var i = 0; i < subjects.length; i++)
           Card(
             margin: const EdgeInsets.symmetric(vertical: 4),
             child: ListTile(
               title: Text(subjects[i], style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Text(bySubject[subjects[i]]!.take(8).map((g) => Grade.format(g.value)).join('  ')),
+              // Sotto il 6: subito quanto serve alla prossima (3.8).
+              isThreeLine: avgs[i] < 6,
+              subtitle: Text([
+                bySubject[subjects[i]]!.take(8).map((g) => Grade.format(g.value)).join('  '),
+                if (avgs[i] < 6) planText(planToReach(bySubject[subjects[i]]!, 6), 6),
+              ].join('\n')),
               trailing: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -492,7 +498,7 @@ class GradesPage extends StatelessWidget {
                     avgs[i].toStringAsFixed(2),
                     style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800, color: gradeColor(context, avgs[i])),
                   ),
-                  Text('pagella: ${reportCardMark(avgs[i])}', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+                  Text(tr('pagella: ${reportCardMark(avgs[i])}', 'report card: ${reportCardMark(avgs[i])}'), style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
                 ],
               ),
               onTap: () => _subjectSheet(context, subjects[i]),
@@ -528,15 +534,14 @@ class _SubjectGradesState extends State<_SubjectGrades> {
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final theme = Theme.of(context);
-    final list = store.grades.where((g) => g.subject == widget.subject).toList();
+    // Stesso periodo della pagina Voti (tutto l'anno, trimestre/pentamestre o quadrimestri).
+    final mode = store.opt('periods', 'tri');
+    final view = store.opt('grades.view', 0);
+    final list = store.grades
+        .where((g) => g.subject == widget.subject && (view == 0 || gradePeriod(g.date, mode: mode) == view))
+        .toList();
     final avg = average(list);
-    final need = neededFor(list, _target, weight: _weight);
-    String needText() {
-      if (need == null) return '';
-      if (need <= 1) return 'Ce l\'hai già fatta, anche con un 1 😎';
-      if (need > 10) return 'Neanche con un 10 ci arrivi in una prova sola 😬 (servirebbe ${need.toStringAsFixed(1)})';
-      return 'Ti serve almeno ${Grade.format((need * 4).ceil() / 4)} nella prossima prova';
-    }
+    String needText() => planText(planToReach(list, _target, weight: _weight), _target);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -544,9 +549,10 @@ class _SubjectGradesState extends State<_SubjectGrades> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(widget.subject, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-          if (avg != null) Text('Media ${avg.toStringAsFixed(2)} · ${list.length} voti'),
-          const SectionLabel('Quanto mi serve?'),
-          Text('Per arrivare a ${Grade.format(_target)} di media'),
+          if (avg != null)
+            Text('${tr('Media', 'Average')} ${avg.toStringAsFixed(2)} · ${list.length} ${tr('voti', 'grades')}${view == 0 ? '' : ' · ${periodName(view, mode: mode)}'}'),
+          SectionLabel(tr('Quanto mi serve?', 'How much do I need?')),
+          Text(tr('Per arrivare a ${Grade.format(_target)} di media', 'To reach a ${Grade.format(_target)} average')),
           Slider(
             value: _target,
             min: 5,
@@ -556,16 +562,16 @@ class _SubjectGradesState extends State<_SubjectGrades> {
             onChanged: (v) => setState(() => _target = v),
           ),
           SegmentedButton<double>(
-            segments: const [
-              ButtonSegment(value: 0.5, label: Text('Prova al 50%')),
-              ButtonSegment(value: 1.0, label: Text('Prova normale')),
+            segments: [
+              ButtonSegment(value: 0.5, label: Text(tr('Prova al 50%', 'Test at 50%'))),
+              ButtonSegment(value: 1.0, label: Text(tr('Prova normale', 'Normal test'))),
             ],
             selected: {_weight},
             onSelectionChanged: (s) => setState(() => _weight = s.first),
           ),
           const SizedBox(height: 8),
           Text(needText(), style: theme.textTheme.titleMedium),
-          const SectionLabel('Voti'),
+          SectionLabel(tr('Voti', 'Grades')),
           for (final g in list)
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -574,7 +580,7 @@ class _SubjectGradesState extends State<_SubjectGrades> {
                 child: Text(Grade.format(g.value),
                     style: TextStyle(fontWeight: FontWeight.w800, color: gradeColor(context, g.value))),
               ),
-              title: Text('${g.kind[0].toUpperCase()}${g.kind.substring(1)}${g.weight != 1 ? ' · peso ${g.weight}' : ''}'),
+              title: Text('${_kindName(g.kind)}${g.weight != 1 ? ' · ${tr('peso', 'weight')} ${g.weight}' : ''}'),
               subtitle: Text([_date(g.date), if (g.note.isNotEmpty) g.note].join(' · ')),
               trailing: IconButton(
                 icon: const Icon(Icons.delete_outline_rounded),
@@ -585,7 +591,7 @@ class _SubjectGradesState extends State<_SubjectGrades> {
           FilledButton.tonalIcon(
             onPressed: () => addGradeDialog(context, subject: widget.subject),
             icon: const Icon(Icons.add_rounded),
-            label: const Text('Aggiungi un voto'),
+            label: Text(tr('Aggiungi un voto', 'Add a grade')),
           ),
         ],
       ),
@@ -656,9 +662,9 @@ class _StudyTimerPageState extends State<StudyTimerPage> with WidgetsBindingObse
     if (!_onBreak) {
       store.addStudy(_subject, _focus);
       _rounds++;
-      DesktopBridge.notify('Pausa! ☕', '$_focus minuti di ${_subject.isEmpty ? 'studio' : _subject} fatti');
+      DesktopBridge.notify(tr('Pausa! ☕', 'Break! ☕'), appEnglish ? '$_focus minutes of ${_subject.isEmpty ? 'study' : _subject} done' : '$_focus minuti di ${_subject.isEmpty ? 'studio' : _subject} fatti');
     } else {
-      DesktopBridge.notify('Si riparte! 📚', 'Altri $_focus minuti');
+      DesktopBridge.notify(tr('Si riparte! 📚', 'Back to it! 📚'), tr('Altri $_focus minuti', 'Another $_focus minutes'));
     }
     setState(() {
       _onBreak = !_onBreak;
@@ -677,8 +683,8 @@ class _StudyTimerPageState extends State<StudyTimerPage> with WidgetsBindingObse
     NativeBridge.scheduleOne(
       _notifyId,
       end,
-      _onBreak ? 'Fine pausa! 📚' : 'Tempo! ☕ Fai una pausa',
-      _onBreak ? 'Si torna a studiare' : '${_subject.isEmpty ? 'Studio' : _subject}: $_focus minuti fatti',
+      _onBreak ? tr('Fine pausa! 📚', 'Break over! 📚') : tr('Tempo! ☕ Fai una pausa', 'Time! ☕ Take a break'),
+      _onBreak ? tr('Si torna a studiare', 'Back to studying') : '${_subject.isEmpty ? tr('Studio', 'Study') : _subject}: $_focus ${tr('minuti fatti', 'minutes done')}',
     );
   }
 
@@ -715,7 +721,7 @@ class _StudyTimerPageState extends State<StudyTimerPage> with WidgetsBindingObse
     final studied = store.studyMinutes.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Timer per studiare')),
+      appBar: AppBar(title: Text(tr('Timer per studiare', 'Study timer'))),
       body: _body([
         const SizedBox(height: 8),
         Center(
@@ -735,10 +741,10 @@ class _StudyTimerPageState extends State<StudyTimerPage> with WidgetsBindingObse
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(_onBreak ? 'PAUSA ☕' : (_subject.isEmpty ? 'STUDIO' : _subject.toUpperCase()),
+                      Text(_onBreak ? tr('PAUSA ☕', 'BREAK ☕') : (_subject.isEmpty ? tr('STUDIO', 'STUDY') : _subject.toUpperCase()),
                           textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant)),
                       Text('$mm:$ss', style: theme.textTheme.displayMedium?.copyWith(fontWeight: FontWeight.w800)),
-                      Text('$_rounds giri', style: TextStyle(color: scheme.onSurfaceVariant)),
+                      Text(tr('$_rounds giri', '$_rounds rounds'), style: TextStyle(color: scheme.onSurfaceVariant)),
                     ],
                   ),
                 ),
@@ -750,20 +756,20 @@ class _StudyTimerPageState extends State<StudyTimerPage> with WidgetsBindingObse
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            OutlinedButton.icon(onPressed: _reset, icon: const Icon(Icons.restart_alt_rounded), label: const Text('Azzera')),
+            OutlinedButton.icon(onPressed: _reset, icon: const Icon(Icons.restart_alt_rounded), label: Text(tr('Azzera', 'Reset'))),
             const SizedBox(width: 12),
             FilledButton.icon(
               onPressed: running ? _pauseTimer : _start,
               icon: Icon(running ? Icons.pause_rounded : Icons.play_arrow_rounded),
-              label: Text(running ? 'Pausa' : (_paused != null ? 'Riprendi' : 'Via!')),
+              label: Text(running ? tr('Pausa', 'Pause') : (_paused != null ? tr('Riprendi', 'Resume') : tr('Via!', 'Go!'))),
             ),
             if (running || _paused != null) ...[
               const SizedBox(width: 12),
-              IconButton(tooltip: 'Salta', onPressed: _finish, icon: const Icon(Icons.skip_next_rounded)),
+              IconButton(tooltip: tr('Salta', 'Skip'), onPressed: _finish, icon: const Icon(Icons.skip_next_rounded)),
             ],
           ],
         ),
-        const SectionLabel('Durata'),
+        SectionLabel(tr('Durata', 'Duration')),
         SegmentedButton<int>(
           segments: const [
             ButtonSegment(value: 15, label: Text('15/3')),
@@ -780,7 +786,7 @@ class _StudyTimerPageState extends State<StudyTimerPage> with WidgetsBindingObse
                     _paused = null;
                   }),
         ),
-        const SectionLabel('Cosa studi'),
+        SectionLabel(tr('Cosa studi', 'What you\'re studying')),
         Wrap(
           spacing: 6,
           runSpacing: 6,
@@ -794,7 +800,7 @@ class _StudyTimerPageState extends State<StudyTimerPage> with WidgetsBindingObse
           ],
         ),
         if (studied.isNotEmpty) ...[
-          const SectionLabel('Quanto hai studiato'),
+          SectionLabel(tr('Quanto hai studiato', 'How much you studied')),
           for (final e in studied.take(10))
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -823,15 +829,15 @@ Future<void> abWeekDialog(BuildContext context) async {
     context: context,
     builder: (c) => StatefulBuilder(
       builder: (c, setState) => AlertDialog(
-        title: const Text('Settimana A/B'),
+        title: Text(tr('Settimana A/B', 'Week A/B')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Se il tuo orario cambia a settimane alterne: la settimana A usa "il mio orario", '
-                'la B un altro orario salvato (cercalo e salvalo prima).',
+              Text(
+                tr('Se il tuo orario cambia a settimane alterne: la settimana A usa "il mio orario", '
+                'la B un altro orario salvato (cercalo e salvalo prima).', 'If your timetable changes on alternate weeks: week A uses "my timetable", week B another saved timetable (search for it and save it first).'),
               ),
               const SizedBox(height: 12),
               RadioGroup<String>(
@@ -839,19 +845,19 @@ Future<void> abWeekDialog(BuildContext context) async {
                 onChanged: (v) => setState(() => alt = v ?? ''),
                 child: Column(
                   children: [
-                    const RadioListTile<String>(contentPadding: EdgeInsets.zero, value: '', title: Text('Niente settimane alternate')),
+                    RadioListTile<String>(contentPadding: EdgeInsets.zero, value: '', title: Text(tr('Niente settimane alternate', 'No alternating weeks'))),
                     for (final s in options)
                       RadioListTile<String>(
                         contentPadding: EdgeInsets.zero,
                         value: s.ref.key,
-                        title: Text('Settimana B: ${s.ref.displayName}'),
+                        title: Text(tr('Settimana B: ${s.ref.displayName}', 'Week B: ${s.ref.displayName}')),
                       ),
                   ],
                 ),
               ),
               if (alt.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                const Text('Questa settimana è la…'),
+                Text(tr('Questa settimana è la…', 'This week is…')),
                 const SizedBox(height: 6),
                 SegmentedButton<bool>(
                   segments: const [
@@ -866,8 +872,8 @@ Future<void> abWeekDialog(BuildContext context) async {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Salva')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Salva', 'Save'))),
         ],
       ),
     ),
@@ -884,3 +890,11 @@ Future<void> abWeekDialog(BuildContext context) async {
   await store.setOpt('ab.anchor', '${b.year.toString().padLeft(4, '0')}-${b.month.toString().padLeft(2, '0')}-'
       '${b.day.toString().padLeft(2, '0')}');
 }
+
+/// Tipo di voto (scritto, orale, pratico) nella lingua dell'app.
+String _kindName(String kind) => switch (kind) {
+      'scritto' => tr('Scritto', 'Written'),
+      'orale' => tr('Orale', 'Oral'),
+      'pratico' => tr('Pratico', 'Practical'),
+      _ => kind.isEmpty ? kind : '${kind[0].toUpperCase()}${kind.substring(1)}',
+    };

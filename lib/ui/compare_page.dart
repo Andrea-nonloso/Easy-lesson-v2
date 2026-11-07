@@ -5,10 +5,11 @@ import '../store.dart';
 import 'app_menu.dart';
 import 'theme.dart';
 import 'widgets.dart';
+import '../i18n.dart';
 
 /// Sceglie con chi confrontare [a] e apre il confronto.
 Future<void> openCompare(BuildContext context, ScheduleRef a) async {
-  final b = await pickScheduleRef(context, title: 'Confronta ${a.displayName} con…', exclude: a);
+  final b = await pickScheduleRef(context, title: tr('Confronta ${a.displayName} con…', 'Compare ${a.displayName} with…'), exclude: a);
   if (b == null || !context.mounted) return;
   await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ComparePage(a: a, b: b)));
 }
@@ -46,17 +47,17 @@ Future<ScheduleRef?> pickScheduleRef(BuildContext context, {required String titl
               children: [
                 TextField(
                   autofocus: true,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     isDense: true,
-                    prefixIcon: Icon(Icons.search_rounded),
-                    hintText: 'Classe o docente…',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    hintText: tr('Classe o docente…', 'Class or teacher…'),
                   ),
                   onChanged: (v) => setState(() => q = v),
                 ),
                 const SizedBox(height: 8),
                 Expanded(
                   child: list.isEmpty
-                      ? Center(child: Text(lq.isEmpty ? 'Scrivi per cercare' : 'Nessun risultato'))
+                      ? Center(child: Text(lq.isEmpty ? tr('Scrivi per cercare', 'Type to search') : tr('Nessun risultato', 'No results')))
                       : ListView(
                           children: [
                             for (final r in list.take(60))
@@ -73,7 +74,7 @@ Future<ScheduleRef?> pickScheduleRef(BuildContext context, {required String titl
               ],
             ),
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annulla'))],
+          actions: [TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annulla', 'Cancel')))],
         );
       },
     ),
@@ -139,7 +140,7 @@ class _ComparePageState extends State<ComparePage> {
     Widget body;
     if (ca == null || cb == null) {
       body = _error != null
-          ? EmptyState(icon: Icons.cloud_off_rounded, title: 'Orario non disponibile', message: '$_error')
+          ? EmptyState(icon: Icons.cloud_off_rounded, title: tr('Orario non disponibile', 'Timetable not available'), message: '$_error')
           : const Center(child: CircularProgressIndicator());
     } else {
       final days = ca.week.days.length > cb.week.days.length ? ca.week.days.length : cb.week.days.length;
@@ -187,8 +188,8 @@ class _ComparePageState extends State<ComparePage> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              Chip(avatar: const Text('🟢'), label: Text('$freeWeek ore libere insieme a settimana')),
-              Chip(avatar: const Text('🤝'), label: Text('$togetherWeek ore insieme')),
+              Chip(avatar: const Text('🟢'), label: Text(tr('$freeWeek ore libere insieme a settimana', '$freeWeek free hours together per week'))),
+              Chip(avatar: const Text('🤝'), label: Text(tr('$togetherWeek ore insieme', '$togetherWeek hours together'))),
             ],
           ),
           const SizedBox(height: 8),
@@ -243,7 +244,7 @@ class _ComparePageState extends State<ComparePage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('${h + 1}ª${both ? ' 🟢' : together ? ' 🤝' : ''}',
+                            Text('${h + 1}${tr('ª', '')}${both ? ' 🟢' : together ? ' 🤝' : ''}',
                                 style: const TextStyle(fontWeight: FontWeight.w700)),
                             if (s?.start != null)
                               Text(s!.startText, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
@@ -260,7 +261,7 @@ class _ComparePageState extends State<ComparePage> {
             }(),
           const SizedBox(height: 8),
           Text(
-            '🟢 entrambi liberi · 🤝 insieme (stessa classe o il prof è in quella classe)',
+            tr('🟢 entrambi liberi · 🤝 insieme (stessa classe o il prof è in quella classe)', '🟢 both free · 🤝 together (same class or the teacher is in that class)'),
             style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
           ),
         ],

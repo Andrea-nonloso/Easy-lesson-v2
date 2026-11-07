@@ -16,6 +16,7 @@ import 'settings_sheet.dart' show showSettingsSheet;
 import 'recovery_pdf.dart';
 import 'shop_page.dart';
 import 'widgets.dart';
+import '../i18n.dart';
 
 void openProfile(BuildContext context) =>
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ProfilePage()));
@@ -34,22 +35,30 @@ class ProfilePage extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final lv = levelOf(store);
     final studied = store.studyMinutes.values.fold(0, (a, b) => a + b);
-    Widget stat(String emoji, String value, String label) => Expanded(
-          child: Column(
-            children: [
-              Text(emoji, style: const TextStyle(fontSize: 22)),
-              Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-              Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
-            ],
+    final lastSync = DateTime.tryParse(store.opt('cloud.lastSync', ''));
+    final accountText = store.accountCode == null
+        ? tr('Non collegato · facoltativo', 'Not connected · optional')
+        : lastSync == null
+            ? tr('Collegato', 'Connected')
+            : 'Sincronizzato · ${_ago(lastSync)}';
+    Widget row(IconData icon, String title, String subtitle, VoidCallback onTap, {bool last = false}) => Column(children: [
+          ListTile(
+            leading: Icon(icon, color: scheme.primary),
+            title: Text(title),
+            subtitle: Text(subtitle),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: onTap,
           ),
-        );
+          if (!last) const Divider(height: 1, indent: 56),
+        ]);
+    final notices = store.accountCode != null && store.opt<String?>('social.nick', null) != null;
     return Scaffold(
       appBar: AppBar(
-        title: Text(asTab ? 'Profilo' : 'Profilo e progressi'),
+        title: Text(asTab ? tr('Profilo', 'Profile') : tr('Profilo e progressi', 'Profile and progress')),
         automaticallyImplyLeading: !asTab,
         actions: [
           IconButton(
-            tooltip: 'Impostazioni',
+            tooltip: tr('Impostazioni', 'Settings'),
             onPressed: () => showSettingsSheet(context),
             icon: const Icon(Icons.settings_outlined),
           ),
@@ -62,75 +71,66 @@ class ProfilePage extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
             children: [
+              // 3.8 "minimal": livello e serie in alto, poi le missioni, poi tutto il resto in un blocco solo.
               const LevelCard(),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
-                'Prossima ricompensa al livello ${lv.nextReward} · mancano ${xpForLevel(lv.nextReward) - lv.xp} XP',
+                '🔥 ${store.stat('streak')} ${tr('di fila', 'in a row')} (${tr('record', 'best')} ${store.stat('bestStreak')})  ·  📅 ${store.stat('days')} ${tr('giorni', 'days')}  ·  '
+                '⏱️ ${studied ~/ 60} ${tr('h di studio', 'h of study')}',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
               ),
               const SizedBox(height: 14),
-              Row(
-                children: [
-                  stat('📅', '${store.stat('days')}', 'giorni'),
-                  stat('🔥', '${store.stat('streak')}', 'di fila\n(record ${store.stat('bestStreak')})'),
-                  stat('👀', '${store.stat('views')}', 'orari aperti'),
-                  stat('⏱️', '${studied ~/ 60}h', 'di studio'),
-                ],
-              ),
-              const SizedBox(height: 10),
               const MissionsSummaryTile(),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.emoji_events_outlined, color: scheme.primary),
-                title: const Text('Obiettivi'),
-                subtitle: Text('${unlockedCount(store)} su ${visibleCount(store)} sbloccati'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => openAchievements(context),
+              const SizedBox(height: 10),
+              Card(
+                margin: EdgeInsets.zero,
+                clipBehavior: Clip.antiAlias,
+                child: Column(children: [
+                  row(Icons.emoji_events_outlined, tr('Obiettivi', 'Achievements'), tr('${unlockedCount(store)} su ${visibleCount(store)} sbloccati', '${unlockedCount(store)} of ${visibleCount(store)} unlocked'),
+                      () => openAchievements(context)),
+                  row(Icons.redeem_rounded, tr('Ricompense', 'Rewards'),
+                      tr('Prossima al livello ${lv.nextReward} · mancano ${xpForLevel(lv.nextReward) - lv.xp} XP', 'Next at level ${lv.nextReward} · ${xpForLevel(lv.nextReward) - lv.xp} XP to go'),
+                      () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const RewardsPage()))),
+                  row(Icons.storefront_rounded, tr('Negozio', 'Shop'), tr('🪙 ${Shop.balance(lv.xp, store)} monete · cornici, titoli, avatar, temi', '🪙 ${Shop.balance(lv.xp, store)} coins · frames, titles, avatars, themes'),
+                      () => openShop(context)),
+                  if (!asTab)
+                    row(Icons.groups_rounded, tr('Classe e amici', 'Class and friends'), tr('Agenda condivisa, sfide di classe, classifica', 'Shared planner, class challenges, leaderboard'),
+                        () => openClassHub(context)),
+                  if (notices)
+                    row(Icons.gavel_rounded, tr('Avvisi della moderazione', 'Moderation notices'), tr('Quelli ricevuti e le conversazioni', 'The ones you received and the conversations'),
+                        () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const NoticesPage()))),
+                  row(Icons.key_rounded, tr('Account Easy Lesson', 'Easy Lesson account'), accountText, () => openAccountPage(context), last: true),
+                ]),
               ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.redeem_rounded, color: scheme.primary),
-                title: const Text('Ricompense'),
-                subtitle: const Text('Ogni 5 livelli si sblocca qualcosa'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const RewardsPage())),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.storefront_rounded, color: scheme.primary),
-                title: const Text('Negozio'),
-                subtitle: Text('🪙 ${Shop.balance(lv.xp, store)} monete · cornici, titoli, avatar, temi'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => openShop(context),
-              ),
-              if (!asTab)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.groups_rounded, color: scheme.primary),
-                  title: const Text('Classe e amici'),
-                  subtitle: const Text('Agenda condivisa, sfide di classe, classifica'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () => openClassHub(context),
-                ),
-              if (store.accountCode != null && store.opt<String?>('social.nick', null) != null)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.gavel_rounded, color: scheme.primary),
-                  title: const Text('Avvisi della moderazione'),
-                  subtitle: const Text('Quelli ricevuti e le conversazioni'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const NoticesPage())),
-                ),
-              const SectionLabel('Account Easy Lesson'),
-              const AccountPanel(),
             ],
           ),
         ),
       ),
     );
   }
+
+  static String _ago(DateTime t) {
+    final d = DateTime.now().difference(t);
+    if (d.inMinutes < 2) return 'adesso';
+    if (d.inHours < 1) return tr('${d.inMinutes} min fa', '${d.inMinutes} min ago');
+    if (d.inDays < 1) return tr('${d.inHours} h fa', '${d.inHours} h ago');
+    return d.inDays == 1 ? tr('ieri', 'yesterday') : tr('${d.inDays} giorni fa', '${d.inDays} days ago');
+  }
 }
+
+/// L'account (codice, recupero, sincronizzazione, backup) in una pagina sua (3.8: nel profilo c'è solo una riga).
+void openAccountPage(BuildContext context) => Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => Scaffold(
+        appBar: AppBar(title: Text(tr('Account Easy Lesson', 'Easy Lesson account'))),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 32), children: const [AccountPanel()]),
+          ),
+        ),
+      ),
+    ));
 
 // ---------------------------------------------------------------------------
 // Account
@@ -186,7 +186,7 @@ class _AccountPanelState extends State<AccountPanel> {
         await CloudSync.syncNow(store, quiet: true);
         if (!mounted) return;
         await showCodeDialog(context, code, recovery: rec, fresh: true);
-        if (mounted) _toast('Account creato: i tuoi progressi ora sono al sicuro ☁️');
+        if (mounted) _toast(tr('Account creato: i tuoi progressi ora sono al sicuro ☁️', 'Account created: your progress is now safe ☁️'));
       });
 
   Future<void> _loginWith(String code) => _run(() async {
@@ -194,7 +194,7 @@ class _AccountPanelState extends State<AccountPanel> {
         final me = await CloudAccount.login(store, code);
         if (!mounted) return;
         setState(() => _found = null);
-        _toast('Bentornato! Livello ${levelOf(store).level} recuperato');
+        _toast(tr(tr('Bentornato! Livello ${levelOf(store).level} recuperato', 'Welcome back! Level ${levelOf(store).level} restored'), 'Welcome back! Level ${levelOf(store).level} restored'));
         if (me['backup'] != null) await _offerRestore();
       });
 
@@ -202,11 +202,11 @@ class _AccountPanelState extends State<AccountPanel> {
     final restore = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('C\'è un backup sul server'),
-        content: const Text('Vuoi rimetterlo su questo dispositivo? Sostituisce i dati di adesso.'),
+        title: Text(tr('C\'è un backup sul server', 'There\'s a backup on the server')),
+        content: Text(tr('Vuoi rimetterlo su questo dispositivo? Sostituisce i dati di adesso.', 'Put it back on this device? It replaces the current data.')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('No')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Ripristina')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('No', 'No'))),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Ripristina', 'Restore'))),
         ],
       ),
     );
@@ -214,30 +214,30 @@ class _AccountPanelState extends State<AccountPanel> {
   }
 
   Future<void> _login() async {
-    final code = await _askCode(context, 'Ho già un codice',
-        'Scrivi o incolla il codice che hai salvato. Spazi e trattini non contano, maiuscole sì.');
+    final code = await _askCode(context, tr('Ho già un codice', 'I already have a code'),
+        tr('Scrivi o incolla il codice che hai salvato. Spazi e trattini non contano, maiuscole sì.', 'Write or paste the code you saved. Spaces and dashes don\'t matter, capital letters do.'));
     if (code == null) return;
     if (!looksLikeAccountCode(code)) {
-      _toast('Il codice è troppo corto: controlla di averlo copiato tutto');
+      _toast(tr('Il codice è troppo corto: controlla di averlo copiato tutto', 'The code is too short: check you copied all of it'));
       return;
     }
     await _loginWith(code);
   }
 
   Future<void> _recover() async {
-    final rec = await _askCode(context, 'Ho perso il codice',
-        'Scrivi il codice di recupero (quello del foglio di recupero). Riceverai un codice nuovo: '
-            'quello vecchio smetterà di funzionare.');
+    final rec = await _askCode(context, tr('Ho perso il codice', 'I lost my code'),
+        tr('Scrivi il codice di recupero (quello del foglio di recupero). Riceverai un codice nuovo: '
+            'quello vecchio smetterà di funzionare.', 'Write the recovery code (the one on the recovery sheet). You\'ll get a new code: the old one will stop working.'));
     if (rec == null) return;
     if (!looksLikeAccountCode(rec)) {
-      _toast('Il codice di recupero è troppo corto');
+      _toast(tr('Il codice di recupero è troppo corto', 'The recovery code is too short'));
       return;
     }
     await _run(() async {
       final store = StoreScope.read(context);
       final code = await CloudAccount.recover(store, rec);
       if (!mounted) return;
-      await showCodeDialog(context, code, recovery: rec, fresh: true, title: '🔑 Il tuo codice nuovo');
+      await showCodeDialog(context, code, recovery: rec, fresh: true, title: tr('🔑 Il tuo codice nuovo', '🔑 Your new code'));
       if (mounted) await _offerRestore();
     });
   }
@@ -248,11 +248,11 @@ class _AccountPanelState extends State<AccountPanel> {
       final ok = await showDialog<bool>(
         context: context,
         builder: (c) => AlertDialog(
-          title: const Text('Ripristinare dal server?'),
-          content: const Text('Le parti salvate nel backup sostituiscono quelle di questo dispositivo.'),
+          title: Text(tr('Ripristinare dal server?', 'Restore from the server?')),
+          content: Text(tr('Le parti salvate nel backup sostituiscono quelle di questo dispositivo.', 'The parts saved in the backup replace those on this device.')),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Ripristina')),
+            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+            FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Ripristina', 'Restore'))),
           ],
         ),
       );
@@ -260,7 +260,7 @@ class _AccountPanelState extends State<AccountPanel> {
     }
     await _run(() async {
       final n = await CloudSync.restoreFromServer(store);
-      if (mounted) _toast('Ripristinate $n impostazioni dal server');
+      if (mounted) _toast(tr('Ripristinate $n impostazioni dal server', 'Restored $n settings from the server'));
     });
   }
 
@@ -280,11 +280,11 @@ class _AccountPanelState extends State<AccountPanel> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Nuovo codice di recupero?'),
-        content: const Text('Quello vecchio smetterà di funzionare: ricordati di buttare o aggiornare il foglio stampato.'),
+        title: Text(tr('Nuovo codice di recupero?', 'New recovery code?')),
+        content: Text(tr('Quello vecchio smetterà di funzionare: ricordati di buttare o aggiornare il foglio stampato.', 'The old one will stop working: remember to throw away or update the printed sheet.')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Crea')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Crea', 'Create'))),
         ],
       ),
     );
@@ -292,7 +292,7 @@ class _AccountPanelState extends State<AccountPanel> {
     await _run(() async {
       final store = StoreScope.read(context);
       final rec = await CloudAccount.newRecoveryCode(store);
-      if (mounted) await showCodeDialog(context, store.accountCode!, recovery: rec, fresh: true, title: 'Codici aggiornati');
+      if (mounted) await showCodeDialog(context, store.accountCode!, recovery: rec, fresh: true, title: tr('Codici aggiornati', 'Codes updated'));
     });
   }
 
@@ -301,14 +301,14 @@ class _AccountPanelState extends State<AccountPanel> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Scollegare questo dispositivo?'),
-        content: const Text(
-          'Il tuo account resta sul server. Per ricollegarti ti servirà il codice: '
-          'controlla di averlo salvato prima di continuare.',
+        title: Text(tr('Scollegare questo dispositivo?', 'Disconnect this device?')),
+        content: Text(
+          tr('Il tuo account resta sul server. Per ricollegarti ti servirà il codice: '
+          'controlla di averlo salvato prima di continuare.', 'Your account stays on the server. To reconnect you\'ll need the code: check you saved it before continuing.'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Scollega')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Scollega', 'Disconnect'))),
         ],
       ),
     );
@@ -322,17 +322,17 @@ class _AccountPanelState extends State<AccountPanel> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Eliminare l\'account?'),
-        content: const Text(
-          'Dal server spariscono per sempre livello, obiettivi salvati e backup. '
-          'Sul dispositivo resta tutto. Non si può annullare.',
+        title: Text(tr('Eliminare l\'account?', 'Delete the account?')),
+        content: Text(
+          tr('Dal server spariscono per sempre livello, obiettivi salvati e backup. '
+          'Sul dispositivo resta tutto. Non si può annullare.', 'Level, saved achievements and backup disappear from the server forever. Everything stays on the device. It can\'t be undone.'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Theme.of(c).colorScheme.error),
             onPressed: () => Navigator.pop(c, true),
-            child: const Text('Elimina'),
+            child: Text(tr('Elimina', 'Delete')),
           ),
         ],
       ),
@@ -352,7 +352,7 @@ class _AccountPanelState extends State<AccountPanel> {
       ]) {
         await store.setOpt(k, null);
       }
-      if (mounted) _toast('Account eliminato dal server');
+      if (mounted) _toast(tr('Account eliminato dal server', 'Account deleted from the server'));
     });
   }
 
@@ -382,15 +382,15 @@ class _AccountPanelState extends State<AccountPanel> {
               color: scheme.primaryContainer,
               child: ListTile(
                 leading: const Icon(Icons.restore_rounded),
-                title: const Text('Ho trovato il tuo codice'),
-                subtitle: const Text('Salvato nel backup del tuo account Google'),
-                trailing: FilledButton(onPressed: _busy ? null : () => _loginWith(found.$1), child: const Text('Entra')),
+                title: Text(tr('Ho trovato il tuo codice', 'I found your code')),
+                subtitle: Text(tr('Salvato nel backup del tuo account Google', 'Saved in your Google account backup')),
+                trailing: FilledButton(onPressed: _busy ? null : () => _loginWith(found.$1), child: Text(tr('Entra', 'Sign in'))),
               ),
             ),
           Text(
-            'Con un codice segreto salvi livello e obiettivi sul server di Easy Lesson e li ritrovi '
+            tr('Con un codice segreto salvi livello e obiettivi sul server di Easy Lesson e li ritrovi '
             'su un altro telefono. Niente email, niente password: solo il codice. '
-            'È facoltativo: senza, tutto resta su questo dispositivo.',
+            'È facoltativo: senza, tutto resta su questo dispositivo.', 'With a secret code you save level and achievements on the Easy Lesson server and find them on another phone. No email, no password: just the code. It\'s optional: without it, everything stays on this device.'),
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 12),
@@ -399,15 +399,15 @@ class _AccountPanelState extends State<AccountPanel> {
             icon: _busy
                 ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2.2))
                 : const Icon(Icons.key_rounded),
-            label: const Text('Crea il mio codice'),
+            label: Text(tr('Crea il mio codice', 'Create my code')),
           ),
           const SizedBox(height: 6),
           OutlinedButton.icon(
             onPressed: _busy ? null : _login,
             icon: const Icon(Icons.login_rounded),
-            label: const Text('Ho già un codice'),
+            label: Text(tr('Ho già un codice', 'I already have a code')),
           ),
-          TextButton(onPressed: _busy ? null : _recover, child: const Text('Ho perso il codice')),
+          TextButton(onPressed: _busy ? null : _recover, child: Text(tr('Ho perso il codice', 'I lost my code'))),
         ],
       );
     }
@@ -426,8 +426,8 @@ class _AccountPanelState extends State<AccountPanel> {
             color: scheme.errorContainer,
             child: ListTile(
               leading: const Icon(Icons.warning_amber_rounded),
-              title: const Text('Salva il codice di recupero'),
-              subtitle: const Text('Ne è stato creato uno: senza, se perdi il codice perdi anche i dati'),
+              title: Text(tr('Salva il codice di recupero', 'Save the recovery code')),
+              subtitle: Text(tr('Ne è stato creato uno: senza, se perdi il codice perdi anche i dati', 'One was created: without it, if you lose the code you lose your data too')),
               onTap: () async {
                 await showCodeDialog(context, code, recovery: store.recoveryCode, fresh: true);
                 await store.setOpt('cloud.recoveryPending', null);
@@ -447,12 +447,12 @@ class _AccountPanelState extends State<AccountPanel> {
                   ),
                 ),
                 IconButton(
-                  tooltip: _showCode ? 'Nascondi' : 'Mostra',
+                  tooltip: _showCode ? tr('Nascondi', 'Hide') : tr('Mostra', 'Show'),
                   onPressed: () => setState(() => _showCode = !_showCode),
                   icon: Icon(_showCode ? Icons.visibility_off_rounded : Icons.visibility_rounded),
                 ),
                 IconButton(
-                  tooltip: 'Copia e QR',
+                  tooltip: tr('Copia e QR', 'Copy and QR'),
                   onPressed: () => showCodeDialog(context, code, recovery: rec),
                   icon: const Icon(Icons.qr_code_2_rounded),
                 ),
@@ -462,27 +462,27 @@ class _AccountPanelState extends State<AccountPanel> {
         ),
         Padding(
           padding: const EdgeInsets.only(top: 6),
-          child: Text('Non dare il codice a nessuno: chi ce l\'ha entra nel tuo account.', style: small),
+          child: Text(tr('Non dare il codice a nessuno: chi ce l\'ha entra nel tuo account.', 'Don\'t give the code to anyone: whoever has it gets into your account.'), style: small),
         ),
         if (!widget.compact) ...[
-          const SectionLabel('Non perdere il codice'),
-          item(Icons.picture_as_pdf_outlined, 'Foglio di recupero (PDF)', 'Codice e codice di recupero con i QR, da stampare',
+          SectionLabel(tr('Non perdere il codice', 'Don\'t lose the code')),
+          item(Icons.picture_as_pdf_outlined, tr('Foglio di recupero (PDF)', 'Recovery sheet (PDF)'), tr('Codice e codice di recupero con i QR, da stampare', 'Code and recovery code with QRs, to print'),
               () => exportRecoverySheet(context, code: code, recovery: rec, name: store.username)),
           item(
             Icons.health_and_safety_outlined,
-            'Codice di recupero',
-            rec == null ? 'Non è su questo dispositivo: creane uno nuovo se non hai il foglio' : 'Toccalo per vederlo',
-            rec == null ? _newRecovery : () => showCodeDialog(context, rec, title: 'Codice di recupero'),
+            tr('Codice di recupero', 'Recovery code'),
+            rec == null ? tr('Non è su questo dispositivo: creane uno nuovo se non hai il foglio', 'It\'s not on this device: create a new one if you don\'t have the sheet') : tr('Toccalo per vederlo', 'Tap to see it'),
+            rec == null ? _newRecovery : () => showCodeDialog(context, rec, title: tr('Codice di recupero', 'Recovery code')),
           ),
-          if (rec != null) item(Icons.autorenew_rounded, 'Crea un codice di recupero nuovo', 'Se quello vecchio è finito in mani sbagliate', _newRecovery),
-          item(Icons.password_rounded, 'Salva nel gestore password', 'Google, Samsung, il browser…',
+          if (rec != null) item(Icons.autorenew_rounded, tr('Crea un codice di recupero nuovo', 'Create a new recovery code'), tr('Se quello vecchio è finito in mani sbagliate', 'If the old one ended up in the wrong hands'), _newRecovery),
+          item(Icons.password_rounded, tr('Salva nel gestore password', 'Save to password manager'), tr('Google, Samsung, il browser…', 'Google, Samsung, the browser…'),
               () => saveCodeToPasswordManager(context, code)),
           if (CloudVault.supported)
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               secondary: Icon(Icons.cloud_done_outlined, color: scheme.primary),
-              title: const Text('Copia nel backup di Google'),
-              subtitle: const Text('Su un telefono nuovo con lo stesso account Google il codice si ritrova da solo'),
+              title: Text(tr('Copia nel backup di Google', 'Copy to Google backup')),
+              subtitle: Text(tr('Su un telefono nuovo con lo stesso account Google il codice si ritrova da solo', 'On a new phone with the same Google account the code comes back by itself')),
               value: store.opt('cloud.vault', true),
               onChanged: (v) async {
                 await store.setOpt('cloud.vault', v ? null : false);
@@ -493,32 +493,32 @@ class _AccountPanelState extends State<AccountPanel> {
                 }
               },
             ),
-          item(Icons.quiz_outlined, 'Controlla che te lo ricordi',
-              verified == null ? 'Mai controllato' : 'Ultima volta ${relativeTime(verified)}', () => checkCodeMemory(context, force: true)),
-          const SectionLabel('Sincronizzazione'),
+          item(Icons.quiz_outlined, tr('Controlla che te lo ricordi', 'Check you remember it'),
+              verified == null ? tr('Mai controllato', 'Never checked') : '${tr('Ultima volta', 'Last time')} ${relativeTime(verified)}', () => checkCodeMemory(context, force: true)),
+          SectionLabel(tr('Sincronizzazione', 'Sync')),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: Icon(Icons.cloud_sync_rounded, color: scheme.primary),
-            title: const Text('Sincronizza adesso'),
-            subtitle: Text(lastSync == null ? 'Mai sincronizzato' : 'Ultima volta ${relativeTime(lastSync)}'),
+            title: Text(tr('Sincronizza adesso', 'Sync now')),
+            subtitle: Text(lastSync == null ? tr('Mai sincronizzato', 'Never synced') : '${tr('Ultima volta', 'Last time')} ${relativeTime(lastSync)}'),
             trailing: _busy ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)) : null,
             onTap: _busy ? null : () => _run(() async => _toast(await CloudSync.syncNow(store))),
           ),
-          const SectionLabel('Backup online'),
+          SectionLabel(tr('Backup online', 'Online backup')),
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(
-              '🔒 Voti, assenze, studio, prof, agenda e nome partono cifrati con il tuo codice: '
-              'sul server nessuno può leggerli. Orari, tema e impostazioni vanno in chiaro.',
+              tr('🔒 Voti, assenze, studio, prof, agenda e nome partono cifrati con il tuo codice: '
+              'sul server nessuno può leggerli. Orari, tema e impostazioni vanno in chiaro.', '🔒 Grades, absences, study, teachers, planner and name leave encrypted with your code: nobody on the server can read them. Timetables, theme and settings travel in the clear.'),
               style: small,
             ),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             secondary: Icon(Icons.backup_outlined, color: scheme.primary),
-            title: const Text('Backup automatico'),
+            title: Text(tr('Backup automatico', 'Automatic backup')),
             subtitle: Text(backupAt == null
-                ? 'Una volta al giorno, solo se è cambiato qualcosa'
+                ? tr('Una volta al giorno, solo se è cambiato qualcosa', 'Once a day, only if something changed')
                 : 'Ultimo ${relativeTime(backupAt)} · ${_kb(store.opt('cloud.backupSize', 0))}'),
             value: store.opt('cloud.auto', false) && store.opt('cloud.consent', false),
             onChanged: (v) async {
@@ -526,20 +526,20 @@ class _AccountPanelState extends State<AccountPanel> {
               await store.setOpt('cloud.auto', v ? true : null);
             },
           ),
-          item(Icons.checklist_rounded, 'Cosa salvare', _sectionsSummary(CloudSync.sections(store)),
+          item(Icons.checklist_rounded, tr('Cosa salvare', 'What to save'), _sectionsSummary(CloudSync.sections(store)),
               () => showBackupConsent(context)),
-          item(Icons.cloud_upload_outlined, 'Carica il backup adesso', null, _upload),
-          item(Icons.cloud_download_outlined, 'Ripristina dal server', 'Rimette il backup su questo dispositivo', _restore),
-          item(Icons.cloud_off_outlined, 'Cancella il backup dal server', null, () => _run(() async {
+          item(Icons.cloud_upload_outlined, tr('Carica il backup adesso', 'Upload the backup now'), null, _upload),
+          item(Icons.cloud_download_outlined, tr('Ripristina dal server', 'Restore from the server'), tr('Rimette il backup su questo dispositivo', 'Puts the backup back on this device'), _restore),
+          item(Icons.cloud_off_outlined, tr('Cancella il backup dal server', 'Delete the backup from the server'), null, () => _run(() async {
                 await Cloud.deleteBackup(code);
                 await store.setOpt('cloud.backupAt', null);
                 await store.setOpt('cloud.backupSign', null);
                 await store.setOpt('cloud.auto', null);
-                _toast('Backup cancellato dal server');
+                _toast(tr('Backup cancellato dal server', 'Backup deleted from the server'));
               })),
           const SectionLabel('Account'),
-          item(Icons.logout_rounded, 'Scollega questo dispositivo', null, _logout),
-          item(Icons.delete_forever_outlined, 'Elimina l\'account', 'Cancella tutto dal server', _deleteAccount,
+          item(Icons.logout_rounded, tr('Scollega questo dispositivo', 'Disconnect this device'), null, _logout),
+          item(Icons.delete_forever_outlined, 'Elimina l\'account', tr('Cancella tutto dal server', 'Delete everything from the server'), _deleteAccount,
               color: scheme.error),
         ],
       ],
@@ -551,7 +551,7 @@ String _kb(int bytes) => bytes < 1024 ? '$bytes byte' : '${(bytes / 1024).toStri
 
 String _sectionsSummary(Set<String> secs) {
   final names = [for (final s in backupSections) if (secs.contains(s.$1)) s.$2];
-  return names.isEmpty ? 'Niente' : names.join(', ');
+  return names.isEmpty ? tr('Niente', 'Nothing') : names.join(', ');
 }
 
 /// Chiede un codice (con il tasto Incolla).
@@ -579,7 +579,7 @@ Future<String?> _askCode(BuildContext context, String title, String text) async 
                 children: [
                   if (qrScannerSupported)
                     IconButton(
-                      tooltip: 'Scansiona il QR',
+                      tooltip: tr('Scansiona il QR', 'Scan the QR'),
                       icon: const Icon(Icons.qr_code_scanner_rounded),
                       onPressed: () async {
                         final v = await scanQr(c);
@@ -587,7 +587,7 @@ Future<String?> _askCode(BuildContext context, String title, String text) async 
                       },
                     ),
                   IconButton(
-                    tooltip: 'Incolla',
+                    tooltip: tr('Incolla', 'Paste'),
                     icon: const Icon(Icons.paste_rounded),
                     onPressed: () async =>
                         ctrl.text = parseCodeText((await Clipboard.getData(Clipboard.kTextPlain))?.text ?? '').$2,
@@ -600,7 +600,7 @@ Future<String?> _askCode(BuildContext context, String title, String text) async 
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annulla')),
+        TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annulla', 'Cancel'))),
         FilledButton(onPressed: () => Navigator.pop(c, ctrl.text.trim()), child: const Text('OK')),
       ],
     ),
@@ -619,8 +619,8 @@ Future<void> openAccountLink(BuildContext context, String link) async {
     final same = kind == 'login' && normalizeAccountCode(current) == normalizeAccountCode(value);
     messenger.showSnackBar(SnackBar(
       content: Text(same
-          ? 'Questo dispositivo è già collegato con questo codice ✅'
-          : 'Questo dispositivo è già collegato a un account: scollegalo prima dal Profilo'),
+          ? tr('Questo dispositivo è già collegato con questo codice ✅', 'This device is already connected with this code ✅')
+          : tr('Questo dispositivo è già collegato a un account: scollegalo prima dal Profilo', 'This device is already connected to an account: disconnect it from the Profile first')),
     ));
     return;
   }
@@ -628,13 +628,13 @@ Future<void> openAccountLink(BuildContext context, String link) async {
     context: context,
     builder: (c) => AlertDialog(
       icon: const Icon(Icons.key_rounded),
-      title: Text(kind == 'login' ? 'Entrare con questo codice?' : 'Recuperare l\'account?'),
+      title: Text(kind == 'login' ? tr('Entrare con questo codice?', 'Sign in with this code?') : 'Recuperare l\'account?'),
       content: Text(kind == 'login'
-          ? 'Livello, obiettivi e backup dell\'account arriveranno su questo dispositivo.'
-          : 'Con il codice di recupero ricevi un codice nuovo; quello vecchio smette di funzionare.'),
+          ? tr('Livello, obiettivi e backup dell\'account arriveranno su questo dispositivo.', 'The account\'s level, achievements and backup will come to this device.')
+          : tr('Con il codice di recupero ricevi un codice nuovo; quello vecchio smette di funzionare.', 'With the recovery code you get a new code; the old one stops working.')),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-        FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(kind == 'login' ? 'Entra' : 'Recupera')),
+        TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+        FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(kind == 'login' ? tr('Entra', 'Sign in') : tr('Recupera', 'Recover'))),
       ],
     ),
   );
@@ -644,13 +644,13 @@ Future<void> openAccountLink(BuildContext context, String link) async {
       final me = await CloudAccount.login(store, value);
       messenger.showSnackBar(SnackBar(
         content: Text(me['backup'] != null
-            ? 'Bentornato! C\'è un backup: lo ripristini da Profilo → Ripristina dal server'
+            ? tr('Bentornato! C\'è un backup: lo ripristini da Profilo → Ripristina dal server', 'Welcome back! There\'s a backup: restore it from Profile → Restore from the server')
             : 'Bentornato! Livello ${levelOf(store).level} recuperato'),
       ));
     } else {
       final code = await CloudAccount.recover(store, value);
       if (context.mounted) {
-        await showCodeDialog(context, code, recovery: value, fresh: true, title: '🔑 Il tuo codice nuovo');
+        await showCodeDialog(context, code, recovery: value, fresh: true, title: tr('🔑 Il tuo codice nuovo', '🔑 Your new code'));
       }
     }
   } on CloudException catch (e) {
@@ -681,10 +681,10 @@ Future<void> showCodeDialog(BuildContext context, String code, {String? recovery
           TextButton.icon(
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: value));
-              if (c.mounted) ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text('$label copiato')));
+              if (c.mounted) ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(tr('$label copiato', '$label copied'))));
             },
             icon: const Icon(Icons.copy_rounded),
-            label: const Text('Copia'),
+            label: Text(tr('Copia', 'Copy')),
           ),
         ],
       );
@@ -693,24 +693,24 @@ Future<void> showCodeDialog(BuildContext context, String code, {String? recovery
     barrierDismissible: !fresh,
     builder: (c) => StatefulBuilder(
       builder: (c, setState) => AlertDialog(
-        title: Text(title ?? (fresh ? '🔑 I tuoi codici' : 'Il tuo codice')),
+        title: Text(title ?? (fresh ? tr('🔑 I tuoi codici', '🔑 Your codes') : tr('Il tuo codice', 'Your code'))),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (fresh)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 12),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
                   child: Text(
-                    'Salvali adesso: sono l\'unico modo per ritrovare i tuoi progressi e aprire i tuoi '
-                    'dati cifrati. Se li perdi tutti e due nessuno può recuperarli, nemmeno noi.',
+                    tr('Salvali adesso: sono l\'unico modo per ritrovare i tuoi progressi e aprire i tuoi '
+                    'dati cifrati. Se li perdi tutti e due nessuno può recuperarli, nemmeno noi.', 'Save them now: they\'re the only way to find your progress and open your encrypted data. If you lose both nobody can recover them, not even us.'),
                   ),
                 ),
-              codeBox(c, 'Codice', code, accountLink(code)),
+              codeBox(c, tr('Codice', 'Code'), code, accountLink(code)),
               if (recovery != null) ...[
                 const Divider(height: 24),
-                codeBox(c, 'Codice di recupero', recovery, recoveryLink(recovery)),
-                const Text('Tienilo separato dal telefono (stampato, a casa).', textAlign: TextAlign.center),
+                codeBox(c, tr('Codice di recupero', 'Recovery code'), recovery, recoveryLink(recovery)),
+                Text(tr('Tienilo separato dal telefono (stampato, a casa).', 'Keep it away from the phone (printed, at home).'), textAlign: TextAlign.center),
               ],
               const SizedBox(height: 8),
               Wrap(
@@ -720,12 +720,12 @@ Future<void> showCodeDialog(BuildContext context, String code, {String? recovery
                   OutlinedButton.icon(
                     onPressed: () => exportRecoverySheet(c, code: code, recovery: recovery, name: store.username),
                     icon: const Icon(Icons.picture_as_pdf_outlined),
-                    label: const Text('Foglio PDF'),
+                    label: Text(tr('Foglio PDF', 'PDF sheet')),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => saveCodeToPasswordManager(c, code),
                     icon: const Icon(Icons.password_rounded),
-                    label: const Text('Gestore password'),
+                    label: Text(tr('Gestore password', 'Password manager')),
                   ),
                 ],
               ),
@@ -734,13 +734,13 @@ Future<void> showCodeDialog(BuildContext context, String code, {String? recovery
                   contentPadding: EdgeInsets.zero,
                   value: saved,
                   onChanged: (v) => setState(() => saved = v ?? false),
-                  title: const Text('Li ho salvati in un posto sicuro'),
+                  title: Text(tr('Li ho salvati in un posto sicuro', 'I saved them somewhere safe')),
                 ),
             ],
           ),
         ),
         actions: [
-          FilledButton(onPressed: saved ? () => Navigator.pop(c) : null, child: const Text('Fatto')),
+          FilledButton(onPressed: saved ? () => Navigator.pop(c) : null, child: Text(tr('Fatto', 'Done'))),
         ],
       ),
     ),
@@ -754,24 +754,24 @@ Future<void> saveCodeToPasswordManager(BuildContext context, String code) async 
   await showDialog<void>(
     context: context,
     builder: (c) => AlertDialog(
-      title: const Text('Salva nel gestore password'),
+      title: Text(tr('Salva nel gestore password', 'Save to password manager')),
       content: AutofillGroup(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Tocca "Salva": il telefono o il browser dovrebbero proporti di ricordare la password. '
-                'Se non succede, usa Copia e incollala tu nel gestore.'),
+            Text(tr('Tocca "Salva": il telefono o il browser dovrebbero proporti di ricordare la password. '
+                'Se non succede, usa Copia e incollala tu nel gestore.', 'Tap "Save": the phone or the browser should offer to remember the password. If it doesn\'t, use Copy and paste it into the manager yourself.')),
             const SizedBox(height: 12),
             TextField(
               controller: user,
               autofillHints: const [AutofillHints.username],
-              decoration: const InputDecoration(labelText: 'Nome utente'),
+              decoration: InputDecoration(labelText: tr('Nome utente', 'Username')),
             ),
             TextField(
               controller: pass,
               autofillHints: const [AutofillHints.password],
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Password (il tuo codice)'),
+              decoration: InputDecoration(labelText: tr('Password (il tuo codice)', 'Password (your code)')),
             ),
           ],
         ),
@@ -779,14 +779,14 @@ Future<void> saveCodeToPasswordManager(BuildContext context, String code) async 
       actions: [
         TextButton(
           onPressed: () => Clipboard.setData(ClipboardData(text: code)),
-          child: const Text('Copia'),
+          child: Text(tr('Copia', 'Copy')),
         ),
         FilledButton(
           onPressed: () {
             TextInput.finishAutofillContext(shouldSave: true);
             Navigator.pop(c);
           },
-          child: const Text('Salva'),
+          child: Text(tr('Salva', 'Save')),
         ),
       ],
     ),
@@ -819,12 +819,12 @@ Future<void> checkCodeMemory(BuildContext context, {bool force = false}) async {
     context: context,
     builder: (c) => AlertDialog(
       icon: const Icon(Icons.quiz_outlined),
-      title: const Text('Ti ricordi il tuo codice?'),
+      title: Text(tr('Ti ricordi il tuo codice?', 'Do you remember your code?')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Scrivi gli ultimi 4 caratteri del tuo codice Easy Lesson (maiuscole e simboli contano). '
-              'Serve a controllare che l\'hai salvato davvero.'),
+          Text(tr('Scrivi gli ultimi 4 caratteri del tuo codice Easy Lesson (maiuscole e simboli contano). '
+              'Serve a controllare che l\'hai salvato davvero.', 'Write the last 4 characters of your Easy Lesson code (capitals and symbols count). It checks that you really saved it.')),
           const SizedBox(height: 12),
           TextField(
             controller: ctrl,
@@ -839,9 +839,9 @@ Future<void> checkCodeMemory(BuildContext context, {bool force = false}) async {
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c, '?'), child: const Text('Non me lo ricordo')),
-        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Dopo')),
-        FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: const Text('Controlla')),
+        TextButton(onPressed: () => Navigator.pop(c, '?'), child: Text(tr('Non me lo ricordo', 'I don\'t remember it'))),
+        TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Dopo', 'Later'))),
+        FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: Text(tr('Controlla', 'Check'))),
       ],
     ),
   );
@@ -849,14 +849,14 @@ Future<void> checkCodeMemory(BuildContext context, {bool force = false}) async {
   if (answer.trim() == last4) {
     await store.setOpt('cloud.verifiedAt', now.toIso8601String());
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Giusto! Il tuo codice è al sicuro')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('✅ Giusto! Il tuo codice è al sicuro', '✅ Correct! Your code is safe'))));
     }
     return;
   }
   await showCodeDialog(context, code,
       recovery: store.recoveryCode,
       fresh: true,
-      title: answer == '?' ? 'Salvalo adesso, finché hai il telefono' : 'Non era giusto: salvalo adesso');
+      title: answer == '?' ? tr('Salvalo adesso, finché hai il telefono', 'Save it now, while you have the phone') : tr('Non era giusto: salvalo adesso', 'That wasn\'t right: save it now'));
 }
 
 /// Link all'informativa privacy.
@@ -870,7 +870,7 @@ class PrivacyLink extends StatelessWidget {
           style: TextButton.styleFrom(padding: EdgeInsets.zero),
           onPressed: () => launchUrl(Uri.parse(privacyUrl), mode: LaunchMode.externalApplication),
           icon: const Icon(Icons.privacy_tip_outlined, size: 18),
-          label: const Text('Leggi l\'informativa privacy'),
+          label: Text(tr('Leggi l\'informativa privacy', 'Read the privacy policy')),
         ),
       );
 }
@@ -884,16 +884,16 @@ Future<bool> showBackupConsent(BuildContext context) async {
     context: context,
     builder: (c) => StatefulBuilder(
       builder: (c, setState) => AlertDialog(
-        title: const Text('Backup online'),
+        title: Text(tr('Backup online', 'Online backup')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Le parti che scegli vengono copiate sul server di Easy Lesson (Cloudflare), collegate solo al '
+              Text(
+                tr('Le parti che scegli vengono copiate sul server di Easy Lesson (Cloudflare), collegate solo al '
                 'tuo codice. Quelle con il lucchetto 🔒 (e il tuo nome) partono cifrate con il tuo codice: '
-                'sul server nessuno può leggerle. Le altre vanno in chiaro. Puoi cancellare tutto quando vuoi.',
+                'sul server nessuno può leggerle. Le altre vanno in chiaro. Puoi cancellare tutto quando vuoi.', 'The parts you choose are copied to the Easy Lesson server (Cloudflare), linked only to your code. Those with the lock 🔒 (and your name) leave encrypted with your code: nobody on the server can read them. The others travel in the clear. You can delete everything whenever you want.'),
               ),
               const PrivacyLink(),
               const SizedBox(height: 8),
@@ -911,20 +911,20 @@ Future<bool> showBackupConsent(BuildContext context) async {
                 contentPadding: EdgeInsets.zero,
                 value: accepted,
                 onChanged: (v) => setState(() => accepted = v ?? false),
-                title: const Text(
-                  'Ho capito: uso il backup online a mio rischio, Easy Lesson è un progetto di studenti '
+                title: Text(
+                  tr('Ho capito: uso il backup online a mio rischio, Easy Lesson è un progetto di studenti '
                   'fornito così com\'è, senza garanzie. Se perdo codice e codice di recupero, i dati cifrati '
-                  'non si possono recuperare.',
+                  'non si possono recuperare.', 'Got it: I use the online backup at my own risk, Easy Lesson is a student project provided as is, without warranties. If I lose the code and the recovery code, the encrypted data can\'t be recovered.'),
                 ),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
           FilledButton(
             onPressed: accepted && chosen.isNotEmpty ? () => Navigator.pop(c, true) : null,
-            child: const Text('Salva'),
+            child: Text(tr('Salva', 'Save')),
           ),
         ],
       ),
@@ -955,7 +955,7 @@ class _RewardsPageState extends State<RewardsPage> {
     final scheme = Theme.of(context).colorScheme;
     final level = levelOf(store).level;
     return Scaffold(
-      appBar: AppBar(title: const Text('Ricompense')),
+      appBar: AppBar(title: Text(tr('Ricompense', 'Rewards'))),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _future,
         builder: (context, snap) {
@@ -969,15 +969,18 @@ class _RewardsPageState extends State<RewardsPage> {
                 const SizedBox(height: 16),
                 Text(
                   snap.hasError
-                      ? 'Non riesco a raggiungere il server delle ricompense.'
-                      : 'Le prime ricompense stanno arrivando!',
+                      ? tr('Non riesco a raggiungere il server delle ricompense.', 'Can\'t reach the rewards server.')
+                      : tr('Le prime ricompense stanno arrivando!', 'The first rewards are on their way!'),
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Ogni 5 livelli si sblocca qualcosa: skin, disegni, temi speciali. '
-                  'Intanto il tuo distintivo cambia colore ogni 5 livelli.',
+                Text(
+                  tr(
+                      'Ogni 5 livelli si sblocca qualcosa: skin, disegni, temi speciali. '
+                          'Intanto il tuo distintivo cambia colore ogni 5 livelli.',
+                      'Every 5 levels something unlocks: skins, drawings, special themes. '
+                          'Meanwhile your badge changes color every 5 levels.'),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
@@ -985,7 +988,7 @@ class _RewardsPageState extends State<RewardsPage> {
                   Center(
                     child: OutlinedButton(
                       onPressed: () => setState(() => _future = Cloud.rewards()),
-                      child: const Text('Riprova'),
+                      child: Text(tr('Riprova', 'Try again')),
                     ),
                   ),
               ],
@@ -1014,7 +1017,7 @@ class _RewardsPageState extends State<RewardsPage> {
                         ListTile(
                           leading: open ? const Icon(Icons.redeem_rounded) : const Icon(Icons.lock_outline_rounded),
                           title: Text(open ? '${r['title']}' : '???'),
-                          subtitle: Text(open ? '${r['description'] ?? ''}' : 'Si sblocca al livello $need'),
+                          subtitle: Text(open ? '${r['description'] ?? ''}' : tr('Si sblocca al livello $need', 'Unlocks at level $need')),
                           trailing: LevelBadge(level: need, size: 32),
                           iconColor: open ? scheme.primary : null,
                         ),

@@ -6,6 +6,7 @@ import 'backdrop.dart';
 import 'color_lab.dart';
 import 'theme.dart';
 import 'widgets.dart';
+import '../i18n.dart';
 
 Future<void> openThemesPage(BuildContext context) async {
   await colorMenuGate(context);
@@ -32,16 +33,16 @@ class ThemesPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Temi'),
+        title: Text(tr('Temi', 'Themes')),
         actions: [
           IconButton(
-            tooltip: 'Importa tema da codice',
+            tooltip: tr('Importa tema da codice', 'Import theme from code'),
             onPressed: () => importThemeDialog(context),
             icon: const Icon(Icons.download_rounded),
           ),
           if (store.hasCustomTheme)
             IconButton(
-              tooltip: 'Condividi il tuo tema',
+              tooltip: tr('Condividi il tuo tema', 'Share your theme'),
               onPressed: () => shareThemeDialog(context),
               icon: const Icon(Icons.share_rounded),
             ),
@@ -54,9 +55,9 @@ class ThemesPage extends StatelessWidget {
           child: CustomScrollView(
             slivers: [
               // Il tuo tema: creato dall'utente scegliendo colore e modalità.
-              const SliverPadding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverToBoxAdapter(child: SectionLabel('Il tuo tema')),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverToBoxAdapter(child: SectionLabel(tr('Il tuo tema', 'Your theme'))),
               ),
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -213,7 +214,7 @@ class _ThemeCard extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: 'Tema ${spec.name}',
+      label: tr('Tema ${spec.name}', 'Theme ${spec.name}'),
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
@@ -293,7 +294,7 @@ class _NewThemeCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
               child: Text(
-                'Crea il tuo tema',
+                tr('Crea il tuo tema', 'Create your theme'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontWeight: FontWeight.w500, color: scheme.onSurface),
@@ -332,7 +333,7 @@ Future<void> editCustomTheme(BuildContext context) async {
       builder: (dialogContext, setState) {
         final scheme = Theme.of(dialogContext).colorScheme;
         return AlertDialog(
-          title: const Text('Il tuo tema'),
+          title: Text(tr('Il tuo tema', 'Your theme')),
           content: SizedBox(
             width: 420,
             child: SingleChildScrollView(
@@ -343,13 +344,13 @@ Future<void> editCustomTheme(BuildContext context) async {
                   TextField(
                     controller: nameCtrl,
                     maxLength: 24,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome del tema',
+                    decoration: InputDecoration(
+                      labelText: tr('Nome del tema', 'Theme name'),
                       counterText: '',
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Text('Colore', style: TextStyle(fontWeight: FontWeight.w600, color: scheme.onSurface)),
+                  Text(tr('Colore', 'Color'), style: TextStyle(fontWeight: FontWeight.w600, color: scheme.onSurface)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 10,
@@ -384,13 +385,13 @@ Future<void> editCustomTheme(BuildContext context) async {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Text('Modalità', style: TextStyle(fontWeight: FontWeight.w600, color: scheme.onSurface)),
+                  Text(tr('Modalità', 'Mode'), style: TextStyle(fontWeight: FontWeight.w600, color: scheme.onSurface)),
                   const SizedBox(height: 8),
                   SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(value: 'system', label: Text('Automatico')),
-                      ButtonSegment(value: 'light', label: Text('Chiaro')),
-                      ButtonSegment(value: 'dark', label: Text('Scuro')),
+                    segments: [
+                      ButtonSegment(value: 'system', label: Text(tr('Automatico', 'Automatic'))),
+                      ButtonSegment(value: 'light', label: Text(tr('Chiaro', 'Light'))),
+                      ButtonSegment(value: 'dark', label: Text(tr('Scuro', 'Dark'))),
                     ],
                     selected: {mode},
                     onSelectionChanged: (s) => setState(() => mode = s.first),
@@ -398,8 +399,8 @@ Future<void> editCustomTheme(BuildContext context) async {
                   if (mode != 'light')
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Nero assoluto (OLED)'),
-                      subtitle: const Text('Sfondo nero puro: i pixel restano spenti'),
+                      title: Text(tr('Nero assoluto (OLED)', 'Pure black (OLED)')),
+                      subtitle: Text(tr('Sfondo nero puro: i pixel restano spenti', 'Pure black background: the pixels stay off')),
                       value: oled,
                       onChanged: (v) => setState(() => oled = v),
                     ),
@@ -410,11 +411,11 @@ Future<void> editCustomTheme(BuildContext context) async {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Annulla'),
+              child: Text(tr('Annulla', 'Cancel')),
             ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Salva'),
+              child: Text(tr('Salva', 'Save')),
             ),
           ],
         );

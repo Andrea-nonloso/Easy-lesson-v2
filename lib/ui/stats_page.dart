@@ -5,6 +5,7 @@ import '../store.dart';
 import 'app_menu.dart';
 import 'theme.dart';
 import 'widgets.dart';
+import '../i18n.dart';
 
 void openStats(BuildContext context, CachedSchedule cached) =>
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => StatsPage(cached: cached)));
@@ -92,7 +93,7 @@ class StatsPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Statistiche · ${cached.ref.displayName}'),
+        title: Text(tr('Statistiche · ${cached.ref.displayName}', 'Statistics · ${cached.ref.displayName}')),
         actions: const [AppMenuButton(), SizedBox(width: 4)],
       ),
       body: Center(
@@ -103,28 +104,28 @@ class StatsPage extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  stat('⏱️', '$total', 'ore a settimana'),
+                  stat('⏱️', '$total', tr('ore a settimana', 'periods a week')),
                   const SizedBox(width: 10),
-                  stat('🔬', '$labHours', 'ore di laboratorio'),
+                  stat('🔬', '$labHours', tr('ore di laboratorio', 'lab periods')),
                   const SizedBox(width: 10),
                   stat(cached.ref.prof ? '🏫' : '👩‍🏫', cached.ref.prof ? '${bySubject.length}' : '${teachers.length}',
-                      cached.ref.prof ? 'classi' : 'docenti'),
+                      cached.ref.prof ? 'classi' : tr('docenti', 'teachers')),
                 ],
               ),
               if (heaviest.isNotEmpty) ...[
                 const SizedBox(height: 14),
-                Text('😮‍💨 Giorno più pesante: ${heaviest.join(' e ')} ($maxDay ore)',
+                Text('😮‍💨 ${tr('Giorno più pesante', 'Heaviest day')}: ${heaviest.join(tr(' e ', ' and '))} ($maxDay ${tr('ore', 'periods')})',
                     style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
               ],
-              SectionLabel(cached.ref.prof ? 'Ore per classe' : 'Ore per materia'),
+              SectionLabel(cached.ref.prof ? tr('Ore per classe', 'Periods per class') : tr('Ore per materia', 'Periods per subject')),
               for (final e in subjects)
                 bar(e.key, e.value, subjects.first.value, SubjectColors.of(e.key, theme.brightness).accent),
-              const SectionLabel('Ore per giorno'),
+              SectionLabel(tr('Ore per giorno', 'Periods per day')),
               for (var i = 0; i < byDay.length; i++)
-                bar(i < dayNames.length ? dayNames[i] : 'Giorno ${i + 1}', byDay[i], maxDay,
+                bar(i < dayNames.length ? dayNames[i] : tr('Giorno ${i + 1}', 'Day ${i + 1}'), byDay[i], maxDay,
                     byDay[i] == maxDay ? scheme.primary : scheme.primary.withAlpha(110)),
               if (labs.isNotEmpty) ...[
-                const SectionLabel('Laboratori'),
+                SectionLabel(tr('Laboratori', 'Labs')),
                 for (final e in (labs.entries.toList()..sort((a, b) => b.value.compareTo(a.value))))
                   bar(e.key, e.value, labs.values.reduce((a, b) => a > b ? a : b), scheme.tertiary),
               ],

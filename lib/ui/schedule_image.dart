@@ -9,6 +9,7 @@ import '../store.dart';
 import 'fun.dart';
 import 'save_file_io.dart' if (dart.library.js_interop) 'save_file_web.dart';
 import 'widgets.dart';
+import '../i18n.dart';
 
 /// Disegna l'orario della settimana come immagine PNG (sfondo chiaro, si legge bene
 /// anche in una chat). Non usa widget a schermo: si può riusare anche per il bot.
@@ -52,7 +53,7 @@ Future<Uint8List> renderScheduleImage({
 
   const top = pad + headH;
   for (var d = 0; d < n; d++) {
-    text(d < dayNames.length ? dayNames[d] : 'Giorno ${d + 1}', Offset(pad + timeW + d * colW + 8, top + 6), colW - 16,
+    text(d < dayNames.length ? dayNames[d] : tr('Giorno ${d + 1}', 'Day ${d + 1}'), Offset(pad + timeW + d * colW + 8, top + 6), colW - 16,
         size: 15, weight: FontWeight.w700);
   }
 
@@ -131,17 +132,17 @@ Future<void> saveScheduleImage(BuildContext context, CachedSchedule cached) asyn
   try {
     final png = await renderScheduleImage(
       title: cached.ref.displayName,
-      subtitle: '${cached.ref.kindLabel} · aggiornato ${relativeTime(cached.updatedAt)}',
+      subtitle: tr('${cached.ref.kindLabel} · aggiornato ${relativeTime(cached.updatedAt)}', '${cached.ref.kindLabel} · updated ${relativeTime(cached.updatedAt)}'),
       week: cached.week,
       slots: store.slots,
     );
     final safe = cached.ref.displayName.replaceAll(RegExp(r'[^A-Za-z0-9]+'), '_');
-    final where = await saveBytesFile('orario_$safe.png', png, mime: 'image/png', title: 'Salva l\'immagine');
+    final where = await saveBytesFile('orario_$safe.png', png, mime: 'image/png', title: tr('Salva l\'immagine', 'Save the image'));
     if (where == null) return;
     AppLog.i('immagine', 'Orario ${cached.ref.key} salvato come PNG (${png.length} byte)');
-    messenger.showSnackBar(SnackBar(content: Text(where.isEmpty ? 'Immagine scaricata' : 'Salvata in $where')));
+    messenger.showSnackBar(SnackBar(content: Text(where.isEmpty ? tr('Immagine scaricata', 'Image downloaded') : tr('Salvata in $where', 'Saved in $where'))));
   } catch (e, st) {
     AppLog.e('immagine', e, st);
-    messenger.showSnackBar(SnackBar(content: Text('Immagine non riuscita: $e')));
+    messenger.showSnackBar(SnackBar(content: Text(tr('Immagine non riuscita: $e', 'Image failed: $e'))));
   }
 }

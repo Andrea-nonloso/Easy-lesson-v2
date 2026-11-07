@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'cloud.dart';
+import 'live.dart';
 import 'log.dart';
 import 'mission_engine.dart' show missionMetric;
 import 'store.dart';
+import 'i18n.dart';
 
 /// Classe, amici, classifica (3.0). Serve l'account; si vede solo soprannome + emoji.
 /// Il server: server/src/social.js.
@@ -14,10 +17,10 @@ const socialAvatars = [
   '🌵', '🍀', '🌻', '🍕', '🍩', '⚽', '🏀', '🎮', '🎧', '🎸', '🎨', '📚', '🚀', '⭐', '🔥', '⚡',
 ];
 
-const challengeMetrics = {
-  'studied': ('Minuti di studio', '⏱️'),
-  'agendaDone': ('Compiti fatti', '✅'),
-  'days': ('Giorni con l\'app', '📅'),
+Map<String, (String, String)> get challengeMetrics => {
+  'studied': (tr('Minuti di studio', 'Study minutes'), '⏱️'),
+  'agendaDone': (tr('Compiti fatti', 'Homework done'), '✅'),
+  'days': (tr('Giorni con l\'app', 'Days with the app'), '📅'),
 };
 
 String _s(Object? v, [String d = '']) => v is String ? v : d;
@@ -33,6 +36,9 @@ class SocialProfile {
   bool get hiddenByModeration => j['hiddenByModeration'] == true;
   int get strikes => _i(j['strikes']);
   int get unreadNotices => _i(j['unreadNotices']);
+
+  /// 3.7.1: maggiorenne verificato di persona dalla moderazione = vede la "Chat dei grandi".
+  bool get adult => j['adult'] == true;
 
   /// Messaggio se è sospeso da classe e amici (null = no).
   String? get suspension => j['suspension'] is String ? j['suspension'] as String : null;
@@ -164,9 +170,66 @@ class ChatMessage {
   final Map<String, dynamic> j;
   String get id => _s(j['id']);
   String get text => _s(j['text']);
-  String get author => _s(j['author'], 'Un compagno');
+  String get author => _s(j['author'], tr('Un compagno', 'A classmate'));
   bool get byMe => j['byMe'] == true;
   bool get canDelete => j['canDelete'] == true;
+  DateTime get at => DateTime.fromMillisecondsSinceEpoch(_i(j['at']));
+
+  /// Grandi (3.8): immagine ("media/<sha>.<ext>") e tipo (text, photo, sticker).
+  String? get media => j['media'] is String ? j['media'] as String : null;
+  String get kind => _s(j['kind'], 'text');
+
+  /// Per scrivere in privato a chi l'ha scritto (solo nella chat dei grandi, null per i propri).
+  String? get handle => j['handle'] is String ? j['handle'] as String : null;
+}
+
+/// Una persona nella parte dei grandi (nome pubblico, non è il codice amico).
+class AdultPerson {
+  AdultPerson(this.j);
+  final Map<String, dynamic> j;
+  String get handle => _s(j['handle']);
+  String get nickname => _s(j['nickname'], 'Utente');
+  String get avatar => _s(j['avatar'], '🙂');
+  String get label => '$avatar $nickname';
+}
+
+/// Conversazione privata tra grandi (3.8).
+class DmThread {
+  DmThread(this.j);
+  final Map<String, dynamic> j;
+  String get id => _s(j['id']);
+  AdultPerson get other => AdultPerson(j['with'] is Map ? Map<String, dynamic>.from(j['with'] as Map) : {});
+
+  /// pending (richiesta), open, blocked.
+  String get status => _s(j['status'], 'open');
+  bool get startedByMe => j['startedByMe'] == true;
+  bool get blockedByMe => j['blockedByMe'] == true;
+  int get unread => _i(j['unread']);
+
+  /// Richiesta arrivata a me (da accettare o rifiutare).
+  bool get isRequestForMe => status == 'pending' && !startedByMe;
+  Map<String, dynamic>? get _last => j['last'] is Map ? Map<String, dynamic>.from(j['last'] as Map) : null;
+  String get lastText {
+    final l = _last;
+    if (l == null) return '';
+    final pre = l['byMe'] == true ? 'Tu: ' : '';
+    return switch ('${l['kind']}') { 'photo' => '$pre📷 Foto', 'sticker' => '${pre}Sticker', _ => '$pre${l['text'] ?? ''}' };
+  }
+
+  DateTime? get lastAt => _last == null ? null : DateTime.fromMillisecondsSinceEpoch(_i(_last!['at']));
+}
+
+class DmMessage {
+  DmMessage(this.j);
+  final Map<String, dynamic> j;
+  String get id => _s(j['id']);
+  String get text => _s(j['text']);
+  String? get media => j['media'] is String ? j['media'] as String : null;
+  String get kind => _s(j['kind'], 'text');
+  bool get byMe => j['byMe'] == true;
+
+  /// Mio messaggio già letto dall'altro.
+  bool get read => j['read'] == true;
   DateTime get at => DateTime.fromMillisecondsSinceEpoch(_i(j['at']));
 }
 
@@ -176,12 +239,18 @@ class ChatData {
         messages = [for (final m in (j['messages'] is List ? j['messages'] as List : const [])) if (m is Map) ChatMessage(Map<String, dynamic>.from(m))],
         phrases = [for (final p in (j['phrases'] is List ? j['phrases'] as List : const [])) if (p is Map) QuickPhrase(Map<String, dynamic>.from(p))],
         subjects = [for (final x in (j['subjects'] is List ? j['subjects'] as List : const [])) '$x'],
-        days = [for (final x in (j['days'] is List ? j['days'] as List : const [])) '$x'];
+        days = [for (final x in (j['days'] is List ? j['days'] as List : const [])) '$x'],
+        subjectLabels = [for (final x in (j['subjectLabels'] is List ? j['subjectLabels'] as List : const [])) '$x'],
+        dayLabels = [for (final x in (j['dayLabels'] is List ? j['dayLabels'] as List : const [])) '$x'];
   final bool enabled;
   final List<ChatMessage> messages;
   final List<QuickPhrase> phrases;
   final List<String> subjects;
   final List<String> days;
+
+  /// 3.8: come mostrarli nella lingua dell'app (stesso ordine; vuoti = come sono). Al server si rimanda il valore.
+  final List<String> subjectLabels;
+  final List<String> dayLabels;
 }
 
 /// Compito o verifica condiviso con la classe.
@@ -194,7 +263,7 @@ class ClassItem {
   String get title => _s(j['title']);
   String get day => _s(j['day']);
   DateTime get date => DateTime.tryParse(day) ?? DateTime.now();
-  String get author => _s(j['author'], 'Un compagno');
+  String get author => _s(j['author'], tr('Un compagno', 'A classmate'));
   bool get byMe => j['byMe'] == true;
   int get confirms => _i(j['confirms']);
   bool get confirmedByMe => j['confirmedByMe'] == true;
@@ -214,7 +283,22 @@ class Social {
   static Future<Map<String, dynamic>> _j(AppStore s, String method, String path, {Object? body}) async {
     final code = s.accountCode;
     if (code == null) throw CloudException('Serve l\'account Easy Lesson (Profilo → Account)');
+    // Con il canale in diretta acceso si parla direttamente con il nostro server (casa/nodo 2): le chat non
+    // consumano le richieste del Worker di Cloudflare. Se non risponde, si riprova dal Worker.
+    final direct = Live.instance.connected ? Live.instance.base : null;
+    if (direct != null) {
+      try {
+        return _decode(await Cloud.raw(method, path, code: code, body: body, base: direct));
+      } on CloudException catch (e) {
+        // Risposta vera del server (es. 403, 404): vale quella. Una scrittura non si ripete (niente doppioni).
+        if (e.status != null || method != 'GET') rethrow;
+      }
+    }
     final t = await Cloud.raw(method, path, code: code, body: body);
+    return _decode(t);
+  }
+
+  static Map<String, dynamic> _decode(String t) {
     try {
       final j = jsonDecode(t);
       return j is Map<String, dynamic> ? j : <String, dynamic>{};
@@ -270,7 +354,8 @@ class Social {
   static Future<void> renameClass(AppStore s, String id, String name) => _j(s, 'PUT', '/classes/$id', body: {'name': name});
   static Future<void> setChat(AppStore s, String id, bool on) => _j(s, 'PUT', '/classes/$id', body: {'chat': on});
 
-  static Future<ChatData> chat(AppStore s, String classId) async => ChatData(await _j(s, 'GET', '/classes/$classId/chat'));
+  static Future<ChatData> chat(AppStore s, String classId) async =>
+      ChatData(await _j(s, 'GET', '/classes/$classId/chat${appEnglish ? '?lang=en' : ''}'));
   static Future<void> sendChat(AppStore s, String classId, QuickPhrase p, {String? subject, String? day}) async {
     await _j(s, 'POST', '/classes/$classId/chat', body: {
       'phrase': p.id,
@@ -321,6 +406,85 @@ class Social {
   static Future<void> replyNotice(AppStore s, String id, String text) => _j(s, 'POST', '/social/notices/$id/reply', body: {'text': text});
   static Future<void> appealNotice(AppStore s, String id, String reason) =>
       _j(s, 'POST', '/social/notices/$id/appeal', body: {'reason': reason});
+
+  // Chat dei grandi (solo per chi è abilitato; per gli altri il server risponde 404).
+  static Future<List<ChatMessage>> adultChat(AppStore s) async {
+    final j = await _j(s, 'GET', '/social/adult/chat');
+    return [for (final m in (j['messages'] is List ? j['messages'] as List : const [])) if (m is Map) ChatMessage(Map<String, dynamic>.from(m))];
+  }
+
+  static Future<void> sendAdult(AppStore s, String text, {String? media, String kind = 'text'}) =>
+      _j(s, 'POST', '/social/adult/chat', body: {'text': text, if (media != null) 'media': media, 'kind': kind});
+
+  // ---------------------------------------------------------------- privati dei grandi (3.8)
+
+  /// (ha già premuto "Ho capito"?, conversazioni e richieste)
+  static Future<(bool, List<DmThread>)> dmList(AppStore s) async {
+    final j = await _j(s, 'GET', '/social/adult/dm');
+    return (
+      j['ack'] == true,
+      [for (final t in (j['threads'] is List ? j['threads'] as List : const [])) if (t is Map) DmThread(Map<String, dynamic>.from(t))],
+    );
+  }
+
+  static Future<void> dmAck(AppStore s) => _j(s, 'POST', '/social/adult/dm/ack');
+
+  /// Scrive a qualcuno (apre la conversazione se non c'è). Restituisce l'id della conversazione.
+  static Future<String> dmStart(AppStore s, String handle, {String text = '', String? media, String kind = 'text'}) async =>
+      _s((await _j(s, 'POST', '/social/adult/dm', body: {'to': handle, 'text': text, if (media != null) 'media': media, 'kind': kind}))['thread']);
+
+  static Future<(DmThread, List<DmMessage>)> dmThread(AppStore s, String id) async {
+    final j = await _j(s, 'GET', '/social/adult/dm/$id');
+    return (
+      DmThread(j['thread'] is Map ? Map<String, dynamic>.from(j['thread'] as Map) : {}),
+      [for (final m in (j['messages'] is List ? j['messages'] as List : const [])) if (m is Map) DmMessage(Map<String, dynamic>.from(m))],
+    );
+  }
+
+  static Future<void> dmSend(AppStore s, String id, {String text = '', String? media, String kind = 'text'}) =>
+      _j(s, 'POST', '/social/adult/dm/$id', body: {'text': text, if (media != null) 'media': media, 'kind': kind});
+
+  /// accept, decline, block, unblock
+  static Future<void> dmAction(AppStore s, String id, String action) => _j(s, 'POST', '/social/adult/dm/$id/$action');
+  static Future<void> dmDelete(AppStore s, String id, String msg) => _j(s, 'DELETE', '/social/adult/dm/$id/$msg');
+
+  /// Carica un'immagine (il server toglie i dati nascosti). Restituisce la chiave da mettere nel messaggio.
+  static Future<String> uploadMedia(AppStore s, Uint8List bytes, {String kind = 'photo'}) async {
+    final code = s.accountCode;
+    if (code == null) throw CloudException('Serve l\'account Easy Lesson');
+    final direct = Live.instance.connected ? Live.instance.base : null;
+    final out = await Cloud.bytes('POST', '/social/adult/media?kind=$kind', code: code, body: bytes, base: direct);
+    final j = jsonDecode(utf8.decode(out));
+    final key = j is Map ? j['media'] : null;
+    if (key is! String) throw CloudException('Risposta strana dal server');
+    _media[key] = bytes;
+    return key;
+  }
+
+  static final Map<String, Uint8List> _media = {};
+
+  /// Byte di un'immagine dei grandi (in memoria le ultime 80).
+  static Future<Uint8List> mediaBytes(AppStore s, String key) async {
+    final hit = _media.remove(key);
+    if (hit != null) return _media[key] = hit;
+    final code = s.accountCode;
+    if (code == null) throw CloudException('Serve l\'account Easy Lesson');
+    final name = key.startsWith('media/') ? key.substring(6) : key;
+    final direct = Live.instance.connected ? Live.instance.base : null;
+    Uint8List b;
+    try {
+      b = await Cloud.bytes('GET', '/social/adult/media/$name', code: code, base: direct);
+    } on CloudException catch (e) {
+      if (direct == null || e.status != null) rethrow;
+      b = await Cloud.bytes('GET', '/social/adult/media/$name', code: code);
+    }
+    _media[key] = b;
+    while (_media.length > 80) {
+      _media.remove(_media.keys.first);
+    }
+    return b;
+  }
+  static Future<void> deleteAdult(AppStore s, String id) => _j(s, 'DELETE', '/social/adult/chat/$id');
 
   static Future<void> report(AppStore s, {required String kind, required String target, String reason = ''}) =>
       _j(s, 'POST', '/report', body: {'kind': kind, 'target': target, 'reason': reason});

@@ -14,6 +14,7 @@ import 'school_life.dart';
 import 'store.dart';
 import 'updater.dart';
 import 'ui/fun.dart' show labInfo;
+import 'i18n.dart';
 
 /// Ponte con Android (MainActivity.kt): notifiche, widget, scorciatoie.
 /// Sulle altre piattaforme non fa niente.
@@ -65,6 +66,23 @@ class NativeBridge {
 
   static Future<bool> silenceAllowed() async => await _call<bool>('silenceAllowed') ?? false;
   static Future<void> openSilenceSettings() => _call<bool>('openSilenceSettings');
+
+  /// Sticker dalla cartella di WhatsApp (selettore di cartelle di Android). Percorsi dei file copiati ([] = annullato).
+  static Future<List<String>> importWhatsAppStickers() async {
+    if (!supported) return const [];
+    final r = await _ch.invokeListMethod<String>('importWhatsAppStickers');
+    return r ?? const [];
+  }
+
+  /// Notifica di un nuovo messaggio (canale "Messaggi"). [id] = una per chat (0-999): si aggiorna, non si accumula.
+  /// 3.8: token per le notifiche push (Firebase). null = APK senza Firebase o niente rete.
+  static Future<String?> pushToken() => _call<String>('pushToken');
+
+  /// Notifiche dei messaggi spente: il telefono cancella il suo token.
+  static Future<void> pushOff() => _call<bool>('pushOff');
+
+  static Future<void> notifyChat(int id, String title, String body) =>
+      _call<bool>('notifyChat', jsonEncode({'id': id, 'title': title, 'body': body}));
 
   /// Mostra subito una notifica (per provarle dalle opzioni sviluppatore).
   static Future<void> testNotification(String title, String body, {String channel = 'lezioni'}) =>
@@ -321,7 +339,7 @@ class NativeBridge {
         final pwd = prev.weekday - 1;
         if (c != null && pwd < days.length && cal.isSchoolDay(prev, daysPerWeek: days.length)) {
           final back = c.backOn;
-          add(3000 + k * 10 + 7, at(prev, eveningAt), 'Domani niente scuola! ${c.emoji}',
+          add(3000 + k * 10 + 7, at(prev, eveningAt), tr('Domani niente scuola! ${c.emoji}', 'No school tomorrow! ${c.emoji}'),
               '${c.name}\nSi torna ${dayNames[back.weekday - 1].toLowerCase()} ${back.day}/${back.month}', 'giorno');
         }
       }
@@ -347,7 +365,7 @@ class NativeBridge {
         add(
           3000 + k * 10 + 6,
           at(prev, eveningAt),
-          'Domani: $hoursCount ore, entri alle ${TimeSlot.fmt(firstStart)}',
+          tr('Domani: $hoursCount ore, entri alle ${TimeSlot.fmt(firstStart)}', 'Tomorrow: $hoursCount periods, you start at ${TimeSlot.fmt(firstStart)}'),
           [
             groups.map((g) => g.lesson.title).toSet().join(', '),
             for (final a in todo) a.summary,
@@ -364,7 +382,7 @@ class NativeBridge {
           add(
             3000 + k * 10 + 9,
             at(prev, store.opt('n.homeworkAt', 18 * 60)),
-            todoHw.length == 1 ? 'Hai ancora un compito per domani 📚' : 'Hai ancora ${todoHw.length} compiti per domani 📚',
+            todoHw.length == 1 ? tr('Hai ancora un compito per domani 📚', 'You still have a homework for tomorrow 📚') : tr('Hai ancora ${todoHw.length} compiti per domani 📚', 'You still have ${todoHw.length} homework for tomorrow 📚'),
             todoHw.map((a) => a.summary).join('\n'),
             'giorno',
           );
@@ -376,9 +394,9 @@ class NativeBridge {
         add(
           3000 + k * 10 + 0,
           at(d, firstStart - morningLead),
-          'Buongiorno! Oggi ${first.lesson.title} alla prima ora',
+          tr('Buongiorno! Oggi ${first.lesson.title} alla prima ora', 'Good morning! ${first.lesson.title} first period today'),
           [
-            'Entri alle ${TimeSlot.fmt(firstStart)}, esci alle ${TimeSlot.fmt(lastEnd)}',
+            tr('Entri alle ${TimeSlot.fmt(firstStart)}, esci alle ${TimeSlot.fmt(lastEnd)}', 'You start at ${TimeSlot.fmt(firstStart)}, you finish at ${TimeSlot.fmt(lastEnd)}'),
             if (first.lesson.lab.isNotEmpty) _place(first.lesson),
             for (final a in todo) a.summary,
           ].join('\n'),
@@ -396,7 +414,7 @@ class NativeBridge {
             3000 + k * 10 + 1 + n,
             at(d, p.start),
             'Ricreazione! ☕',
-            'Fino alle ${TimeSlot.fmt(p.end)}${after.isEmpty ? '' : ' · Dopo: ${after.first.lesson.title}'}',
+            '${tr('Fino alle', 'Until')} ${TimeSlot.fmt(p.end)}${after.isEmpty ? '' : ' · ${tr('Dopo', 'Next')}: ${after.first.lesson.title}'}',
             'giorno',
           );
           n++;
@@ -405,8 +423,8 @@ class NativeBridge {
 
       // Ultima ora e fine della scuola.
       if (lastHour && groups.length > 1) {
-        add(3000 + k * 10 + 4, at(d, slots[last.from].start!), 'Ultima ora! 💪',
-            '${last.lesson.title} fino alle ${TimeSlot.fmt(lastEnd)}', 'giorno');
+        add(3000 + k * 10 + 4, at(d, slots[last.from].start!), tr('Ultima ora! 💪', 'Last period! 💪'),
+            '${last.lesson.title} ${tr('fino alle', 'until')} ${TimeSlot.fmt(lastEnd)}', 'giorno');
       }
       if (end) {
         final next = store.nextSchoolDay(d, daysPerWeek: days.length);
@@ -415,11 +433,11 @@ class NativeBridge {
         add(
           3000 + k * 10 + 5,
           at(d, lastEnd),
-          'Scuola finita! 🎉',
+          tr('Scuola finita! 🎉', 'School\'s over! 🎉'),
           next == null || nextGroups.isEmpty
-              ? 'Buon riposo!'
-              : '${daysBetween(d, next) == 1 ? 'Domani' : dayNames[next.weekday - 1]} si entra alle '
-                  '${TimeSlot.fmt(slots[nextGroups.first.from].start!)} con ${nextGroups.first.lesson.title}',
+              ? tr('Buon riposo!', 'Have a good rest!')
+              : '${daysBetween(d, next) == 1 ? tr('Domani', 'Tomorrow') : dayNames[next.weekday - 1]} ${tr('si entra alle', 'you start at')} '
+                  '${TimeSlot.fmt(slots[nextGroups.first.from].start!)} ${tr('con', 'with')} ${nextGroups.first.lesson.title}',
           'giorno',
         );
       }
@@ -430,11 +448,11 @@ class NativeBridge {
           final start = slots[g.from].start!;
           final stop = slots[g.to].end!;
           final notes = store.agendaOn(d, g.lesson.title);
-          final hours = g.to > g.from ? '${g.from + 1}ª–${g.to + 1}ª ora' : '${g.from + 1}ª ora';
+          final hours = g.to > g.from ? tr('${g.from + 1}ª–${g.to + 1}ª ora', 'Periods ${g.from + 1}–${g.to + 1}') : tr('${g.from + 1}ª ora', 'Period ${g.from + 1}');
           add(
             1000 + k * 20 + g.from,
             at(d, start).subtract(Duration(minutes: before)),
-            before == 0 ? 'Adesso: ${g.lesson.title}' : 'Tra $before min: ${g.lesson.title}',
+            before == 0 ? 'Adesso: ${g.lesson.title}' : tr('Tra $before min: ${g.lesson.title}', 'In $before min: ${g.lesson.title}'),
             [
               '$hours · ${TimeSlot.fmt(start)}–${TimeSlot.fmt(stop)}',
               if (g.lesson.lab.isNotEmpty) _place(g.lesson),
@@ -457,7 +475,7 @@ class NativeBridge {
         final d = e.value.first.day;
         final k = daysBetween(dateOnly(now), d);
         if (k < 0 || k > 21) continue;
-        add(3000 + k * 10 + 8, at(d, store.opt('n.planAt', 16 * 60)), 'Oggi si ripassa 📖',
+        add(3000 + k * 10 + 8, at(d, store.opt('n.planAt', 16 * 60)), tr('Oggi si ripassa 📖', 'Review day 📖'),
             e.value.map((p) => '• ${p.label}').join('\n'), 'giorno');
       }
     }

@@ -5,6 +5,7 @@ import '../store.dart';
 import 'app_menu.dart';
 import 'theme.dart';
 import 'widgets.dart';
+import '../i18n.dart';
 
 /// Impostazioni: quale materia corrisponde a ogni codice (A026 = Matematica)
 /// ed eccezioni per singolo docente.
@@ -33,19 +34,19 @@ class _SubjectsPageState extends State<SubjectsPage> {
               controller: ctrl,
               autofocus: true,
               textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(hintText: hint ?? 'Nome della materia'),
+              decoration: InputDecoration(hintText: hint ?? tr('Nome della materia', 'Subject name')),
               onSubmitted: (v) => Navigator.pop(c, v),
             ),
             if (defaultValue != null) ...[
               const SizedBox(height: 12),
-              Text('Predefinito: $defaultValue', style: Theme.of(c).textTheme.bodySmall),
+              Text(tr('Predefinito: $defaultValue', 'Default: $defaultValue'), style: Theme.of(c).textTheme.bodySmall),
             ],
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, ''), child: const Text('Ripristina')),
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annulla')),
-          FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: const Text('Salva')),
+          TextButton(onPressed: () => Navigator.pop(c, ''), child: Text(tr('Ripristina', 'Restore'))),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annulla', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: Text(tr('Salva', 'Save'))),
         ],
       ),
     );
@@ -53,7 +54,7 @@ class _SubjectsPageState extends State<SubjectsPage> {
 
   Future<void> _editCode(AppStore store, String code) async {
     final v = await _editName(
-      'Materia del codice $code',
+      tr('Materia del codice $code', 'Subject for code $code'),
       subjectForCode(code),
       defaultValue: subjectNames[code] ?? code,
     );
@@ -63,9 +64,9 @@ class _SubjectsPageState extends State<SubjectsPage> {
   Future<void> _editTeacher(AppStore store, String teacher) async {
     final code = teacherCode(teacher);
     final v = await _editName(
-      'Materia di ${teacherLabel(teacher)}',
+      tr('Materia di ${teacherLabel(teacher)}', 'Subject of ${teacherLabel(teacher)}'),
       teacherSubject(teacher) ?? '',
-      defaultValue: code == null ? 'nessuna' : '${subjectForCode(code)} (codice $code)',
+      defaultValue: code == null ? tr('nessuna', 'none') : tr('${subjectForCode(code)} (codice $code)', '${subjectForCode(code)} (code $code)'),
     );
     if (v != null) await store.setTeacherSubject(teacher, v);
   }
@@ -82,11 +83,11 @@ class _SubjectsPageState extends State<SubjectsPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Ripristinare tutto?'),
-        content: const Text('Tutte le materie tornano ai nomi predefiniti e le eccezioni vengono cancellate.'),
+        title: Text(tr('Ripristinare tutto?', 'Reset everything?')),
+        content: Text(tr('Tutte le materie tornano ai nomi predefiniti e le eccezioni vengono cancellate.', 'All subjects go back to their default names and the exceptions are deleted.')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Ripristina')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Ripristina', 'Restore'))),
         ],
       ),
     );
@@ -118,11 +119,11 @@ class _SubjectsPageState extends State<SubjectsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Materie e codici'),
+        title: Text(tr('Materie e codici', 'Subjects and codes')),
         actions: [
           const AppMenuButton(),
           IconButton(
-            tooltip: 'Ripristina predefiniti',
+            tooltip: tr('Ripristina predefiniti', 'Restore defaults'),
             onPressed: subjectOverrides.isEmpty && teacherSubjectOverrides.isEmpty ? null : () => _reset(store),
             icon: const Icon(Icons.restart_alt_rounded),
           ),
@@ -133,7 +134,7 @@ class _SubjectsPageState extends State<SubjectsPage> {
           : FloatingActionButton.extended(
               onPressed: () => _addException(store),
               icon: const Icon(Icons.person_add_alt_rounded),
-              label: const Text('Eccezione docente'),
+              label: Text(tr('Eccezione docente', 'Teacher exception')),
             ),
       body: Center(
         child: ConstrainedBox(
@@ -142,21 +143,21 @@ class _SubjectsPageState extends State<SubjectsPage> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
             children: [
               Text(
-                'Nel file Excel ogni docente ha un codice (es. "A026 Rossi"). '
+                tr('Nel file Excel ogni docente ha un codice (es. "A026 Rossi"). '
                 'Qui scegli quale materia mostrare per ogni codice, oppure dai a un singolo '
-                'docente una materia diversa.',
+                'docente una materia diversa.', 'In the Excel file each teacher has a code (e.g. "A026 Rossi"). Here you choose which subject to show for each code, or give a single teacher a different subject.'),
                 style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
               ),
               const SizedBox(height: 12),
               TextField(
                 onChanged: (v) => setState(() => _q = v),
-                decoration: const InputDecoration(
-                  hintText: 'Cerca codice, materia o docente',
-                  prefixIcon: Icon(Icons.search_rounded),
+                decoration: InputDecoration(
+                  hintText: tr('Cerca codice, materia o docente', 'Search code, subject or teacher'),
+                  prefixIcon: const Icon(Icons.search_rounded),
                 ),
               ),
               if (exceptions.isNotEmpty) ...[
-                const SectionLabel('Eccezioni per docente'),
+                SectionLabel(tr('Eccezioni per docente', 'Exceptions per teacher')),
                 for (final t in exceptions)
                   if (q.isEmpty || normalizeSearch(t).contains(q))
                     _Tile(
@@ -168,7 +169,7 @@ class _SubjectsPageState extends State<SubjectsPage> {
                       onDelete: () => store.setTeacherSubject(t, null),
                     ),
               ],
-              const SectionLabel('Codici materia'),
+              SectionLabel(tr('Codici materia', 'Subject codes')),
               for (final code in codes)
                 if (match(code))
                   _Tile(
@@ -181,7 +182,7 @@ class _SubjectsPageState extends State<SubjectsPage> {
                         '${byCode[code]!.length} docenti: ${byCode[code]!.take(4).map(teacherLabel).join(', ')}'
                             '${byCode[code]!.length > 4 ? '…' : ''}'
                       else
-                        'non presente nel file',
+                        tr('non presente nel file', 'not in the file'),
                     ].join(' · '),
                     modified: subjectOverrides.containsKey(code),
                     onTap: () => _editCode(store, code),
@@ -246,7 +247,7 @@ class _Tile extends StatelessWidget {
           subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
           trailing: onDelete != null
               ? IconButton(
-                  tooltip: 'Rimuovi eccezione',
+                  tooltip: tr('Rimuovi eccezione', 'Remove exception'),
                   onPressed: onDelete,
                   icon: const Icon(Icons.close_rounded),
                 )
@@ -275,7 +276,7 @@ class _TeacherPickerState extends State<_TeacherPicker> {
     final q = normalizeSearch(_q);
     final list = widget.teachers.where((t) => q.isEmpty || normalizeSearch(t).contains(q)).toList();
     return AlertDialog(
-      title: const Text('Scegli il docente'),
+      title: Text(tr('Scegli il docente', 'Choose the teacher')),
       contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       content: SizedBox(
         width: 420,
@@ -285,9 +286,9 @@ class _TeacherPickerState extends State<_TeacherPicker> {
             TextField(
               autofocus: true,
               onChanged: (v) => setState(() => _q = v),
-              decoration: const InputDecoration(
-                hintText: 'Cerca…',
-                prefixIcon: Icon(Icons.search_rounded),
+              decoration: InputDecoration(
+                hintText: tr('Cerca…', 'Search…'),
+                prefixIcon: const Icon(Icons.search_rounded),
               ),
             ),
             const SizedBox(height: 8),
@@ -306,7 +307,7 @@ class _TeacherPickerState extends State<_TeacherPicker> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annulla', 'Cancel'))),
       ],
     );
   }

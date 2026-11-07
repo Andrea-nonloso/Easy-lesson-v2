@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../i18n.dart';
 
 /// Accento predefinito dell'app: azzurro elettrico (stile "blu notte").
 const brandSeed = Color(0xFF3B82F6);
@@ -14,7 +15,7 @@ enum BackdropKind { none, blobs, gradient, pulse, stars, waves }
 class AppThemeSpec {
   const AppThemeSpec({
     required this.id,
-    required this.name,
+    required String name,
     required this.seed,
     this.brightness,
     this.background,
@@ -23,11 +24,17 @@ class AppThemeSpec {
     this.backdrop = BackdropKind.none,
     this.backdropColors = const [],
     this.pureBlack = false,
-    this.category = 'Classici',
-  });
+    String category = 'Classici',
+  })  : nameIt = name,
+        categoryIt = category;
 
   final String id;
-  final String name;
+
+  /// Nome e gruppo in italiano (come scritti qui sotto); [name] e [category] seguono la lingua dell'app.
+  final String nameIt;
+  final String categoryIt;
+  String get name => appEnglish ? (_themeNamesEn[id] ?? nameIt) : nameIt;
+  String get category => appEnglish ? (_themeCategoriesEn[categoryIt] ?? categoryIt) : categoryIt;
   final Color seed;
 
   /// null = segue il tema chiaro/scuro del sistema.
@@ -40,7 +47,6 @@ class AppThemeSpec {
 
   /// Nero puro (#000000) per schermi OLED / AMOLED: i pixel neri sono spenti.
   final bool pureBlack;
-  final String category;
 
   bool get animated => backdrop != BackdropKind.none;
 }
@@ -86,124 +92,124 @@ class AppPalette extends ThemeExtension<AppPalette> {
 // ---------------------------------------------------------------------------
 // Catalogo dei temi
 
-const appThemes = <AppThemeSpec>[
+final appThemes = <AppThemeSpec>[
   // Classici
-  AppThemeSpec(id: 'auto', name: 'Automatico', seed: brandSeed, category: 'Classici'),
-  AppThemeSpec(id: 'light', name: 'Chiaro', seed: brandSeed, brightness: Brightness.light, category: 'Classici'),
-  AppThemeSpec(id: 'dark', name: 'Scuro', seed: brandSeed, brightness: Brightness.dark, category: 'Classici'),
-  AppThemeSpec(
+  const AppThemeSpec(id: 'auto', name: 'Automatico', seed: brandSeed, category: 'Classici'),
+  const AppThemeSpec(id: 'light', name: 'Chiaro', seed: brandSeed, brightness: Brightness.light, category: 'Classici'),
+  const AppThemeSpec(id: 'dark', name: 'Scuro', seed: brandSeed, brightness: Brightness.dark, category: 'Classici'),
+  const AppThemeSpec(
     id: 'blunotte', name: 'Blu notte', seed: Color(0xFF3B82F6), brightness: Brightness.dark,
     background: Color(0xFF0C1626), card: Color(0xFF16233A), nav: Color(0xFF101C30), category: 'Classici',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'paper', name: 'Carta', seed: Color(0xFF8D6E63), brightness: Brightness.light,
     background: Color(0xFFF5EFE3), card: Color(0xFFFFFBF2), nav: Color(0xFFFFFBF2), category: 'Classici',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'contrast', name: 'Alto contrasto', seed: Color(0xFFFFD600), brightness: Brightness.dark,
     background: Color(0xFF000000), card: Color(0xFF111111), nav: Color(0xFF000000), pureBlack: true,
     category: 'Classici',
   ),
 
   // Neri (OLED / AMOLED)
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'pureblack', name: 'Pure Black', seed: Color(0xFF9E9E9E), brightness: Brightness.dark,
     background: Color(0xFF000000), card: Color(0xFF0E0E0E), nav: Color(0xFF000000), pureBlack: true,
     category: 'Neri (OLED)',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'oled', name: 'OLED Blu', seed: Color(0xFF2979FF), brightness: Brightness.dark,
     background: Color(0xFF000000), card: Color(0xFF0B0F17), nav: Color(0xFF000000), pureBlack: true,
     category: 'Neri (OLED)',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'amoled', name: 'AMOLED Verde', seed: Color(0xFF00E676), brightness: Brightness.dark,
     background: Color(0xFF000000), card: Color(0xFF07120B), nav: Color(0xFF000000), pureBlack: true,
     category: 'Neri (OLED)',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'neon', name: 'AMOLED Neon', seed: Color(0xFFFF2BD6), brightness: Brightness.dark,
     background: Color(0xFF000000), card: Color(0xFF120713), nav: Color(0xFF000000), pureBlack: true,
     category: 'Neri (OLED)',
   ),
 
   // Natura
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'desert', name: 'Deserto', seed: Color(0xFFC2703D), brightness: Brightness.light,
     background: Color(0xFFF3E3C7), card: Color(0xFFFBF1DE), nav: Color(0xFFFBF1DE), category: 'Natura',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'ocean', name: 'Oceano', seed: Color(0xFF0277BD), brightness: Brightness.light,
     background: Color(0xFFE3F2FB), card: Color(0xFFF7FBFE), nav: Color(0xFFF7FBFE), category: 'Natura',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'forest', name: 'Foresta', seed: Color(0xFF2E7D32), brightness: Brightness.dark,
     background: Color(0xFF0E1A10), card: Color(0xFF15261A), nav: Color(0xFF0B150D), category: 'Natura',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'sakura', name: 'Sakura', seed: Color(0xFFD81B60), brightness: Brightness.light,
     background: Color(0xFFFCE8EF), card: Color(0xFFFFF6F9), nav: Color(0xFFFFF6F9), category: 'Natura',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'arctic', name: 'Artico', seed: Color(0xFF00838F), brightness: Brightness.light,
     background: Color(0xFFE6F6F7), card: Color(0xFFFFFFFF), nav: Color(0xFFFFFFFF), category: 'Natura',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'coffee', name: 'Caffè', seed: Color(0xFF8D5B3A), brightness: Brightness.dark,
     background: Color(0xFF1B1411), card: Color(0xFF261C17), nav: Color(0xFF16100D), category: 'Natura',
   ),
 
   // Animati
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'sunset', name: 'Tramonto', seed: Color(0xFFFF7043), brightness: Brightness.dark,
     background: Color(0xFF1E1028), card: Color(0xE62A1734), nav: Color(0xCC1E1028),
     backdrop: BackdropKind.gradient,
     backdropColors: [Color(0xFF2B1055), Color(0xFF7B2869), Color(0xFFD9534F), Color(0xFFF2A65A)],
     category: 'Animati',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'aurora', name: 'Aurora', seed: Color(0xFF1DE9B6), brightness: Brightness.dark,
     background: Color(0xFF050B14), card: Color(0xE00C1724), nav: Color(0xCC050B14),
     backdrop: BackdropKind.blobs,
     backdropColors: [Color(0xFF00BFA5), Color(0xFF6A1B9A), Color(0xFF00E5FF), Color(0xFF2E7D32)],
     category: 'Animati',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'lava', name: 'Lava', seed: Color(0xFFFF5722), brightness: Brightness.dark,
     background: Color(0xFF120605), card: Color(0xE01E0D0A), nav: Color(0xCC120605),
     backdrop: BackdropKind.blobs,
     backdropColors: [Color(0xFFD84315), Color(0xFFB71C1C), Color(0xFFFF8F00)],
     category: 'Animati',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'night', name: 'Notte stellata', seed: Color(0xFF7986CB), brightness: Brightness.dark,
     background: Color(0xFF060A1E), card: Color(0xE00D1330), nav: Color(0xCC060A1E),
     backdrop: BackdropKind.stars,
     backdropColors: [Color(0xFF283593), Color(0xFF4A148C)],
     category: 'Animati',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'waves', name: 'Onde', seed: Color(0xFF0288D1), brightness: Brightness.light,
     background: Color(0xFFE1F3FC), card: Color(0xF0FFFFFF), nav: Color(0xE6FFFFFF),
     backdrop: BackdropKind.waves,
     backdropColors: [Color(0xFF4FC3F7), Color(0xFF29B6F6), Color(0xFF0288D1)],
     category: 'Animati',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'candy', name: 'Caramella', seed: Color(0xFFEC407A), brightness: Brightness.light,
     background: Color(0xFFFFF0F6), card: Color(0xF0FFFFFF), nav: Color(0xE6FFFFFF),
     backdrop: BackdropKind.gradient,
     backdropColors: [Color(0xFFFFD1DC), Color(0xFFD7C4F2), Color(0xFFC4E7F2), Color(0xFFD9F2C4)],
     category: 'Animati',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'mood', name: 'Tinta viva', seed: Color(0xFF5C6BC0), brightness: Brightness.dark,
     background: Color(0xFF14152B), card: Color(0xE0101124), nav: Color(0xCC14152B),
     backdrop: BackdropKind.pulse,
     backdropColors: [Color(0xFF1A237E), Color(0xFF4A148C), Color(0xFF004D40), Color(0xFF01579B)],
     category: 'Animati',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'mint', name: 'Menta in movimento', seed: Color(0xFF26A69A), brightness: Brightness.light,
     background: Color(0xFFE0F5F1), card: Color(0xF0FFFFFF), nav: Color(0xE6FFFFFF),
     backdrop: BackdropKind.pulse,
@@ -212,24 +218,24 @@ const appThemes = <AppThemeSpec>[
   ),
 
   // Lavanda (palette dalle foto: base Lavender Indigo #985DE4)
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'lavender', name: 'Lavanda', seed: Color(0xFF985DE4), brightness: Brightness.light,
     background: Color(0xFFF1EBFF), card: Color(0xFFFFFFFF), nav: Color(0xFFFFFFFF), category: 'Lavanda',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'lavenderSoft', name: 'Lavanda Tenue', seed: Color(0xFF9667D3), brightness: Brightness.light,
     background: Color(0xFFF6F1FF), card: Color(0xFFFCFAFF), nav: Color(0xFFFCFAFF), category: 'Lavanda',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'lavenderNight', name: 'Notte Lavanda', seed: Color(0xFFA978E8), brightness: Brightness.dark,
     background: Color(0xFF1E122D), card: Color(0xFF2C1B42), nav: Color(0xFF241638), category: 'Lavanda',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'lavenderOled', name: 'Lavanda OLED', seed: Color(0xFFAE80EA), brightness: Brightness.dark,
     background: Color(0xFF000000), card: Color(0xFF150A20), nav: Color(0xFF000000), pureBlack: true,
     category: 'Lavanda',
   ),
-  AppThemeSpec(
+  const AppThemeSpec(
     id: 'lavenderHarmony', name: 'Lavanda in movimento', seed: Color(0xFF985DE4), brightness: Brightness.dark,
     background: Color(0xFF160E24), card: Color(0xE6221A38), nav: Color(0xCC160E24),
     backdrop: BackdropKind.gradient,
@@ -261,7 +267,7 @@ AppThemeSpec buildCustomSpec({
   final darkOled = oled && brightness != Brightness.light;
   return AppThemeSpec(
     id: customThemeId,
-    name: name.trim().isEmpty ? 'Il mio tema' : name.trim(),
+    name: name.trim().isEmpty ? tr('Il mio tema', 'My theme') : name.trim(),
     seed: seed,
     brightness: brightness,
     pureBlack: darkOled,
@@ -514,3 +520,19 @@ AppPalette palette(BuildContext context) =>
 
 /// Superficie "card" del tema corrente.
 Color cardColor(BuildContext context) => palette(context).card;
+
+// 3.8: nomi dei temi e dei gruppi in inglese.
+const _themeNamesEn = {
+  'auto': 'Automatic', 'light': 'Light', 'dark': 'Dark', 'blunotte': 'Midnight blue', 'paper': 'Paper',
+  'contrast': 'High contrast', 'pureblack': 'Pure Black', 'oled': 'OLED Blue', 'amoled': 'AMOLED Green', 'neon': 'AMOLED Neon',
+  'desert': 'Desert', 'ocean': 'Ocean', 'forest': 'Forest', 'sakura': 'Sakura', 'arctic': 'Arctic', 'coffee': 'Coffee',
+  'sunset': 'Sunset', 'aurora': 'Aurora', 'lava': 'Lava', 'night': 'Starry night', 'waves': 'Waves', 'candy': 'Candy',
+  'mood': 'Vivid tint', 'mint': 'Moving mint', 'lavender': 'Lavender', 'lavenderSoft': 'Soft lavender',
+  'lavenderNight': 'Lavender night', 'lavenderOled': 'Lavender OLED', 'lavenderHarmony': 'Moving lavender',
+  'shop_ciliegio': 'Cherry blossom', 'shop_caramella': 'Candy', 'shop_abisso': 'Abyss', 'shop_matrix': 'Matrix',
+  'shop_oro': 'Black and gold', 'shop_cosmo': 'Cosmos',
+};
+const _themeCategoriesEn = {
+  'Classici': 'Classic', 'Neri (OLED)': 'Blacks (OLED)', 'Natura': 'Nature', 'Animati': 'Animated', 'Lavanda': 'Lavender',
+  'Dal negozio': 'From the shop', 'Il tuo tema': 'Your theme',
+};

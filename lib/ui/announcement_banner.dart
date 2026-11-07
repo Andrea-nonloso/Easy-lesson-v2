@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../announcements.dart';
 import '../store.dart';
+import '../i18n.dart';
 
 /// Avviso dal server in cima alla home (sciopero, aggiornamento importante…).
 class AnnouncementBanner extends StatelessWidget {
@@ -42,13 +43,13 @@ class AnnouncementBanner extends StatelessWidget {
                       if (a.body.isNotEmpty)
                         Text(a.body, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: fg)),
                       if (list.length > 1)
-                        Text('+ altri ${list.length - 1}', style: TextStyle(color: fg.withValues(alpha: 0.75), fontSize: 12)),
+                        Text(tr('+ altri ${list.length - 1}', '+ ${list.length - 1} more'), style: TextStyle(color: fg.withValues(alpha: 0.75), fontSize: 12)),
                     ],
                   ),
                 ),
                 if (!a.urgent)
                   IconButton(
-                    tooltip: 'Chiudi',
+                    tooltip: tr('Chiudi', 'Close'),
                     icon: Icon(Icons.close_rounded, color: fg),
                     onPressed: () => Announcements.dismiss(store, a.id),
                   )
@@ -71,7 +72,7 @@ class AnnouncementBanner extends StatelessWidget {
             if (a.link != null)
               TextButton.icon(
                 icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                label: const Text('Apri'),
+                label: Text(tr('Apri', 'Open')),
                 onPressed: () => launchUrl(Uri.parse(a.link!), mode: LaunchMode.externalApplication),
               ),
             FilledButton(onPressed: () => Navigator.pop(c), child: const Text('OK')),

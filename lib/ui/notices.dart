@@ -4,6 +4,8 @@ import '../cloud.dart';
 import '../log.dart';
 import '../social.dart';
 import '../store.dart';
+import 'live_poll.dart';
+import '../i18n.dart';
 
 /// Avvisi della moderazione (3.0): li manda Andrea dall'app "Easy Lesson Moderazione".
 /// Si mostrano uno alla volta, finché non si preme "Ho capito". Si può contestare solo con motivi fissi.
@@ -34,11 +36,11 @@ class ModNotices {
           context: context,
           builder: (c) => AlertDialog(
             icon: const Icon(Icons.mark_chat_unread_outlined, size: 32),
-            title: const Text('La moderazione ti ha risposto'),
-            content: Text('Su: ${n.title}'),
+            title: Text(tr('La moderazione ti ha risposto', 'Moderation replied to you')),
+            content: Text(tr('Su: ${n.title}', 'About: ${n.title}')),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Dopo')),
-              FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Leggi')),
+              TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Dopo', 'Later'))),
+              FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Leggi', 'Read'))),
             ],
           ),
         );
@@ -54,10 +56,10 @@ class ModNotices {
   }
 
   static (IconData, String) style(String level) => switch (level) {
-        'warning' => (Icons.warning_amber_rounded, 'Avviso'),
-        'final' => (Icons.report_gmailerrorred_rounded, 'Ultimo avviso'),
-        'suspension' => (Icons.block_rounded, 'Sospensione'),
-        _ => (Icons.info_outline_rounded, 'Messaggio della moderazione'),
+        'warning' => (Icons.warning_amber_rounded, tr('Avviso', 'Warning')),
+        'final' => (Icons.report_gmailerrorred_rounded, tr('Ultimo avviso', 'Final warning')),
+        'suspension' => (Icons.block_rounded, tr('Sospensione', 'Suspension')),
+        _ => (Icons.info_outline_rounded, tr('Messaggio della moderazione', 'Message from moderation')),
       };
 
   static Future<void> _show(BuildContext context, AppStore store, ModNotice n, Map<String, String> reasons) async {
@@ -69,7 +71,7 @@ class ModNotices {
       barrierDismissible: false,
       builder: (c) => AlertDialog(
         icon: Icon(icon, size: 36, color: n.level == 'info' ? scheme.primary : scheme.error),
-        title: Text(answered ? 'Risposta alla tua contestazione' : n.title),
+        title: Text(answered ? tr('Risposta alla tua contestazione', 'Reply to your appeal') : n.title),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -80,16 +82,16 @@ class ModNotices {
               if (answered) ...[
                 Text(n.reply ?? ''),
                 const SizedBox(height: 12),
-                Text('Avviso: ${n.title}', style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
+                Text(tr('Avviso: ${n.title}', 'Notice: ${n.title}'), style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
               ] else
                 Text(n.body),
             ],
           ),
         ),
         actions: [
-          if (n.canAppeal && !answered) TextButton(onPressed: () => Navigator.pop(c, 'appeal'), child: const Text('Non è giusto')),
-          if (!n.closed) TextButton(onPressed: () => Navigator.pop(c, 'write'), child: const Text('Rispondi')),
-          FilledButton(onPressed: () => Navigator.pop(c, 'ok'), child: const Text('Ho capito')),
+          if (n.canAppeal && !answered) TextButton(onPressed: () => Navigator.pop(c, 'appeal'), child: Text(tr('Non è giusto', 'That\'s not fair'))),
+          if (!n.closed) TextButton(onPressed: () => Navigator.pop(c, 'write'), child: Text(tr('Rispondi', 'Reply'))),
+          FilledButton(onPressed: () => Navigator.pop(c, 'ok'), child: Text(tr('Ho capito', 'Got it'))),
         ],
       ),
     );
@@ -102,11 +104,11 @@ class ModNotices {
       final reason = await showDialog<String>(
         context: context,
         builder: (c) => SimpleDialog(
-          title: const Text('Perché non è giusto?'),
+          title: Text(tr('Perché non è giusto?', 'Why isn\'t it fair?')),
           children: [
             for (final e in reasons.entries)
               SimpleDialogOption(onPressed: () => Navigator.pop(c, e.key), child: Text(e.value)),
-            SimpleDialogOption(onPressed: () => Navigator.pop(c), child: const Text('Annulla')),
+            SimpleDialogOption(onPressed: () => Navigator.pop(c), child: Text(tr('Annulla', 'Cancel'))),
           ],
         ),
       );
@@ -117,7 +119,7 @@ class ModNotices {
       try {
         await Social.appealNotice(store, n.id, reason);
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Contestazione mandata: ti arriverà una risposta qui')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Contestazione mandata: ti arriverà una risposta qui', 'Appeal sent: you\'ll get a reply here'))));
         }
       } on CloudException catch (e) {
         if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -144,14 +146,14 @@ class _NoticesPageState extends State<NoticesPage> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Avvisi della moderazione')),
+      appBar: AppBar(title: Text(tr('Avvisi della moderazione', 'Moderation notices'))),
       body: FutureBuilder<(List<ModNotice>, Map<String, String>)>(
         future: _f,
         builder: (context, snap) {
           if (snap.hasError) return Center(child: Text('${snap.error}'));
           final list = snap.data?.$1;
           if (list == null) return const Center(child: CircularProgressIndicator());
-          if (list.isEmpty) return const Center(child: Text('Nessun avviso 👍'));
+          if (list.isEmpty) return Center(child: Text(tr('Nessun avviso 👍', 'No notices 👍')));
           return RefreshIndicator(
             onRefresh: () async {
               setState(() => _f = Social.notices(StoreScope.read(context)));
@@ -172,7 +174,7 @@ class _NoticesPageState extends State<NoticesPage> {
                       title: Text(n.read ? n.title : '● ${n.title}', style: n.read ? null : const TextStyle(fontWeight: FontWeight.w800)),
                       subtitle: Text([
                         n.body,
-                        if (n.appeal == 'open') '⏳ Contestazione in attesa di risposta',
+                        if (n.appeal == 'open') tr('⏳ Contestazione in attesa di risposta', '⏳ Appeal waiting for a reply'),
                         if (n.appeal == 'accepted') '✅ Contestazione accettata: ${n.reply ?? ''}',
                         if (n.appeal == 'rejected') '❌ Contestazione respinta: ${n.reply ?? ''}',
                       ].join('\n')),
@@ -197,7 +199,7 @@ class NoticeThreadPage extends StatefulWidget {
   State<NoticeThreadPage> createState() => _NoticeThreadPageState();
 }
 
-class _NoticeThreadPageState extends State<NoticeThreadPage> {
+class _NoticeThreadPageState extends State<NoticeThreadPage> with LivePoll {
   late ModNotice _n = widget.notice;
   final _text = TextEditingController();
   bool _sending = false;
@@ -210,6 +212,18 @@ class _NoticeThreadPageState extends State<NoticeThreadPage> {
     // Avviso già letto: aprendo la conversazione si segnano lette le risposte.
     // Avviso nuovo (3.6): si segna letto solo con "Ho letto" in fondo all'avviso.
     if (_n.read) Social.readNotice(StoreScope.read(context), _n.id).catchError((_) {});
+    // Le risposte del moderatore arrivano appena scritte (canale in diretta), altrimenti ogni 5 s.
+    startLivePoll(const Duration(seconds: 5), chat: 'notice', relevant: (e) => e.type == 'notice');
+  }
+
+  @override
+  Future<void> livePollRefresh() async {
+    final before = _n.replies.length;
+    await _reload();
+    // Arrivato un messaggio nuovo con la conversazione aperta: è già letto.
+    if (_n.read && _n.replies.length != before && mounted) {
+      Social.readNotice(StoreScope.read(context), _n.id).catchError((_) {});
+    }
   }
 
   Future<void> _markRead() async {
@@ -218,7 +232,7 @@ class _NoticeThreadPageState extends State<NoticeThreadPage> {
       await Social.readNotice(StoreScope.read(context), _n.id);
       await _reload();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Letto: chat, classi e amici tornano a posto')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Letto: chat, classi e amici tornano a posto', 'Read: chat, classes and friends are back to normal'))));
       }
     } on CloudException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -256,7 +270,7 @@ class _NoticeThreadPageState extends State<NoticeThreadPage> {
     final scheme = Theme.of(context).colorScheme;
     final (icon, label) = ModNotices.style(_n.level);
     return Scaffold(
-      appBar: AppBar(title: const Text('Moderazione')),
+      appBar: AppBar(title: Text(tr('Moderazione', 'Moderation'))),
       body: Column(children: [
         Expanded(
           child: RefreshIndicator(
@@ -276,14 +290,14 @@ class _NoticeThreadPageState extends State<NoticeThreadPage> {
                       child: FilledButton.icon(
                         onPressed: _marking ? null : _markRead,
                         icon: const Icon(Icons.done_rounded),
-                        label: const Text('Ho letto'),
+                        label: Text(tr('Ho letto', 'I\'ve read it')),
                       ),
                     ),
                 ]),
               ),
               const SizedBox(height: 8),
               Text(
-                'Qui puoi spiegare cosa è successo. Lo leggono solo i moderatori, nessun altro utente.',
+                tr('Qui puoi spiegare cosa è successo. Lo leggono solo i moderatori, nessun altro utente.', 'Here you can explain what happened. Only moderators read it, no other user.'),
                 style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
               ),
               const SizedBox(height: 8),
@@ -308,7 +322,7 @@ class _NoticeThreadPageState extends State<NoticeThreadPage> {
               if (_n.closed)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: Text('La moderazione ha chiuso questa conversazione.', textAlign: TextAlign.center,
+                  child: Text(tr('La moderazione ha chiuso questa conversazione.', 'Moderation closed this conversation.'), textAlign: TextAlign.center,
                       style: TextStyle(color: scheme.onSurfaceVariant)),
                 ),
             ]),
@@ -326,7 +340,7 @@ class _NoticeThreadPageState extends State<NoticeThreadPage> {
                     minLines: 1,
                     maxLines: 4,
                     maxLength: 500,
-                    decoration: const InputDecoration(hintText: 'Scrivi alla moderazione…', counterText: ''),
+                    decoration: InputDecoration(hintText: tr('Scrivi alla moderazione…', 'Write to moderation…'), counterText: ''),
                   ),
                 ),
                 const SizedBox(width: 8),

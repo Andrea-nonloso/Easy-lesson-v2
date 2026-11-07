@@ -5,6 +5,7 @@ import '../missions.dart';
 import '../store.dart';
 import 'achievements.dart' show LevelCard;
 import 'widgets.dart';
+import '../i18n.dart';
 
 void openMissions(BuildContext context) =>
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const MissionsPage()));
@@ -41,7 +42,7 @@ class MissionsPage extends StatelessWidget {
           ),
         );
     return Scaffold(
-      appBar: AppBar(title: const Text('Missioni')),
+      appBar: AppBar(title: Text(tr('Missioni', 'Missions'))),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 640),
@@ -60,22 +61,22 @@ class MissionsPage extends StatelessWidget {
                       title: Text(ev.title, style: const TextStyle(fontWeight: FontWeight.w700)),
                       subtitle: Text(
                         '${ev.description.isEmpty ? '' : '${ev.description}\n'}'
-                        '${ev.multiplier > 1 ? 'XP delle missioni ×${ev.multiplier.toStringAsFixed(ev.multiplier % 1 == 0 ? 0 : 1)} · ' : ''}'
-                        'finisce tra ${_left(ev.ends.difference(now))}',
+                        '${ev.multiplier > 1 ? '${tr('XP delle missioni', 'Mission XP')} ×${ev.multiplier.toStringAsFixed(ev.multiplier % 1 == 0 ? 0 : 1)} · ' : ''}'
+                        '${tr('finisce tra', 'ends in')} ${_left(ev.ends.difference(now))}',
                       ),
                     ),
                   ),
-                header('Oggi', 'nuove tra ${_left(Missions.untilNext(now, weekly: false))}', daily, dailyBonusXp),
+                header(tr('Oggi', 'Today'), tr('nuove tra ${_left(Missions.untilNext(now, weekly: false))}', 'new in ${_left(Missions.untilNext(now, weekly: false))}'), daily, dailyBonusXp),
                 if (daily.isEmpty) const _Empty(),
                 for (final m in daily) _MissionTile(m),
-                header('Questa settimana', 'nuove tra ${_left(Missions.untilNext(now, weekly: true))}', weekly,
+                header(tr('Questa settimana', 'This week'), tr('nuove tra ${_left(Missions.untilNext(now, weekly: true))}', 'new in ${_left(Missions.untilNext(now, weekly: true))}'), weekly,
                     weeklyBonusXp),
                 if (weekly.isEmpty) const _Empty(),
                 for (final m in weekly) _MissionTile(m),
                 const SizedBox(height: 12),
                 Text(
-                  'Le missioni sono uguali per tutti e cambiano a mezzanotte (giornaliere) e il lunedì (settimanali). '
-                  'Contano le cose fatte da quando la missione è uscita.',
+                  tr('Le missioni sono uguali per tutti e cambiano a mezzanotte (giornaliere) e il lunedì (settimanali). '
+                  'Contano le cose fatte da quando la missione è uscita.', 'Missions are the same for everyone and change at midnight (daily) and on Monday (weekly). What counts is what you do after the mission comes out.'),
                   style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                 ),
               ],
@@ -91,9 +92,9 @@ class _Empty extends StatelessWidget {
   const _Empty();
 
   @override
-  Widget build(BuildContext context) => const Padding(
-        padding: EdgeInsets.all(12),
-        child: Text('Le missioni arrivano tra un attimo…'),
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.all(12),
+        child: Text(tr('Le missioni arrivano tra un attimo…', 'Missions are on their way…')),
       );
 }
 
@@ -156,8 +157,8 @@ class MissionsSummaryTile extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Icon(Icons.flag_outlined, color: scheme.primary),
-      title: Text(ev == null ? 'Missioni' : 'Missioni · ${ev.emoji} ${ev.title}'),
-      subtitle: Text('Oggi ${d.where((m) => m.done).length}/${d.length} · settimana ${w.where((m) => m.done).length}/${w.length}'),
+      title: Text(ev == null ? tr('Missioni', 'Missions') : 'Missioni · ${ev.emoji} ${ev.title}'),
+      subtitle: Text(tr('Oggi ${d.where((m) => m.done).length}/${d.length} · settimana ${w.where((m) => m.done).length}/${w.length}', 'Today ${d.where((m) => m.done).length}/${d.length} · week ${w.where((m) => m.done).length}/${w.length}')),
       trailing: const Icon(Icons.chevron_right_rounded),
       onTap: () => openMissions(context),
     );

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart' show SecretKey;
 import 'package:http/http.dart' as http;
@@ -10,6 +11,7 @@ import 'log.dart';
 import 'native.dart';
 import 'progress.dart';
 import 'store.dart';
+import 'i18n.dart';
 
 export 'crypto_box.dart' show normalizeAccountCode, looksLikeAccountCode, generateAccountCode;
 
@@ -40,15 +42,18 @@ class Cloud {
   static http.Client client = http.Client();
   static const _timeout = Duration(seconds: 20);
 
-  static Uri _u(String path) => Uri.parse('${baseUrl.replaceAll(RegExp(r'/+$'), '')}/v1$path');
+  static Uri _u(String path, [String? base]) => Uri.parse('${(base ?? baseUrl).replaceAll(RegExp(r'/+$'), '')}/v1$path');
 
   /// Chiamata generica: restituisce il corpo, o lancia CloudException con un messaggio chiaro.
   /// [code] = codice dell'account (si manda il suo token).
-  static Future<String> raw(String method, String path, {String? code, String? bearer, Object? body}) async {
-    final uri = _u(path);
-    if ((code != null || bearer != null) && !isTrustedServer(uri)) {
+  /// [base] = un nostro server diretto (casa, nodo 2: lo dice /v1/health in "live"), per il canale in diretta e le
+  /// chat: così non si consumano le richieste del Worker. Il token ci va solo se è [isTrustedLiveServer].
+  static Future<String> raw(String method, String path, {String? code, String? bearer, Object? body, String? base}) async {
+    final uri = _u(path, base);
+    final trusted = base == null ? isTrustedServer(uri) : isTrustedLiveServer(uri);
+    if ((code != null || bearer != null) && !trusted) {
       AppLog.w('cloud', 'Token NON mandato a un server diverso da quello ufficiale: ${uri.host}');
-      throw CloudException('Server non attendibile: il codice dell\'account non viene usato');
+      throw CloudException(tr('Server non attendibile: il codice dell\'account non viene usato', 'Untrusted server: the account code isn\'t used'));
     }
     final req = http.Request(method, uri);
     if (code != null) req.headers['authorization'] = 'Bearer ${await authToken(code)}';
@@ -61,14 +66,14 @@ class Cloud {
     try {
       res = await http.Response.fromStream(await client.send(req).timeout(_timeout)).timeout(_timeout);
     } on TimeoutException {
-      throw CloudException('Il server non risponde: riprova più tardi');
+      throw CloudException(tr('Il server non risponde: riprova più tardi', 'The server isn\'t responding: try again later'));
     } catch (e) {
-      throw CloudException('Niente connessione al server ($e)');
+      throw CloudException(tr('Niente connessione al server ($e)', 'No connection to the server ($e)'));
     }
     final text = utf8.decode(res.bodyBytes, allowMalformed: true);
     lastResponse = '$method $path → HTTP ${res.statusCode}\n\n${text.length > 4000 ? '${text.substring(0, 4000)}…' : text}';
     if (res.statusCode >= 200 && res.statusCode < 300) return text;
-    var msg = 'Errore del server (HTTP ${res.statusCode})';
+    var msg = tr('Errore del server (HTTP ${res.statusCode})', 'Server error (HTTP ${res.statusCode})');
     try {
       final j = jsonDecode(text);
       if (j is Map && j['error'] is String) msg = j['error'] as String;
@@ -85,6 +90,69 @@ class Cloud {
     if (u.scheme == 'https') return true;
     return u.scheme == 'http' && official.scheme == 'http' && (u.host == 'localhost' || u.host == '127.0.0.1');
   }
+
+  /// Come [raw] ma con byte (immagini dei grandi): [body] = byte da mandare, risposta = byte.
+  static Future<Uint8List> bytes(String method, String path,
+      {required String code, Uint8List? body, String contentType = 'application/octet-stream', String? base}) async {
+    final uri = _u(path, base);
+    final trusted = base == null ? isTrustedServer(uri) : isTrustedLiveServer(uri);
+    if (!trusted) throw CloudException(tr('Server non attendibile: il codice dell\'account non viene usato', 'Untrusted server: the account code isn\'t used'));
+    final req = http.Request(method, uri)..headers['authorization'] = 'Bearer ${await authToken(code)}';
+    if (body != null) {
+      req.headers['content-type'] = contentType;
+      req.bodyBytes = body;
+    }
+    http.Response res;
+    try {
+      res = await http.Response.fromStream(await client.send(req).timeout(const Duration(seconds: 60))).timeout(const Duration(seconds: 60));
+    } on TimeoutException {
+      throw CloudException(tr('Il server non risponde: riprova più tardi', 'The server isn\'t responding: try again later'));
+    } catch (e) {
+      throw CloudException(tr('Niente connessione al server ($e)', 'No connection to the server ($e)'));
+    }
+    if (res.statusCode >= 200 && res.statusCode < 300) return res.bodyBytes;
+    var msg = tr('Errore del server (HTTP ${res.statusCode})', 'Server error (HTTP ${res.statusCode})');
+    try {
+      final j = jsonDecode(utf8.decode(res.bodyBytes, allowMalformed: true));
+      if (j is Map && j['error'] is String) msg = j['error'] as String;
+    } catch (_) {}
+    throw CloudException(msg, res.statusCode);
+  }
+
+  /// I nostri server diretti: https://easylesson-<qualcosa>.<stesso dominio di quello ufficiale>
+  /// (es. easylesson-casa.khugudvjan.cc), oppure quello ufficiale stesso. Per le prove in locale: come [isTrustedServer].
+  static bool isTrustedLiveServer(Uri u) {
+    if (isTrustedServer(u)) return true;
+    final official = Uri.parse(cloudDefaultUrl);
+    final dot = official.host.indexOf('.');
+    if (dot < 0 || u.scheme != 'https' || u.hasPort && u.port != 443) return false;
+    final parent = official.host.substring(dot + 1);
+    if (!parent.contains('.')) return false; // mai un dominio di primo livello da solo
+    final label = u.host.endsWith('.$parent') ? u.host.substring(0, u.host.length - parent.length - 1) : null;
+    return label != null && RegExp(r'^easylesson-[a-z0-9-]{1,40}$').hasMatch(label);
+  }
+
+  /// /v1/health completo: chi risponde (node), dove aprire il canale in diretta (live), chat accese (chat).
+  static Future<Map<String, dynamic>> healthInfo() => _json('GET', '/health');
+
+  /// Biglietto monouso (60 s) per aprire il canale in diretta su [base], senza mettere il token nell'indirizzo.
+  static Future<String> liveTicket(String base, String code) async {
+    final j = jsonDecode(await raw('POST', '/live/ticket', code: code, base: base));
+    final t = j is Map ? j['ticket'] : null;
+    if (t is! String || t.isEmpty) throw CloudException('Risposta strana dal server');
+    return t;
+  }
+
+  /// "Sta scrivendo" ([chat] = "class:<id>" o "adult"). Non si salva da nessuna parte.
+  static Future<void> liveTyping(String base, String code, String chat) =>
+      raw('POST', '/live/typing', code: code, base: base, body: {'chat': chat});
+
+  /// 3.8: notifiche push (Firebase): il token di questo telefono, sul nostro server [base].
+  static Future<void> pushRegister(String base, String code, String token) =>
+      raw('POST', '/social/push', code: code, base: base, body: {'token': token});
+
+  static Future<void> pushUnregister(String base, String code, String token) =>
+      raw('DELETE', '/social/push', code: code, base: base, body: {'token': token});
 
   static Future<Map<String, dynamic>> _json(String method, String path, {String? code, String? bearer, Object? body}) async {
     final t = await raw(method, path, code: code, bearer: bearer, body: body);
@@ -217,7 +285,7 @@ class CloudKeys {
   /// recupero nuovo (salvato sul dispositivo e da mostrare all'utente: 'cloud.recoveryPending').
   static Future<SecretKey> dek(AppStore store) async {
     final code = store.accountCode;
-    if (code == null) throw CloudException('Nessun account');
+    if (code == null) throw CloudException(tr('Nessun account', 'No account'));
     if (_dek != null && _forCode == code) return _dek!;
     final bundle = await Cloud.getKeys(code);
     if (bundle == null) {
@@ -234,7 +302,7 @@ class CloudKeys {
       remember(dek, code);
       return dek;
     } on CryptoFailure {
-      throw CloudException('Non riesco ad aprire le chiavi con questo codice: usa il codice di recupero');
+      throw CloudException(tr('Non riesco ad aprire le chiavi con questo codice: usa il codice di recupero', 'Can\'t open the keys with this code: use the recovery code'));
     }
   }
 }
@@ -285,7 +353,7 @@ class CloudAccount {
       try {
         dek = await bundle.openWithRecovery(recoveryCode);
       } on CryptoFailure {
-        throw CloudException('Il codice di recupero non apre le chiavi');
+        throw CloudException(tr('Il codice di recupero non apre le chiavi', 'The recovery code doesn\'t open the keys'));
       }
       await Cloud.putKeys(newCode, await bundle.withNewCode(dek, newCode));
       CloudKeys.remember(dek, newCode);
@@ -301,10 +369,10 @@ class CloudAccount {
   /// Codice di recupero nuovo (quello vecchio smette di funzionare).
   static Future<String> newRecoveryCode(AppStore store) async {
     final code = store.accountCode;
-    if (code == null) throw CloudException('Nessun account');
+    if (code == null) throw CloudException(tr('Nessun account', 'No account'));
     final dek = await CloudKeys.dek(store);
     final bundle = await Cloud.getKeys(code);
-    if (bundle == null) throw CloudException('Chiavi non trovate');
+    if (bundle == null) throw CloudException(tr('Chiavi non trovate', 'Keys not found'));
     final rec = generateAccountCode();
     await Cloud.putKeys(code, await bundle.withNewRecovery(dek, rec), recoveryCode: rec);
     await store.setRecoveryCode(rec);
@@ -394,8 +462,8 @@ class CloudSync {
   /// Progressi (sempre) e backup automatico (se attivo e passato un giorno). Restituisce un messaggio.
   static Future<String> syncNow(AppStore store, {bool quiet = false}) async {
     final code = store.accountCode;
-    if (code == null) return 'Nessun account';
-    if (_busy) return 'Sincronizzazione già in corso';
+    if (code == null) return tr('Nessun account', 'No account');
+    if (_busy) return tr('Sincronizzazione già in corso', 'Sync already in progress');
     _busy = true;
     try {
       var merged = await Cloud.pushProgress(code, store.progressData, resetSeen: store.opt('cloud.resetSeen', 0));
@@ -417,7 +485,7 @@ class CloudSync {
         final last = DateTime.tryParse(store.opt('cloud.backupAt', ''));
         if (last == null || DateTime.now().difference(last) > const Duration(hours: 20)) {
           final sent = await uploadBackupIfChanged(store);
-          if (sent) msg += ' · backup aggiornato';
+          if (sent) msg += tr(' · backup aggiornato', ' · backup updated');
         }
       }
       return msg;
@@ -536,21 +604,21 @@ class CloudSync {
   /// Scarica il backup, apre la parte cifrata e lo rimette sul dispositivo. Restituisce le chiavi ripristinate.
   static Future<int> restoreFromServer(AppStore store) async {
     final code = store.accountCode;
-    if (code == null) throw CloudException('Nessun account');
+    if (code == null) throw CloudException(tr('Nessun account', 'No account'));
     final Map<String, dynamic> m;
     try {
       m = Map<String, dynamic>.from(jsonDecode(await Cloud.downloadBackup(code)) as Map);
     } on CloudException {
       rethrow;
     } catch (_) {
-      throw CloudException('Il backup sul server è rovinato');
+      throw CloudException(tr('Il backup sul server è rovinato', 'The backup on the server is damaged'));
     }
     final prefs = withoutPlainSensitive(Map<String, dynamic>.from((m['prefs'] as Map?) ?? const {}));
     if (m['secret'] != null) {
       try {
         prefs.addAll(await openJson(m['secret'], await CloudKeys.dek(store)));
       } on CryptoFailure catch (e) {
-        throw CloudException('Non riesco ad aprire la parte cifrata: ${e.message}');
+        throw CloudException(tr('Non riesco ad aprire la parte cifrata: ${e.message}', 'Can\'t open the encrypted part: ${e.message}'));
       }
     }
     final n = await store.restore(jsonEncode({'easyLessonBackup': m['easyLessonBackup'] ?? 3, 'prefs': prefs}));

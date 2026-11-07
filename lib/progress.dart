@@ -5,6 +5,8 @@
 /// e, per ogni contatore, il valore più alto.
 library;
 
+import 'i18n.dart';
+
 /// Rarità di un obiettivo: decide quanta XP vale.
 enum Tier {
   bronze('Bronzo', 10),
@@ -41,18 +43,18 @@ int levelForXp(int xp) {
 
 /// Nome del livello, cambia ogni qualche livello.
 String levelTitle(int level) {
-  const titles = [
-    (1, 'Matricola'),
-    (3, 'Primino'),
-    (5, 'Studente'),
-    (8, 'Secchione'),
-    (10, 'Rappresentante'),
-    (13, 'Veterano'),
-    (16, 'Maturando'),
-    (20, 'Leggenda'),
-    (25, 'Preside'),
-    (30, 'Mito'),
-    (40, 'Divinità dell\'orario'),
+  final titles = [
+    (1, tr('Matricola', 'Freshman')),
+    (3, tr('Primino', 'First-year')),
+    (5, tr('Studente', 'Student')),
+    (8, tr('Secchione', 'Nerd')),
+    (10, tr('Rappresentante', 'Class rep')),
+    (13, tr('Veterano', 'Veteran')),
+    (16, tr('Maturando', 'Senior')),
+    (20, tr('Leggenda', 'Legend')),
+    (25, tr('Preside', 'Principal')),
+    (30, tr('Mito', 'Myth')),
+    (40, tr('Divinità dell\'orario', 'Timetable deity')),
   ];
   var t = titles.first.$2;
   for (final (from, name) in titles) {

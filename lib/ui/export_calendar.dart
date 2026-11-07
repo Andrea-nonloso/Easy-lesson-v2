@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../ics.dart';
 import '../store.dart';
 import 'save_file_io.dart' if (dart.library.js_interop) 'save_file_web.dart';
+import '../i18n.dart';
 
 /// "Esporta nel calendario": salva un file .ics da aprire con Google Calendar,
 /// Outlook o il Calendario di Windows. Le lezioni si ripetono ogni settimana fino a giugno.
@@ -19,10 +20,10 @@ Future<void> exportToCalendar(BuildContext context, CachedSchedule cached) async
       ..showSnackBar(SnackBar(
         duration: const Duration(seconds: 6),
         content: Text(where.isEmpty
-            ? 'Calendario pronto: aprilo con Google Calendar o Outlook per importare le lezioni'
-            : 'Salvato in $where: aprilo per importare le lezioni nel calendario'),
+            ? tr('Calendario pronto: aprilo con Google Calendar o Outlook per importare le lezioni', 'Calendar ready: open it with Google Calendar or Outlook to import the lessons')
+            : tr('Salvato in $where: aprilo per importare le lezioni nel calendario', 'Saved in $where: open it to import the lessons into the calendar')),
       ));
   } catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text('Esportazione non riuscita: $e')));
+    messenger.showSnackBar(SnackBar(content: Text(tr('Esportazione non riuscita: $e', 'Export failed: $e'))));
   }
 }

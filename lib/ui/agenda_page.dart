@@ -9,6 +9,7 @@ import 'photos_page.dart';
 import 'school_life_pages.dart';
 import 'theme.dart';
 import 'widgets.dart';
+import '../i18n.dart';
 
 void openAgenda(BuildContext context) =>
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AgendaPage()));
@@ -40,7 +41,7 @@ Future<void> addAgendaDialog(BuildContext context, {String subject = '', DateTim
     context: context,
     builder: (c) => StatefulBuilder(
       builder: (c, setState) => AlertDialog(
-        title: const Text('Aggiungi all\'agenda'),
+        title: Text(tr('Aggiungi all\'agenda', 'Add to planner')),
         content: SizedBox(
           width: 420,
           child: SingleChildScrollView(
@@ -63,7 +64,7 @@ Future<void> addAgendaDialog(BuildContext context, {String subject = '', DateTim
                 const SizedBox(height: 14),
                 TextField(
                   controller: subjectCtrl,
-                  decoration: const InputDecoration(labelText: 'Materia', isDense: true),
+                  decoration: InputDecoration(labelText: tr('Materia', 'Subject'), isDense: true),
                 ),
                 if (subject.isEmpty && subjects.isNotEmpty) ...[
                   const SizedBox(height: 8),
@@ -86,7 +87,7 @@ Future<void> addAgendaDialog(BuildContext context, {String subject = '', DateTim
                   autofocus: subject.isNotEmpty,
                   minLines: 1,
                   maxLines: 3,
-                  decoration: const InputDecoration(labelText: 'Cosa (es. "equazioni, pag. 120")', isDense: true),
+                  decoration: InputDecoration(labelText: tr('Cosa (es. "equazioni, pag. 120")', 'What (e.g. "equations, p. 120")'), isDense: true),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
@@ -108,8 +109,8 @@ Future<void> addAgendaDialog(BuildContext context, {String subject = '', DateTim
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Aggiungi')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Aggiungi', 'Add'))),
         ],
       ),
     ),
@@ -163,21 +164,21 @@ Future<void> showLessonSheet(
             ],
             if (lesson.sostegno.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text('Sostegno: ${lesson.sostegno.join(', ')}',
+              Text('${tr('Sostegno', 'Support')}: ${lesson.sostegno.join(', ')}',
                   style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
             ],
-            const SectionLabel('Agenda'),
+            SectionLabel(tr('Agenda', 'Planner')),
             if (items.isEmpty)
-              Text('Niente in programma per ${lesson.title}.',
+              Text(tr('Niente in programma per ${lesson.title}.', 'Nothing planned for ${lesson.title}.'),
                   style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
             for (final a in items) _AgendaTile(item: a),
             const SizedBox(height: 12),
             FilledButton.tonalIcon(
               icon: const Icon(Icons.add_rounded),
-              label: Text('Aggiungi per ${friendlyDate(next, now).toLowerCase()}'),
+              label: Text(tr('Aggiungi per ${friendlyDate(next, now).toLowerCase()}', 'Add for ${friendlyDate(next, now).toLowerCase()}')),
               onPressed: () => addAgendaDialog(c, subject: lesson.title, date: next),
             ),
-            const SectionLabel('Foto della lezione'),
+            SectionLabel(tr('Foto della lezione', 'Lesson photo')),
             PhotoStrip(subject: lesson.title),
             const SizedBox(height: 12),
             Wrap(
@@ -186,12 +187,12 @@ Future<void> showLessonSheet(
               children: [
                 ActionChip(
                   avatar: const Icon(Icons.grade_outlined, size: 18),
-                  label: const Text('Segna un voto'),
+                  label: Text(tr('Segna un voto', 'Add a grade')),
                   onPressed: () => addGradeDialog(c, subject: lesson.title),
                 ),
                 ActionChip(
                   avatar: const Icon(Icons.timer_outlined, size: 18),
-                  label: const Text('Studia questa materia'),
+                  label: Text(tr('Studia questa materia', 'Study this subject')),
                   onPressed: () => openStudyTimer(c, subject: lesson.title),
                 ),
               ],
@@ -273,10 +274,10 @@ class _AgendaPageState extends State<AgendaPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Agenda'),
+        title: Text(tr('Agenda', 'Planner')),
         actions: [
           IconButton(
-            tooltip: _showDone ? 'Nascondi fatti e passati' : 'Mostra anche fatti e passati',
+            tooltip: _showDone ? tr('Nascondi fatti e passati', 'Hide done and past items') : tr('Mostra anche fatti e passati', 'Also show done and past items'),
             onPressed: () => setState(() => _showDone = !_showDone),
             icon: Icon(_showDone ? Icons.visibility_off_outlined : Icons.history_rounded),
           ),
@@ -286,13 +287,13 @@ class _AgendaPageState extends State<AgendaPage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => addAgendaDialog(context),
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Aggiungi'),
+        label: Text(tr('Aggiungi', 'Add')),
       ),
       body: items.isEmpty
-          ? const EmptyState(
+          ? EmptyState(
               icon: Icons.event_available_rounded,
-              title: 'Niente in agenda',
-              message: 'Aggiungi compiti e verifiche da qui, oppure tocca una lezione nel tuo orario.',
+              title: tr('Niente in agenda', 'Nothing in the planner'),
+              message: tr('Aggiungi compiti e verifiche da qui, oppure tocca una lezione nel tuo orario.', 'Add homework and tests from here, or tap a lesson in your timetable.'),
             )
           : Center(
               child: ConstrainedBox(

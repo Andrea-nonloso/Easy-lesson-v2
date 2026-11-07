@@ -65,13 +65,13 @@ class CachedSchedule {
 }
 
 /// Parti del backup che si possono scegliere: (id, nome, cosa contiene).
-const backupSections = <(String, String, String)>[
-  ('orari', 'Orari salvati', 'Il tuo orario, preferiti, recenti ed elenchi'),
+List<(String, String, String)> get backupSections => <(String, String, String)>[
+  ('orari', tr('Orari salvati', 'Saved timetables'), tr('Il tuo orario, preferiti, recenti ed elenchi', 'Your timetable, favorites, recent and lists')),
   ('aspetto', 'Aspetto', 'Tema, soprannomi ed emoji, nome (soprannomi e nome cifrati)'),
-  ('agenda', 'Agenda e calendario', 'Compiti, conti alla rovescia, zaino, ponti'),
-  ('scuola', 'Voti, assenze e studio', 'Voti, assenze, minuti di studio, prof, libri, foto (solo l\'elenco)'),
-  ('opzioni', 'Impostazioni e progressi', 'Notifiche, campanelle, home, obiettivi e livello'),
-  ('excel', 'File Excel importato', 'L\'orario completo della scuola: può pesare parecchio'),
+  ('agenda', 'Agenda e calendario', tr('Compiti, conti alla rovescia, zaino, ponti', 'Homework, countdowns, backpack, long weekends')),
+  ('scuola', tr('Voti, assenze e studio', 'Grades, absences and study'), tr('Voti, assenze, minuti di studio, prof, libri, foto (solo l\'elenco)', 'Grades, absences, study minutes, teachers, books, photos (only the list)')),
+  ('opzioni', tr('Impostazioni e progressi', 'Settings and progress'), tr('Notifiche, campanelle, home, obiettivi e livello', 'Notifications, bells, home, achievements and level')),
+  ('excel', 'File Excel importato', tr('L\'orario completo della scuola: può pesare parecchio', 'The school\'s full timetable: it can be quite heavy')),
 ];
 
 /// Informativa privacy (pagina della versione web).
@@ -184,7 +184,7 @@ class AppStore extends ChangeNotifier {
 
   /// Tema creato dall'utente ("Il tuo tema" nella pagina Temi).
   bool hasCustomTheme = false;
-  String customName = 'Il mio tema';
+  String customName = tr('Il mio tema', 'My theme');
   int customSeed = 0xFF985DE4;
   String customMode = 'system'; // 'system' | 'light' | 'dark'
   bool customOled = false;
@@ -596,7 +596,7 @@ class AppStore extends ChangeNotifier {
       await _prefs.setStringList(_kDocenti, _serverDocenti);
       await _prefs.setString(_kListsAt, listsUpdatedAt!.toIso8601String());
     } catch (e) {
-      listsError = e is ParallelWaitError ? ApiException('Connessione non disponibile') : e;
+      listsError = e is ParallelWaitError ? ApiException(tr('Connessione non disponibile', 'Connection not available')) : e;
       AppLog.w('server', 'Elenchi non aggiornati: $e');
     }
     try {
@@ -616,13 +616,13 @@ class AppStore extends ChangeNotifier {
     final Map<String, dynamic> raw;
     AppLog.i('orario', 'Carico ${ref.key} da ${_timetable != null ? 'Excel' : 'server'}');
     if (_timetable != null) {
-      if (!_timetable!.has(ref)) throw ApiException('${ref.displayName} non è nel file Excel importato');
+      if (!_timetable!.has(ref)) throw ApiException(tr('${ref.displayName} non è nel file Excel importato', '${ref.displayName} isn\'t in the imported Excel file'));
       raw = _timetable!.scheduleJson(ref);
     } else {
       raw = await _api.orario(ref, ore: _oreLabels.isNotEmpty ? _oreLabels.length : defaultOreLabels.length);
     }
     if (WeekSchedule.fromJson(raw, prof: ref.prof).days.isEmpty) {
-      throw ApiException('Orario non trovato');
+      throw ApiException(tr('Orario non trovato', 'Timetable not found'));
     }
     final old = _schedules[ref.key];
     final now = DateTime.now();
@@ -693,17 +693,17 @@ class AppStore extends ChangeNotifier {
 
   Future<void> _downloadExcel(String url) async {
     final uri = Uri.tryParse(url);
-    if (uri == null || !uri.hasScheme) throw ApiException('Link non valido');
+    if (uri == null || !uri.hasScheme) throw ApiException(tr('Link non valido', 'Invalid link'));
     final http.Response res;
     try {
       res = await http.get(uri).timeout(const Duration(seconds: 40));
     } catch (_) {
       throw ApiException(kIsWeb
-          ? 'Download non riuscito: dal browser molti siti bloccano i download. '
-              'Scarica il file e usa "Importa file Excel".'
-          : 'Download non riuscito: controlla la connessione e il link');
+          ? tr('Download non riuscito: dal browser molti siti bloccano i download. '
+              'Scarica il file e usa "Importa file Excel".', 'Download failed: many sites block downloads from the browser. Download the file and use "Import Excel file".')
+          : tr('Download non riuscito: controlla la connessione e il link', 'Download failed: check the connection and the link'));
     }
-    if (res.statusCode != 200) throw ApiException('Il sito ha risposto con errore ${res.statusCode}');
+    if (res.statusCode != 200) throw ApiException(tr('Il sito ha risposto con errore ${res.statusCode}', 'The site replied with error ${res.statusCode}'));
     final name = uri.pathSegments.isNotEmpty ? Uri.decodeComponent(uri.pathSegments.last) : null;
     await importExcelBytes(res.bodyBytes, name: name, url: url);
   }
@@ -1148,10 +1148,10 @@ class AppStore extends ChangeNotifier {
     try {
       m = Map<String, dynamic>.from(jsonDecode(json.trim()) as Map);
     } catch (_) {
-      throw const FormatException('Non è un backup di Easy Lesson');
+      throw FormatException(tr('Non è un backup di Easy Lesson', 'It\'s not an Easy Lesson backup'));
     }
     final prefs = m['prefs'];
-    if (m['easyLessonBackup'] == null || prefs is! Map) throw const FormatException('Non è un backup di Easy Lesson');
+    if (m['easyLessonBackup'] == null || prefs is! Map) throw FormatException(tr('Non è un backup di Easy Lesson', 'It\'s not an Easy Lesson backup'));
     final ready = <String, Object>{};
     var skipped = 0;
     for (final e in prefs.entries) {
@@ -1300,7 +1300,7 @@ class AppStore extends ChangeNotifier {
 
   Future<void> addStudy(String subject, int minutes) async {
     if (minutes <= 0) return;
-    final k = subject.trim().isEmpty ? 'Studio libero' : subject.trim();
+    final k = subject.trim().isEmpty ? tr('Studio libero', 'Free study') : subject.trim();
     studyMinutes[k] = (studyMinutes[k] ?? 0) + minutes;
     final day = isoDay(DateTime.now());
     studyLog[day] = (studyLog[day] ?? 0) + minutes;

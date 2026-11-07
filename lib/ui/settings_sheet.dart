@@ -32,7 +32,7 @@ void _report(ScaffoldMessengerState messenger, AppStore store, Object? error) {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(
       content: Text(error == null
-          ? 'Orario importato: ${store.classi.length} classi, ${store.docenti.length} docenti'
+          ? tr('Orario importato: ${store.classi.length} classi, ${store.docenti.length} docenti', 'Timetable imported: ${store.classi.length} classes, ${store.docenti.length} teachers')
           : '$error'),
     ));
 }
@@ -84,8 +84,8 @@ Future<void> askExcelUrl(BuildContext context) async {
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annulla')),
-        FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: const Text('Scarica')),
+        TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annulla', 'Cancel'))),
+        FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: Text(tr('Scarica', 'Download'))),
       ],
     ),
   );
@@ -139,11 +139,11 @@ Future<void> _confirmClear(BuildContext context, AppStore store) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (c) => AlertDialog(
-      title: const Text('Cancellare gli orari salvati?'),
-      content: const Text('Verranno rimossi tutti gli orari salvati sul dispositivo, compreso il tuo.'),
+      title: Text(tr('Cancellare gli orari salvati?', 'Delete the saved timetables?')),
+      content: Text(tr('Verranno rimossi tutti gli orari salvati sul dispositivo, compreso il tuo.', 'All timetables saved on the device will be removed, yours included.')),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-        FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Cancella')),
+        TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+        FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Cancella', 'Delete'))),
       ],
     ),
   );
@@ -154,14 +154,14 @@ Future<void> _confirmResetOptions(BuildContext context, AppStore store) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (c) => AlertDialog(
-      title: const Text('Ripristinare le opzioni?'),
-      content: const Text(
-        'Home, notifiche, lingua, accessibilità e opzioni varie tornano come appena installata. '
-        'Orari, agenda, voti, assenze, soprannomi e tema restano.',
+      title: Text(tr('Ripristinare le opzioni?', 'Reset the options?')),
+      content: Text(
+        tr('Home, notifiche, lingua, accessibilità e opzioni varie tornano come appena installata. '
+        'Orari, agenda, voti, assenze, soprannomi e tema restano.', 'Home, notifications, language, accessibility and various options go back to just installed. Timetables, planner, grades, absences, nicknames and theme stay.'),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-        FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Ripristina')),
+        TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+        FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Ripristina', 'Restore'))),
       ],
     ),
   );
@@ -185,29 +185,29 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
       [
         _Item(Icons.palette_outlined, tr('Tema', 'Theme'), themeById(store.themeId).name, () => openThemesPage(context),
             keywords: 'colori scuro chiaro oled sfondo'),
-        _Item(Icons.auto_awesome_rounded, 'Stile Expressive',
-            store.opt('look.expressive', true) ? 'Attivo: forme più tonde, pulsanti grandi (tocca per lo stile classico)' : 'Spento: stile classico',
+        _Item(Icons.auto_awesome_rounded, tr('Stile Expressive', 'Expressive style'),
+            store.opt('look.expressive', true) ? tr('Attivo: forme più tonde, pulsanti grandi (tocca per lo stile classico)', 'On: rounder shapes, big buttons (tap for the classic style)') : tr('Spento: stile classico', 'Off: classic style'),
             () => store.setOpt('look.expressive', !store.opt('look.expressive', true)),
-            keywords: 'material 3 expressive forme arrotondate stile nuovo'),
+            keywords: tr('material 3 expressive forme arrotondate stile nuovo', 'material 3 expressive rounded shapes new style')),
         if (android)
-          _Item(Icons.apps_rounded, tr('Icona dell\'app', 'App icon'), 'Verde, blu, viola, rossa, nera…',
+          _Item(Icons.apps_rounded, tr('Icona dell\'app', 'App icon'), tr('Verde, blu, viola, rossa, nera…', 'Green, blue, purple, red, black…'),
               () => pickAppIcon(context), keywords: 'launcher colore'),
         _Item(Icons.apps_rounded, tr('Pulsanti della scuola in home', 'School buttons on home'),
-            '${chosenSchoolTools(store).map((t) => t.label).join(', ')} · Altro', () => editSchoolShortcuts(context),
-            keywords: 'voti assenze agenda timer zaino prof libri foto scorciatoie'),
+            '${chosenSchoolTools(store).map((t) => t.label).join(', ')} · ${tr('Altro', 'More')}', () => editSchoolShortcuts(context),
+            keywords: tr('voti assenze agenda timer zaino prof libri foto scorciatoie', 'grades absences planner timer backpack teachers books photos shortcuts')),
         _Item(Icons.dashboard_customize_outlined, tr('Home e pagina iniziale', 'Home and start page'),
-            'Cosa vedere nella home, emoji dei laboratori, vibrazione', () => openHomeOptions(context),
+            tr('Cosa vedere nella home, emoji dei laboratori, vibrazione', 'What to see on the home screen, lab emoji, vibration'), () => openHomeOptions(context),
             keywords: 'sezioni scorciatoie conto alla rovescia recenti'),
         _Item(
           Icons.emoji_emotions_outlined,
           tr('Soprannomi ed emoji', 'Nicknames and emoji'),
           nicknames.isEmpty && subjectEmojis.isEmpty
-              ? 'Chiama le materie e i prof come vuoi tu'
+              ? tr('Chiama le materie e i prof come vuoi tu', 'Call subjects and teachers whatever you like')
               : '${{...nicknames.keys, ...subjectEmojis.keys}.length} nomi personalizzati',
           () => openNicknames(context),
-          keywords: 'nomi materie prof rinomina',
+          keywords: tr('nomi materie prof rinomina', 'names subjects teachers rename'),
         ),
-        _Item(Icons.translate_rounded, tr('Lingua', 'Language'), store.opt('lang', 'it') == 'en' ? 'English (beta)' : 'Italiano',
+        _Item(Icons.translate_rounded, tr('Lingua', 'Language'), store.opt('lang', 'it') == 'en' ? 'English' : 'Italiano',
             () => openHomeOptions(context), keywords: 'inglese english'),
         _Item(
           Icons.accessibility_new_rounded,
@@ -231,63 +231,63 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
         _Item(
           Icons.schedule_rounded,
           tr('Orari delle campanelle', 'Bell times'),
-          store.customBells == null ? 'Quelli della scuola · ${store.slots.length} ore' : 'Scelti da te · ${store.slots.length} ore',
+          store.customBells == null ? tr('Quelli della scuola · ${store.slots.length} ore', 'The school\'s · ${store.slots.length} periods') : tr('Scelti da te · ${store.slots.length} ore', 'Chosen by you · ${store.slots.length} periods'),
           () => openBells(context),
-          keywords: 'ricreazione ore inizio fine',
+          keywords: tr('ricreazione ore inizio fine', 'break periods start end'),
         ),
         _Item(
           Icons.event_busy_outlined,
           tr('Calendario scolastico', 'School calendar'),
           store.extraClosures.isEmpty
-              ? 'Vacanze e feste, aggiungi i ponti della scuola'
-              : 'Vacanze e feste · ${store.extraClosures.length} giorni aggiunti da te',
+              ? tr('Vacanze e feste, aggiungi i ponti della scuola', 'Holidays and celebrations, add the school\'s long weekends')
+              : tr('Vacanze e feste · ${store.extraClosures.length} giorni aggiunti da te', 'Holidays and celebrations · ${store.extraClosures.length} days added by you'),
           () => openSchoolCalendar(context),
           keywords: 'vacanze ponti feste natale pasqua',
         ),
         _Item(
           Icons.swap_vert_circle_outlined,
-          'Settimana A/B',
-          store.altRef == null ? 'Se l\'orario cambia a settimane alterne' : 'Settimana B: ${store.altRef!.displayName}',
+          tr('Settimana A/B', 'Week A/B'),
+          store.altRef == null ? tr('Se l\'orario cambia a settimane alterne', 'If the timetable changes on alternate weeks') : tr('Settimana B: ${store.altRef!.displayName}', 'Week B: ${store.altRef!.displayName}'),
           () => abWeekDialog(context),
           keywords: 'alternata',
         ),
         _Item(
           Icons.badge_outlined,
-          'Materie e codici docenti',
+          tr('Materie e codici docenti', 'Subjects and teacher codes'),
           subjectOverrides.isEmpty && teacherSubjectOverrides.isEmpty
-              ? 'Es. A026 = Matematica'
+              ? tr('Es. A026 = Matematica', 'E.g. A026 = Maths')
               : '${subjectOverrides.length + teacherSubjectOverrides.length} personalizzazioni',
           () => _open(context, const SubjectsPage()),
-          keywords: 'classe di concorso',
+          keywords: tr('classe di concorso', 'subject code'),
         ),
         if (!store.usingExcel)
-          _Item(Icons.sync_rounded, 'Aggiorna gli elenchi',
-              store.listsUpdatedAt == null ? 'Mai scaricati' : 'Aggiornati ${relativeTime(store.listsUpdatedAt!)}',
-              () => store.refreshLists(), keywords: 'server classi docenti fonte'),
-        _Item(Icons.upload_file_rounded, store.usingExcel ? 'Importa un altro file Excel' : 'Importa file Excel (.xlsx)',
-            'Il file dell\'orario della scuola: poi funziona tutto offline', () => pickAndImportExcel(context),
+          _Item(Icons.sync_rounded, tr('Aggiorna gli elenchi', 'Update the lists'),
+              store.listsUpdatedAt == null ? tr('Mai scaricati', 'Never downloaded') : '${tr('Aggiornati', 'Updated')} ${relativeTime(store.listsUpdatedAt!)}',
+              () => store.refreshLists(), keywords: tr('server classi docenti fonte', 'server classes teachers source')),
+        _Item(Icons.upload_file_rounded, store.usingExcel ? tr('Importa un altro file Excel', 'Import another Excel file') : tr('Importa file Excel (.xlsx)', 'Import Excel file (.xlsx)'),
+            tr('Il file dell\'orario della scuola: poi funziona tutto offline', 'The school\'s timetable file: then everything works offline'), () => pickAndImportExcel(context),
             keywords: 'xlsx offline fonte'),
-        _Item(Icons.link_rounded, 'Scarica Excel da un link', 'Ideale nelle app (Android, Windows)', () => askExcelUrl(context),
+        _Item(Icons.link_rounded, tr('Scarica Excel da un link', 'Download Excel from a link'), tr('Ideale nelle app (Android, Windows)', 'Best in the apps (Android, Windows)'), () => askExcelUrl(context),
             keywords: 'fonte'),
         if (store.usingExcel)
-          _Item(Icons.cloud_outlined, 'Torna al server Easy Lesson', null, () => store.removeExcel(), keywords: 'fonte'),
+          _Item(Icons.cloud_outlined, tr('Torna al server Easy Lesson', 'Back to the Easy Lesson server'), null, () => store.removeExcel(), keywords: 'fonte'),
       ],
       extra: [
         if (store.usingExcel)
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: Icon(Icons.table_view_rounded, color: scheme.primary),
-            title: Text(store.excelName ?? 'File Excel'),
+            title: Text(store.excelName ?? tr('File Excel', 'Excel file')),
             subtitle: Text(
-              '${store.classi.length} classi · ${store.docenti.length} docenti'
-              '${store.excelAt != null ? ' · importato ${relativeTime(store.excelAt!)}' : ''}'
-              '${store.excelUrl != null ? '\nSi aggiorna dal link' : '\nFunziona tutto offline'}',
+              '${tr('${store.classi.length} classi · ${store.docenti.length} docenti', '${store.classi.length} classes · ${store.docenti.length} teachers')}'
+              '${store.excelAt != null ? ' · ${tr('importato', 'imported')} ${relativeTime(store.excelAt!)}' : ''}'
+              '\n${store.excelUrl != null ? tr('Si aggiorna dal link', 'Updates from the link') : tr('Funziona tutto offline', 'Everything works offline')}',
             ),
             isThreeLine: true,
             trailing: store.listsLoading
                 ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
                 : (store.excelUrl != null
-                    ? IconButton(tooltip: 'Riscarica', onPressed: () => store.refreshLists(), icon: const Icon(Icons.sync_rounded))
+                    ? IconButton(tooltip: tr('Riscarica', 'Download again'), onPressed: () => store.refreshLists(), icon: const Icon(Icons.sync_rounded))
                     : null),
           ),
         if (!store.usingExcel && store.listsLoading) const LinearProgressIndicator(),
@@ -298,34 +298,41 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
       'notifiche',
       Icons.notifications_active_outlined,
       tr('Notifiche', 'Notifications'),
-      android ? _notifySummary(store) : 'Sul telefono Android',
+      android ? _notifySummary(store) : (store.opt('n.chat', true) ? tr('Messaggi accesi', 'Messages on') : tr('Messaggi spenti', 'Messages off')),
       [
+        // 3.8: messaggi in diretta, su tutte le piattaforme (su Android anche nella pagina delle notifiche).
+        if (!android)
+          _Item(Icons.chat_bubble_outline_rounded, tr('Messaggi', 'Messages'),
+              store.opt('n.chat', true) ? tr('Accese: nuovi messaggi delle chat (tocca per spegnere)', 'On: new chat messages (tap to turn off)') : tr('Spente: tocca per accenderle', 'Off: tap to turn them on'),
+              () => store.setOpt('n.chat', store.opt('n.chat', true) ? false : null),
+              keywords: tr('chat messaggi privati classe grandi', 'chat messages private class adults')),
         if (android) ...[
           _Item(Icons.notifications_active_outlined, tr('Notifiche', 'Notifications'), _notifySummary(store),
               () => openNotifications(context),
-              keywords: 'lezione riepilogo sera buongiorno ricreazione compiti piano studio vacanze'),
-          _Item(Icons.timelapse_rounded, 'Lezione in corso',
+              keywords: tr('lezione riepilogo sera buongiorno ricreazione compiti piano studio vacanze', 'lesson summary evening morning break homework study plan holidays')),
+          _Item(Icons.timelapse_rounded, tr('Lezione in corso', 'Lesson in progress'),
               store.opt('n.live', false)
-                  ? 'Attiva: materia, aula e tempo che manca in tendina (tocca per spegnere)'
-                  : 'Spenta: tocca per tenere la lezione sempre in tendina (Live Update)', () async {
+                  ? tr('Attiva: materia, aula e tempo che manca in tendina (tocca per spegnere)', 'On: subject, room and time left in the shade (tap to turn off)')
+                  : tr('Spenta: tocca per tenere la lezione sempre in tendina (Live Update)', 'Off: tap to always keep the lesson in the shade (Live Update)'), () async {
             final on = !store.opt('n.live', false);
             if (on && !await NativeBridge.notificationsAllowed()) await NativeBridge.requestNotificationPermission();
             await store.setOpt('n.live', on);
             NativeBridge.scheduleSync(store);
-          }, keywords: 'live update notifica fissa barra stato lezione adesso'),
-          _Item(Icons.do_not_disturb_on_outlined, 'Silenzioso a scuola',
-              store.opt('silence', false) ? 'Attivo' : 'Non disturbare durante le lezioni', () => openNotifications(context),
-              keywords: 'non disturbare silenzio'),
-          _Item(Icons.notifications_paused_outlined, 'Impostazioni di Android',
-              'Suono e importanza di ogni tipo di notifica', () => NativeBridge.openNotificationSettings(),
+          }, keywords: tr('live update notifica fissa barra stato lezione adesso', 'live update pinned notification status bar lesson now')),
+          _Item(Icons.do_not_disturb_on_outlined, tr('Silenzioso a scuola', 'Silent at school'),
+              store.opt('silence', false) ? tr('Attivo', 'On') : tr('Non disturbare durante le lezioni', 'Do not disturb during lessons'), () => openNotifications(context),
+              keywords: tr('non disturbare silenzio', 'do not disturb silence')),
+          _Item(Icons.notifications_paused_outlined, tr('Impostazioni di Android', 'Android settings'),
+              tr('Suono e importanza di ogni tipo di notifica', 'Sound and importance of each type of notification'), () => NativeBridge.openNotificationSettings(),
               keywords: 'canali suono vibrazione'),
         ],
       ],
       extra: [
         if (!android)
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
-            child: Text('Le notifiche si impostano dall\'app Android. Su Windows arrivano le stesse mentre l\'app è aperta.'),
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(tr('Le notifiche delle lezioni si impostano dall\'app Android: su Windows e Linux arrivano le stesse '
+                'mentre l\'app è aperta o ridotta a icona. Quelle dei messaggi valgono ovunque.', 'Lesson notifications are set from the Android app: on Windows and Linux the same ones arrive while the app is open or minimized. Message notifications work everywhere.')),
           ),
       ],
       color: Colors.orange,
@@ -334,28 +341,28 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
       'dati',
       Icons.save_alt_rounded,
       tr('Dati e backup', 'Data and backup'),
-      'Backup, backup online, QR, resoconto PDF',
+      tr('Backup, backup online, QR, resoconto PDF', 'Backup, online backup, QR, PDF report'),
       [
-        _Item(Icons.save_alt_rounded, tr('Copia di sicurezza', 'Backup'), 'Copia tutto negli appunti o rimettilo su un altro dispositivo',
+        _Item(Icons.save_alt_rounded, tr('Copia di sicurezza', 'Backup'), tr('Copia tutto negli appunti o rimettilo su un altro dispositivo', 'Copy everything to the clipboard or put it back on another device'),
             () => _backupSheet(context, store), keywords: 'backup ripristina'),
         _Item(Icons.cloud_upload_outlined, tr('Backup online', 'Online backup'),
-            store.accountCode == null ? 'Serve il codice Easy Lesson (facoltativo)' : 'Scegli cosa salvare sul server',
+            store.accountCode == null ? tr('Serve il codice Easy Lesson (facoltativo)', 'Needs the Easy Lesson code (optional)') : tr('Scegli cosa salvare sul server', 'Choose what to save on the server'),
             () => openProfile(context), keywords: 'cloud server sincronizza'),
-        _Item(Icons.devices_rounded, 'Sincronizzazione completa',
+        _Item(Icons.devices_rounded, tr('Sincronizzazione completa', 'Full sync'),
             CloudSync.live(store)
-                ? 'Attiva: telefono, PC e web sempre uguali, cifrati (tocca per spegnere)'
-                : 'Gli stessi dati su tutti i tuoi dispositivi, cifrati end-to-end', () => _toggleLiveSync(context, store),
+                ? tr('Attiva: telefono, PC e web sempre uguali, cifrati (tocca per spegnere)', 'On: phone, PC and web always the same, encrypted (tap to turn off)')
+                : tr('Gli stessi dati su tutti i tuoi dispositivi, cifrati end-to-end', 'The same data on all your devices, end-to-end encrypted'), () => _toggleLiveSync(context, store),
             keywords: 'sincronizza pc telefono dispositivi uguale cloud e2e'),
-        _Item(Icons.qr_code_2_rounded, tr('Condividi con un QR', 'Share with a QR'), 'Il tuo orario, il tema o i soprannomi',
+        _Item(Icons.qr_code_2_rounded, tr('Condividi con un QR', 'Share with a QR'), tr('Il tuo orario, il tema o i soprannomi', 'Your timetable, the theme or the nicknames'),
             () => showShareQr(context), keywords: 'amico'),
-        _Item(Icons.qr_code_scanner_rounded, tr('Importa un codice', 'Import a code'), 'Incolla il codice che ti hanno mandato',
+        _Item(Icons.qr_code_scanner_rounded, tr('Importa un codice', 'Import a code'), tr('Incolla il codice che ti hanno mandato', 'Paste the code they sent you'),
             () => importCodeDialog(context)),
-        _Item(Icons.picture_as_pdf_outlined, tr('Resoconto PDF', 'PDF report'), 'Voti, medie e assenze per i genitori',
+        _Item(Icons.picture_as_pdf_outlined, tr('Resoconto PDF', 'PDF report'), tr('Voti, medie e assenze per i genitori', 'Grades, averages and absences for parents'),
             () => exportReport(context), keywords: 'genitori stampa'),
-        _Item(Icons.delete_outline_rounded, 'Cancella orari salvati',
-            '${store.favorites.length} salvati · ${store.recents.length} recenti', () => _confirmClear(context, store)),
-        _Item(Icons.settings_backup_restore_rounded, 'Ripristina le opzioni',
-            'Home, notifiche, lingua e accessibilità come appena installata', () => _confirmResetOptions(context, store),
+        _Item(Icons.delete_outline_rounded, tr('Cancella orari salvati', 'Delete saved timetables'),
+            tr('${store.favorites.length} salvati · ${store.recents.length} recenti', '${store.favorites.length} saved · ${store.recents.length} recent'), () => _confirmClear(context, store)),
+        _Item(Icons.settings_backup_restore_rounded, tr('Ripristina le opzioni', 'Reset the options'),
+            tr('Home, notifiche, lingua e accessibilità come appena installata', 'Home, notifications, language and accessibility as just installed'), () => _confirmResetOptions(context, store),
             keywords: 'reset predefinite'),
       ],
       color: Colors.green,
@@ -364,9 +371,9 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
       'aggiornamenti',
       Icons.system_update_outlined,
       tr('Aggiornamenti', 'Updates'),
-      store.betaUpdates ? 'Canale Beta 🧪' : 'Cerca aggiornamenti, novità',
+      store.betaUpdates ? tr('Canale Beta 🧪', 'Beta channel 🧪') : tr('Cerca aggiornamenti, novità', 'Check for updates, what\'s new'),
       [
-        _Item(Icons.new_releases_outlined, tr('Novità', 'What\'s new'), 'Le note di ogni versione su GitHub',
+        _Item(Icons.new_releases_outlined, tr('Novità', 'What\'s new'), tr('Le note di ogni versione su GitHub', 'The notes of each version on GitHub'),
             () => launchUrl(Uri.parse('https://github.com/$githubRepo/releases'), mode: LaunchMode.externalApplication),
             external: true, keywords: 'changelog versione'),
       ],
@@ -376,26 +383,26 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
           Padding(
             padding: const EdgeInsets.only(top: 4, bottom: 4),
             child: Text(
-              '🧪 Canale Beta attivo: ricevi le versioni di prova. Si cambia dalle opzioni sviluppatore.',
+              tr('🧪 Canale Beta attivo: ricevi le versioni di prova. Si cambia dalle opzioni sviluppatore.', '🧪 Beta channel on: you get the test versions. Change it from the developer options.'),
               style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ),
         if (android)
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Avvisami delle nuove versioni'),
-            subtitle: const Text('Controlla GitHub ogni qualche ora, anche ad app chiusa'),
+            title: Text(tr('Avvisami delle nuove versioni', 'Tell me about new versions')),
+            subtitle: Text(tr('Controlla GitHub ogni qualche ora, anche ad app chiusa', 'Check GitHub every few hours, even with the app closed')),
             value: store.opt('n.updates', true),
             onChanged: (v) => store.setOpt('n.updates', v ? null : false),
           ),
         if (kIsWeb)
-          const ListTile(
+          ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.install_desktop_rounded),
-            title: Text('Installa come app'),
+            leading: const Icon(Icons.install_desktop_rounded),
+            title: Text(tr('Installa come app', 'Install as an app')),
             subtitle: Text(
-              'Chrome/Edge: icona di installazione nella barra degli indirizzi. '
-              'iPhone: Condividi → Aggiungi alla schermata Home. Poi funziona anche offline.',
+              tr('Chrome/Edge: icona di installazione nella barra degli indirizzi. '
+              'iPhone: Condividi → Aggiungi alla schermata Home. Poi funziona anche offline.', 'Chrome/Edge: install icon in the address bar. iPhone: Share → Add to Home Screen. Then it works offline too.'),
             ),
           ),
       ],
@@ -405,14 +412,14 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
       'info',
       Icons.info_outline_rounded,
       'Info',
-      'Privacy, progetto, segnala un problema',
+      tr('Privacy, progetto, segnala un problema', 'Privacy, project, report a problem'),
       [
-        _Item(Icons.bug_report_outlined, tr('Segnala un problema', 'Report a problem'), 'Apre una segnalazione su GitHub',
+        _Item(Icons.bug_report_outlined, tr('Segnala un problema', 'Report a problem'), tr('Apre una segnalazione su GitHub', 'Opens an issue on GitHub'),
             () => launchUrl(Uri.parse('https://github.com/$githubRepo/issues/new'), mode: LaunchMode.externalApplication),
             external: true, keywords: 'bug errore idea'),
-        _Item(Icons.code_rounded, 'Easy Lesson 2 su GitHub', 'Il codice di questa versione',
+        _Item(Icons.code_rounded, tr('Easy Lesson 2 su GitHub', 'Easy Lesson 2 on GitHub'), tr('Il codice di questa versione', 'The code of this version'),
             () => launchUrl(Uri.parse('https://github.com/$githubRepo'), mode: LaunchMode.externalApplication), external: true),
-        _Item(Icons.history_edu_rounded, 'Progetto originale su GitHub', "Easy Lesson di Daniele D'Alonzo",
+        _Item(Icons.history_edu_rounded, tr('Progetto originale su GitHub', 'Original project on GitHub'), "Easy Lesson di Daniele D'Alonzo",
             () => launchUrl(Uri.parse(_githubUrl), mode: LaunchMode.externalApplication), external: true),
         _Item(Icons.privacy_tip_outlined, 'Privacy policy', null,
             () => launchUrl(Uri.parse(privacyUrl), mode: LaunchMode.externalApplication), external: true),
@@ -424,7 +431,7 @@ List<_Group> _settingsGroups(BuildContext context, AppStore store) {
         'dev',
         Icons.science_outlined,
         tr('Opzioni sviluppatore', 'Developer options'),
-        'Canale Beta, log, notifiche, memoria, rete',
+        tr('Canale Beta, log, notifiche, memoria, rete', 'Beta channel, log, notifications, memory, network'),
         [_Item(Icons.science_outlined, tr('Opzioni sviluppatore', 'Developer options'), null, () => openDevPage(context))],
         color: Colors.red,
       ),
@@ -582,7 +589,7 @@ String _notifySummary(AppStore store) {
     if (store.opt('n.holiday', false)) 'vacanze',
     if (store.opt('n.updates', true)) 'aggiornamenti',
   ];
-  return on.isEmpty ? 'Tutte spente' : 'Attive: ${on.join(', ')}';
+  return on.isEmpty ? tr('Tutte spente', 'All off') : 'Attive: ${on.join(', ')}';
 }
 
 /// Backup: copia negli appunti o ripristino da quello che si incolla.
@@ -597,14 +604,14 @@ Future<void> _backupSheet(BuildContext context, AppStore store) async {
         children: [
           ListTile(
             leading: const Icon(Icons.copy_rounded),
-            title: const Text('Copia il backup negli appunti'),
-            subtitle: const Text('Poi incollalo dove vuoi (note, chat con te stesso…)'),
+            title: Text(tr('Copia il backup negli appunti', 'Copy the backup to the clipboard')),
+            subtitle: Text(tr('Poi incollalo dove vuoi (note, chat con te stesso…)', 'Then paste it wherever you like (notes, a chat with yourself…)')),
             onTap: () => Navigator.pop(c, 'copy'),
           ),
           ListTile(
             leading: const Icon(Icons.paste_rounded),
-            title: const Text('Ripristina dagli appunti'),
-            subtitle: const Text('Sostituisce le impostazioni di questo dispositivo'),
+            title: Text(tr('Ripristina dagli appunti', 'Restore from the clipboard')),
+            subtitle: Text(tr('Sostituisce le impostazioni di questo dispositivo', 'Replaces the settings on this device')),
             onTap: () => Navigator.pop(c, 'paste'),
           ),
         ],
@@ -614,12 +621,12 @@ Future<void> _backupSheet(BuildContext context, AppStore store) async {
   if (choice == 'copy') {
     await Clipboard.setData(ClipboardData(text: store.backup()));
     await store.setOpt('ach.backup', true);
-    messenger.showSnackBar(const SnackBar(content: Text('Backup copiato negli appunti')));
+    messenger.showSnackBar(SnackBar(content: Text(tr('Backup copiato negli appunti', 'Backup copied to the clipboard'))));
   } else if (choice == 'paste') {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     try {
       final n = await store.restore(data?.text ?? '');
-      messenger.showSnackBar(SnackBar(content: Text('Ripristinate $n impostazioni')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('Ripristinate $n impostazioni', 'Restored $n settings'))));
     } on FormatException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -650,26 +657,26 @@ class _UpdateTileState extends State<_UpdateTile> {
       _checking = false;
       _update = info;
       _status = info == null
-          ? 'Hai già l\'ultima versione'
-          : 'Disponibile la versione ${info.version}${info.prerelease ? ' (beta)' : ''}';
+          ? tr('Hai già l\'ultima versione', 'You already have the latest version')
+          : '${tr('Disponibile la versione', 'Version available:')} ${info.version}${info.prerelease ? ' (beta)' : ''}';
     });
   }
 
   @override
   Widget build(BuildContext context) {
     if (!Updater.supported) {
-      return const ListTile(
+      return ListTile(
         contentPadding: EdgeInsets.zero,
-        leading: Icon(Icons.system_update_outlined),
-        title: Text('Aggiornamenti'),
-        subtitle: Text('La versione web si aggiorna da sola: ricarica la pagina'),
+        leading: const Icon(Icons.system_update_outlined),
+        title: Text(tr('Aggiornamenti', 'Updates')),
+        subtitle: Text(tr('La versione web si aggiorna da sola: ricarica la pagina', 'The web version updates by itself: reload the page')),
       );
     }
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Icon(_update != null ? Icons.system_update_rounded : Icons.system_update_outlined,
           color: _update != null ? Theme.of(context).colorScheme.primary : null),
-      title: Text(_update != null ? 'Scarica la versione ${_update!.version}' : 'Cerca aggiornamenti'),
+      title: Text(_update != null ? tr('Scarica la versione ${_update!.version}', 'Download version ${_update!.version}') : tr('Cerca aggiornamenti', 'Check for updates')),
       subtitle: _status == null ? null : Text(_status!),
       trailing: _checking
           ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
@@ -684,27 +691,27 @@ Future<void> _toggleLiveSync(BuildContext context, AppStore store) async {
   final messenger = ScaffoldMessenger.of(context);
   if (CloudSync.live(store)) {
     await store.setOpt('cloud.live', null);
-    messenger.showSnackBar(const SnackBar(content: Text('Sincronizzazione completa spenta')));
+    messenger.showSnackBar(SnackBar(content: Text(tr('Sincronizzazione completa spenta', 'Full sync off'))));
     return;
   }
   if (store.accountCode == null) {
     openProfile(context);
-    messenger.showSnackBar(const SnackBar(content: Text('Prima crea (o inserisci) il codice Easy Lesson')));
+    messenger.showSnackBar(SnackBar(content: Text(tr('Prima crea (o inserisci) il codice Easy Lesson', 'First create (or enter) the Easy Lesson code'))));
     return;
   }
   final ok = await showDialog<bool>(
     context: context,
     builder: (c) => AlertDialog(
       icon: const Icon(Icons.devices_rounded),
-      title: const Text('Sincronizzazione completa'),
-      content: const Text(
-        'Orari, agenda, voti e opzioni restano uguali su tutti i dispositivi con il tuo codice '
+      title: Text(tr('Sincronizzazione completa', 'Full sync')),
+      content: Text(
+        tr('Orari, agenda, voti e opzioni restano uguali su tutti i dispositivi con il tuo codice '
         '(telefono, PC, web). Le parti personali viaggiano cifrate: il server non le legge.\n\n'
-        'La prima volta, se il server ha già dati di un altro dispositivo, quelli vincono sulle differenze.',
+        'La prima volta, se il server ha già dati di un altro dispositivo, quelli vincono sulle differenze.', 'Timetables, planner, grades and options stay the same on all devices with your code (phone, PC, web). The personal parts travel encrypted: the server can\'t read them.\n\nThe first time, if the server already has data from another device, that data wins on the differences.'),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-        FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Attiva')),
+        TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+        FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Attiva', 'Turn on'))),
       ],
     ),
   );

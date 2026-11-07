@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../cloud.dart';
+import '../live.dart';
 import '../social.dart';
 import '../store.dart';
 import 'achievements.dart' show levelOf;
 import 'class_page.dart';
+import '../i18n.dart';
 
 /// Amici (con codice amico, niente ricerca per nome) e classifica XP della settimana.
 class FriendsPage extends StatefulWidget {
@@ -18,10 +22,22 @@ class _FriendsPageState extends State<FriendsPage> {
   SocialProfile? _me;
   Object? _error;
 
+  StreamSubscription<LiveEvent>? _live;
+
   @override
   void initState() {
     super.initState();
     _load();
+    // Richieste e amicizie nuove arrivano da sole (canale in diretta).
+    _live = Live.instance.events.where((e) => e.type == 'friends').listen((_) {
+      if (mounted) _load();
+    });
+  }
+
+  @override
+  void dispose() {
+    _live?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -58,12 +74,12 @@ class _FriendsPageState extends State<FriendsPage> {
 
   Future<void> _add() async {
     final store = StoreScope.read(context);
-    final code = await askSocialCode(context, title: 'Aggiungi un amico', kind: 'friend');
+    final code = await askSocialCode(context, title: tr('Aggiungi un amico', 'Add a friend'), kind: 'friend');
     if (code == null || code.isEmpty) return;
     String? status;
     await _do(() async => status = await Social.addFriend(store, code));
     if (status != null && mounted) {
-      socialToast(context, status == 'friends' ? 'Siete amici!' : 'Richiesta mandata: deve accettarla');
+      socialToast(context, status == 'friends' ? tr('Siete amici!', 'You\'re friends!') : tr('Richiesta mandata: deve accettarla', 'Request sent: they need to accept it'));
       if (status == 'friends') await store.bump('friendsAdded');
     }
   }
@@ -95,40 +111,40 @@ class _FriendsPageState extends State<FriendsPage> {
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.qr_code_2_rounded),
-                  title: Text('Il tuo codice amico: ${me.friendCode}'),
-                  subtitle: const Text('Dallo solo a chi conosci davvero'),
+                  title: Text(tr('Il tuo codice amico: ${me.friendCode}', 'Your friend code: ${me.friendCode}')),
+                  subtitle: Text(tr('Dallo solo a chi conosci davvero', 'Only give it to people you really know')),
                   onTap: () => showShareCode(context,
-                      title: 'Il tuo codice amico', code: me.friendCode, link: friendLink(me.friendCode), hint: 'Inquadra con Easy Lesson'),
+                      title: tr('Il tuo codice amico', 'Your friend code'), code: me.friendCode, link: friendLink(me.friendCode), hint: tr('Inquadra con Easy Lesson', 'Scan with Easy Lesson')),
                 ),
               ),
             if (d.incoming.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text('Richieste di amicizia', style: Theme.of(context).textTheme.titleSmall),
+              Text(tr('Richieste di amicizia', 'Friend requests'), style: Theme.of(context).textTheme.titleSmall),
               for (final f in d.incoming)
                 ListTile(
                   leading: Text(f.avatar, style: const TextStyle(fontSize: 28)),
                   title: Text(f.nickname),
-                  subtitle: Text('Livello ${f.level}'),
+                  subtitle: Text(tr('Livello ${f.level}', 'Level ${f.level}')),
                   trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                     IconButton(
-                      tooltip: 'Rifiuta',
+                      tooltip: tr('Rifiuta', 'Decline'),
                       icon: const Icon(Icons.close_rounded),
                       onPressed: () => _do(() => Social.answerFriend(store, f.code, false)),
                     ),
                     IconButton.filled(
-                      tooltip: 'Accetta',
+                      tooltip: tr('Accetta', 'Accept'),
                       icon: const Icon(Icons.check_rounded),
                       onPressed: () => _do(() async {
                         await Social.answerFriend(store, f.code, true);
                         await store.bump('friendsAdded');
-                      }, 'Siete amici!'),
+                      }, tr('Siete amici!', 'You\'re friends!')),
                     ),
                   ]),
                 ),
             ],
             const SizedBox(height: 12),
-            Text('Classifica della settimana', style: Theme.of(context).textTheme.titleMedium),
-            Text('XP guadagnate da lunedì. Si riparte ogni settimana.', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+            Text(tr('Classifica della settimana', 'This week\'s leaderboard'), style: Theme.of(context).textTheme.titleMedium),
+            Text(tr('XP guadagnate da lunedì. Si riparte ogni settimana.', 'XP earned since Monday. Starts over every week.'), style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
             const SizedBox(height: 4),
             for (final f in d.leaderboard)
               Container(
@@ -151,45 +167,45 @@ class _FriendsPageState extends State<FriendsPage> {
                     ]),
                   ),
                   title: Text(f.me ? '${f.nickname} (tu)' : f.nickname),
-                  subtitle: Text('Livello ${f.level}'),
+                  subtitle: Text(tr('Livello ${f.level}', 'Level ${f.level}')),
                   trailing: Text('${f.weekXp} XP', style: const TextStyle(fontWeight: FontWeight.w800)),
                 ),
               ),
             if (d.friends.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Text('Ancora nessun amico: fatti dare il codice amico (o il QR) da un compagno.'),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text(tr('Ancora nessun amico: fatti dare il codice amico (o il QR) da un compagno.', 'No friends yet: ask a classmate for their friend code (or QR).')),
               ),
             if (d.friends.isNotEmpty) ...[
               const SizedBox(height: 16),
-              Text('Amici (${d.friends.length})', style: Theme.of(context).textTheme.titleSmall),
+              Text(tr('Amici (${d.friends.length})', 'Friends (${d.friends.length})'), style: Theme.of(context).textTheme.titleSmall),
               for (final f in d.friends)
                 ListTile(
                   leading: Text(f.avatar, style: const TextStyle(fontSize: 26)),
                   title: Text(f.nickname),
-                  subtitle: Text('Livello ${f.level}'),
+                  subtitle: Text(tr('Livello ${f.level}', 'Level ${f.level}')),
                   trailing: PopupMenuButton<String>(
                     onSelected: (v) {
-                      if (v == 'remove') _do(() => Social.removeFriend(store, f.code), 'Tolto dagli amici');
-                      if (v == 'report') _do(() => Social.report(store, kind: 'nickname', target: f.code), 'Segnalato, grazie');
+                      if (v == 'remove') _do(() => Social.removeFriend(store, f.code), tr('Tolto dagli amici', 'Removed from friends'));
+                      if (v == 'report') _do(() => Social.report(store, kind: 'nickname', target: f.code), tr('Segnalato, grazie', 'Reported, thanks'));
                     },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'remove', child: Text('Togli dagli amici')),
-                      PopupMenuItem(value: 'report', child: Text('Segnala il soprannome')),
+                    itemBuilder: (_) => [
+                      PopupMenuItem(value: 'remove', child: Text(tr('Togli dagli amici', 'Remove from friends'))),
+                      PopupMenuItem(value: 'report', child: Text(tr('Segnala il soprannome', 'Report the nickname'))),
                     ],
                   ),
                 ),
             ],
             if (d.outgoing.isNotEmpty) ...[
               const SizedBox(height: 16),
-              Text('In attesa', style: Theme.of(context).textTheme.titleSmall),
+              Text(tr('In attesa', 'Pending'), style: Theme.of(context).textTheme.titleSmall),
               for (final f in d.outgoing)
                 ListTile(
                   leading: Text(f.avatar, style: const TextStyle(fontSize: 26)),
                   title: Text(f.nickname),
-                  subtitle: const Text('Deve ancora accettare'),
+                  subtitle: Text(tr('Deve ancora accettare', 'Hasn\'t accepted yet')),
                   trailing: IconButton(
-                    tooltip: 'Annulla',
+                    tooltip: tr('Annulla', 'Cancel'),
                     icon: const Icon(Icons.close_rounded),
                     onPressed: () => _do(() => Social.removeFriend(store, f.code)),
                   ),
@@ -200,11 +216,11 @@ class _FriendsPageState extends State<FriendsPage> {
       );
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Amici e classifica')),
+      appBar: AppBar(title: Text(tr('Amici e classifica', 'Friends and leaderboard'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _add,
         icon: const Icon(Icons.person_add_alt_rounded),
-        label: const Text('Aggiungi'),
+        label: Text(tr('Aggiungi', 'Add')),
       ),
       body: body,
     );

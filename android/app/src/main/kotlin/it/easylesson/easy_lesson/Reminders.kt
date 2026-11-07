@@ -105,6 +105,11 @@ object Reminders {
                 description = "Quando su GitHub esce una nuova versione di Easy Lesson"
             }
         )
+        nm.createNotificationChannel(
+            NotificationChannel("chat", "Messaggi", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Nuovi messaggi nella chat della classe, dei grandi e della moderazione"
+            }
+        )
     }
 
     fun show(context: Context, id: Int, title: String, body: String, channel: String = CHANNEL, open: PendingIntent? = null) {

@@ -11,9 +11,11 @@ import 'compare_page.dart';
 import 'export_calendar.dart';
 import 'fun.dart';
 import 'schedule_image.dart';
+import 'search_page.dart';
 import 'stats_page.dart';
 import 'theme.dart';
 import 'widgets.dart';
+import '../i18n.dart';
 
 /// Larghezza oltre la quale si mostra la griglia settimanale (tablet / desktop).
 const kGridBreakpoint = 720.0;
@@ -79,12 +81,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       if (!silent && store.usingExcel && store.excelUrl != null) await store.refreshLists();
       await store.fetchSchedule(widget.ref);
       if (!silent) {
-        messenger.showSnackBar(const SnackBar(content: Text('Orario aggiornato')));
+        messenger.showSnackBar(SnackBar(content: Text(tr('Orario aggiornato', 'Timetable updated'))));
       }
     } catch (e) {
       if (mounted) setState(() => _error = e);
       if (!silent && store.cached(widget.ref) != null) {
-        messenger.showSnackBar(SnackBar(content: Text('Aggiornamento non riuscito: $e')));
+        messenger.showSnackBar(SnackBar(content: Text(tr('Aggiornamento non riuscito: $e', 'Update failed: $e'))));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -99,8 +101,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
         content: Text(fav
-            ? '${widget.ref.displayName} salvato: disponibile anche offline'
-            : '${widget.ref.displayName} rimosso dai salvati'),
+            ? tr('${widget.ref.displayName} salvato: disponibile anche offline', '${widget.ref.displayName} saved: available offline too')
+            : tr('${widget.ref.displayName} rimosso dai salvati', '${widget.ref.displayName} removed from saved')),
       ));
   }
 
@@ -112,8 +114,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
         content: Text(mine
-            ? 'Non è più il tuo orario'
-            : '${widget.ref.displayName} è ora il tuo orario: lo trovi nella scheda Orario e in home'),
+            ? tr('Non è più il tuo orario', 'It\'s no longer your timetable')
+            : tr('${widget.ref.displayName} è ora il tuo orario: lo trovi nella scheda Orario e in home', '${widget.ref.displayName} is now your timetable: find it in the Timetable tab and on the home screen')),
       ));
   }
 
@@ -131,7 +133,11 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       appBar: AppBar(
         automaticallyImplyLeading: !widget.isHome,
         titleSpacing: widget.isHome ? 16 : 0,
-        title: Row(
+        // 3.8: nella scheda Orario il titolo è un selettore (il mio orario, i salvati, cerca).
+        title: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.isHome ? () => _pickSchedule(context, store) : null,
+          child: Row(
           children: [
             if (widget.isHome && !wide) ...[const AppLogo(size: 36), const SizedBox(width: 12)],
             Flexible(
@@ -144,15 +150,21 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, height: 1.1),
                   ),
-                  Text(
-                    widget.isHome ? 'Il mio orario · ${widget.ref.kindLabel}' : widget.ref.kindLabel,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
-                  ),
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    Flexible(
+                      child: Text(
+                        widget.isHome ? tr('Il mio orario · ${widget.ref.kindLabel}', 'My timetable · ${widget.ref.kindLabel}') : widget.ref.kindLabel,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
+                    ),
+                    if (widget.isHome) Icon(Icons.expand_more_rounded, size: 18, color: scheme.onSurfaceVariant),
+                  ]),
                 ],
               ),
             ),
           ],
+          ),
         ),
         actions: [
           if (_loading)
@@ -162,13 +174,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             )
           else
             IconButton(
-              tooltip: 'Aggiorna',
+              tooltip: tr('Aggiorna', 'Update'),
               onPressed: () => _refresh(),
               icon: const Icon(Icons.refresh_rounded),
             ),
           if (!widget.isHome && cached != null)
             IconButton(
-              tooltip: isFav ? 'Rimuovi dai salvati' : 'Salva offline',
+              tooltip: isFav ? tr('Rimuovi dai salvati', 'Remove from saved') : tr('Salva offline', 'Save offline'),
               onPressed: () => _toggleFavorite(store),
               icon: Icon(isFav ? Icons.bookmark_rounded : Icons.bookmark_border_rounded),
               color: isFav ? scheme.primary : null,
@@ -177,20 +189,20 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             if (cached != null)
               AppMenuItem(
                 isMine ? Icons.home_rounded : Icons.home_outlined,
-                isMine ? 'Non è il mio orario' : 'Imposta come mio orario',
+                isMine ? tr('Non è il mio orario', 'It\'s not my timetable') : tr('Imposta come mio orario', 'Set as my timetable'),
                 () => _toggleMine(store),
               ),
             if (cached != null)
-              AppMenuItem(Icons.event_rounded, 'Esporta nel calendario', () => exportToCalendar(context, cached)),
+              AppMenuItem(Icons.event_rounded, tr('Esporta nel calendario', 'Export to calendar'), () => exportToCalendar(context, cached)),
             if (cached != null)
-              AppMenuItem(Icons.image_outlined, 'Salva come immagine', () => saveScheduleImage(context, cached)),
-            AppMenuItem(Icons.compare_arrows_rounded, 'Confronta con…', () => openCompare(context, widget.ref)),
+              AppMenuItem(Icons.image_outlined, tr('Salva come immagine', 'Save as image'), () => saveScheduleImage(context, cached)),
+            AppMenuItem(Icons.compare_arrows_rounded, tr('Confronta con…', 'Compare with…'), () => openCompare(context, widget.ref)),
             if (cached != null)
-              AppMenuItem(Icons.bar_chart_rounded, 'Statistiche', () => openStats(context, cached)),
+              AppMenuItem(Icons.bar_chart_rounded, tr('Statistiche', 'Statistics'), () => openStats(context, cached)),
             if (wide)
               AppMenuItem(
                 store.preferGrid ? Icons.view_day_outlined : Icons.calendar_view_week_outlined,
-                store.preferGrid ? 'Vista per giorno' : 'Vista settimana',
+                store.preferGrid ? tr('Vista per giorno', 'Day view') : tr('Vista settimana', 'Week view'),
                 () => store.setPreferGrid(!store.preferGrid),
               ),
           ]),
@@ -206,12 +218,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       if (_error != null) {
         return EmptyState(
           icon: Icons.cloud_off_rounded,
-          title: 'Orario non disponibile',
-          message: '$_error. Controlla la connessione e riprova.',
+          title: tr('Orario non disponibile', 'Timetable not available'),
+          message: tr('$_error. Controlla la connessione e riprova.', '$_error. Check the connection and try again.'),
           action: FilledButton.icon(
             onPressed: () => _refresh(),
             icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Riprova'),
+            label: Text(tr('Riprova', 'Try again')),
           ),
         );
       }
@@ -219,10 +231,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     }
     final week = cached.week;
     if (week.isEmpty) {
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.event_busy_rounded,
-        title: 'Nessuna lezione',
-        message: 'In questo orario non ci sono lezioni registrate.',
+        title: tr('Nessuna lezione', 'No lessons'),
+        message: tr('In questo orario non ci sono lezioni registrate.', 'There are no lessons in this timetable.'),
       );
     }
     return Column(
@@ -270,8 +282,8 @@ class _StatusBar extends StatelessWidget {
     final scheme = theme.colorScheme;
     final color = offline ? scheme.error : scheme.onSurfaceVariant;
     final text = offline
-        ? 'Offline · orario salvato ${relativeTime(cached.updatedAt)}'
-        : '${cached.favorite ? 'Disponibile offline · ' : ''}aggiornato ${relativeTime(cached.updatedAt)}';
+        ? tr('Offline · orario salvato ${relativeTime(cached.updatedAt)}', 'Offline · timetable saved ${relativeTime(cached.updatedAt)}')
+        : '${cached.favorite ? tr('Disponibile offline · ', 'Available offline · ') : ''}${tr('aggiornato', 'updated')} ${relativeTime(cached.updatedAt)}';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Column(
@@ -307,7 +319,7 @@ class _StatusBar extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'È il tuo orario? Tocca qui per averlo sempre in apertura, anche offline.',
+                          tr('È il tuo orario? Tocca qui per averlo sempre in apertura, anche offline.', 'Is it your timetable? Tap here to always have it when you open the app, even offline.'),
                           style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onPrimaryContainer),
                         ),
                       ),
@@ -449,7 +461,7 @@ class _DayPagerState extends State<DayPager> with TickerProviderStateMixin {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            i == today ? 'OGGI' : dayShort[i].toUpperCase(),
+                            i == today ? tr('OGGI', 'TODAY') : dayShort[i].toUpperCase(),
                             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8),
                           ),
                           Text(
@@ -537,7 +549,7 @@ class DayList extends StatelessWidget {
     if (day.isEmpty) {
       return EmptyState(
         icon: Icons.weekend_outlined,
-        title: 'Giorno libero',
+        title: tr('Giorno libero', 'Day off'),
         message: 'Nessuna lezione ${dayIndex < dayNames.length ? 'il ${dayNames[dayIndex].toLowerCase()}' : ''}.',
       );
     }
@@ -635,17 +647,17 @@ class NowCard extends StatelessWidget {
     if (idx != null && idx < n) {
       final l = lessons[idx];
       final s = slots[idx];
-      overline = 'ADESSO · fino alle ${s.endText}';
-      title = l.isEmpty ? 'Ora libera' : l.title;
+      overline = tr('ADESSO · fino alle ${s.endText}', 'NOW · until ${s.endText}');
+      title = l.isEmpty ? tr('Ora libera', 'Free period') : l.title;
       if (l.lab.isNotEmpty) place = l.lab;
       progress = ((m - s.start!) / (s.end! - s.start!)).clamp(0.0, 1.0).toDouble();
       final next = nextAfter(idx);
-      subtitle = next != null ? 'Poi: ${next.title}' : (idx == n - 1 ? 'Ultima ora di oggi' : null);
+      subtitle = next != null ? 'Poi: ${next.title}' : (idx == n - 1 ? tr('Ultima ora di oggi', 'Last period today') : null);
     } else if (breaksOf(slots).any((b) =>
         m >= b.start && m < b.end && b.afterIndex + 1 < n && lessons.skip(b.afterIndex + 1).any((l) => !l.isEmpty))) {
       final b = breaksOf(slots).firstWhere((b) => m >= b.start && m < b.end);
-      overline = 'RICREAZIONE · fino alle ${TimeSlot.fmt(b.end)}';
-      title = 'Ricreazione';
+      overline = tr('RICREAZIONE · fino alle ${TimeSlot.fmt(b.end)}', 'BREAK · until ${TimeSlot.fmt(b.end)}');
+      title = tr('Ricreazione', 'Break');
       progress = ((m - b.start) / (b.end - b.start)).clamp(0.0, 1.0).toDouble();
       final next = lessons.skip(b.afterIndex + 1).firstWhere((l) => !l.isEmpty);
       subtitle = 'Poi: ${next.title}';
@@ -659,15 +671,15 @@ class NowCard extends StatelessWidget {
       }
       final lastEnd = slots[n - 1].end;
       if (nextIdx != null) {
-        overline = 'PROSSIMA LEZIONE · ore ${slots[nextIdx].startText}';
+        overline = tr('PROSSIMA LEZIONE · ore ${slots[nextIdx].startText}', 'NEXT LESSON · at ${slots[nextIdx].startText}');
         title = lessons[nextIdx].title;
         if (lessons[nextIdx].lab.isNotEmpty) place = lessons[nextIdx].lab;
         final mins = slots[nextIdx].start! - m;
-        subtitle = mins < 60 ? 'Tra $mins minuti' : 'Tra ${mins ~/ 60} h ${mins % 60} min';
+        subtitle = mins < 60 ? tr('Tra $mins minuti', 'In $mins minutes') : tr('Tra ${mins ~/ 60} h ${mins % 60} min', 'In ${mins ~/ 60} h ${mins % 60} min');
       } else if (lastEnd != null && m >= lastEnd) {
-        overline = 'OGGI';
-        title = 'Lezioni finite!';
-        subtitle = 'Goditi il resto della giornata.';
+        overline = tr('OGGI', 'TODAY');
+        title = tr('Lezioni finite!', 'Lessons are over!');
+        subtitle = tr('Goditi il resto della giornata.', 'Enjoy the rest of the day.');
       } else {
         return const SizedBox.shrink();
       }
@@ -757,7 +769,7 @@ class LessonTile extends StatelessWidget {
     final n = group.hours;
     // Altezza uniforme: un'ora = kHourH, due ore unite = esattamente doppia.
     final cardH = n * kHourH + (n - 1) * kRowGap;
-    final hoursLabel = n > 1 ? '${group.from + 1}ª–${group.to + 1}ª ora' : '${group.from + 1}ª ora';
+    final hoursLabel = n > 1 ? tr('${group.from + 1}ª–${group.to + 1}ª ora', 'Periods ${group.from + 1}–${group.to + 1}') : tr('${group.from + 1}ª ora', 'Period ${group.from + 1}');
 
     final time = SizedBox(
       width: 52,
@@ -791,7 +803,7 @@ class LessonTile extends StatelessWidget {
           border: Border.all(color: scheme.outlineVariant),
         ),
         child: Text(
-          n > 1 ? 'Libero · $n ore' : 'Ora libera',
+          n > 1 ? tr('Libero · $n ore', 'Free · $n periods') : tr('Ora libera', 'Free period'),
           style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
         ),
       );
@@ -901,7 +913,7 @@ class _NowBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(8)),
       child: Text(
-        'ADESSO',
+        tr('ADESSO', 'NOW'),
         style: TextStyle(color: scheme.onPrimary, fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: 0.6),
       ),
     );
@@ -985,7 +997,7 @@ List<Widget> sostegnoSplit(BuildContext context, LessonGroup group, {bool dense 
         child: Row(
           children: [
             Text(
-              '${it.index + 1}ª ora',
+              tr('${it.index + 1}ª ora', 'Period ${it.index + 1}'),
               style: (dense ? theme.textTheme.labelSmall : theme.textTheme.bodySmall)
                   ?.copyWith(fontWeight: FontWeight.w700, color: scheme.onSurface),
             ),
@@ -999,7 +1011,7 @@ List<Widget> sostegnoSplit(BuildContext context, LessonGroup group, {bool dense 
                         dense: dense,
                       )
                     : Text(
-                        'senza sostegno',
+                        tr('senza sostegno', 'no support teacher'),
                         style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant.withAlpha(170)),
                       ),
               ),
@@ -1062,7 +1074,7 @@ class WeekGrid extends StatelessWidget {
                         child: Column(
                           children: [
                             Text(
-                              i == today ? 'OGGI' : dayNames[i].toUpperCase(),
+                              i == today ? tr('OGGI', 'TODAY') : dayNames[i].toUpperCase(),
                               style: theme.textTheme.labelMedium?.copyWith(
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.8,
@@ -1200,7 +1212,7 @@ class WeekGrid extends StatelessWidget {
                         context,
                         lesson: g.lesson,
                         dayIndex: dayIdx,
-                        hoursLabel: g.hours > 1 ? '${g.from + 1}ª–${g.to + 1}ª ora' : '${g.from + 1}ª ora',
+                        hoursLabel: g.hours > 1 ? tr('${g.from + 1}ª–${g.to + 1}ª ora', 'Periods ${g.from + 1}–${g.to + 1}') : tr('${g.from + 1}ª ora', 'Period ${g.from + 1}'),
                         endMinutes: g.to < slots.length ? slots[g.to].end : null,
                       ),
               child: _GridCell(
@@ -1299,5 +1311,49 @@ class _GridCell extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Selettore della scheda Orario: il mio orario, gli orari salvati (anche offline), "Cerca".
+Future<void> _pickSchedule(BuildContext context, AppStore store) async {
+  final mine = store.myRef;
+  final saved = [for (final s in store.favorites) if (s.ref.key != mine?.key) s];
+  final r = await showModalBottomSheet<Object>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (c) => SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(c).height * 0.7),
+        child: ListView(shrinkWrap: true, children: [
+          if (mine != null)
+            ListTile(
+              leading: const Icon(Icons.home_rounded),
+              title: Text(mine.displayName),
+              subtitle: Text(tr('Il mio orario', 'My timetable')),
+              onTap: () => Navigator.pop(c),
+            ),
+          if (saved.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), child: Text(tr('Salvati', 'Saved'))),
+          for (final s in saved)
+            ListTile(
+              leading: Icon(s.ref.prof ? Icons.person_outline_rounded : Icons.groups_outlined),
+              title: Text(s.ref.displayName),
+              subtitle: Text(s.ref.kindLabel),
+              onTap: () => Navigator.pop(c, s.ref),
+            ),
+          ListTile(
+            leading: const Icon(Icons.search_rounded),
+            title: Text(tr('Cerca classe o docente', 'Search class or teacher')),
+            onTap: () => Navigator.pop(c, 'search'),
+          ),
+        ]),
+      ),
+    ),
+  );
+  if (!context.mounted || r == null) return;
+  if (r is ScheduleRef) {
+    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ScheduleScreen(ref: r)));
+  } else if (r == 'search') {
+    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SearchPage()));
   }
 }

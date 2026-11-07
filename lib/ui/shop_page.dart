@@ -4,6 +4,7 @@ import '../shop.dart';
 import '../store.dart';
 import 'achievements.dart';
 import 'theme.dart';
+import '../i18n.dart';
 
 void openShop(BuildContext context) => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ShopPage()));
 
@@ -21,7 +22,7 @@ class ShopPage extends StatelessWidget {
       length: shopSlots.length,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Negozio'),
+          title: Text(tr('Negozio', 'Shop')),
           actions: [
             Padding(
               padding: const EdgeInsets.only(right: 12),
@@ -42,8 +43,8 @@ class ShopPage extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
               child: Text(
-                'Guadagni 1 moneta ogni $xpPerCoin XP: obiettivi, missioni e giorni con l\'app. '
-                'Con l\'account le cose comprate ti seguono su ogni telefono.',
+                tr('Guadagni 1 moneta ogni $xpPerCoin XP: obiettivi, missioni e giorni con l\'app. '
+                'Con l\'account le cose comprate ti seguono su ogni telefono.', 'You earn 1 coin every $xpPerCoin XP: achievements, missions and days with the app. With the account, what you buy follows you on every phone.'),
                 style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
               ),
             ),
@@ -82,8 +83,8 @@ class _SlotGrid extends StatelessWidget {
         if (slot != 'theme' && slot != 'avatar')
           _Tile(
             preview: slot == 'frame' ? LevelBadge(level: levelOf(store).level, size: 64) : const Text('—', style: TextStyle(fontSize: 34)),
-            name: 'Nessuno',
-            footer: eq == null ? 'In uso' : 'Togli',
+            name: tr('Nessuno', 'None'),
+            footer: eq == null ? tr('In uso', 'In use') : tr('Togli', 'Remove'),
             selected: eq == null,
             onTap: () => Shop.unequip(store, slot),
           ),
@@ -131,11 +132,11 @@ class _ItemTile extends StatelessWidget {
       preview: Opacity(opacity: locked && !owned ? 0.45 : 1, child: _preview(context, store)),
       name: item.name,
       footer: equipped
-          ? 'In uso'
+          ? tr('In uso', 'In use')
           : owned
-              ? 'Usa'
+              ? tr('Usa', 'Use')
               : locked
-                  ? '🔒 Livello ${item.minLevel}'
+                  ? '🔒 ${tr('Livello', 'Level')} ${item.minLevel}'
                   : '🪙 ${item.price}',
       selected: equipped,
       onTap: () => _tap(context, store, owned, locked),
@@ -149,12 +150,12 @@ class _ItemTile extends StatelessWidget {
         await Shop.unequip(store, item.slot);
       } else {
         await Shop.equip(store, item);
-        messenger.showSnackBar(SnackBar(content: Text('${item.name}: in uso')));
+        messenger.showSnackBar(SnackBar(content: Text(tr('${item.name}: in uso', '${item.name}: in use'))));
       }
       return;
     }
     if (locked) {
-      messenger.showSnackBar(SnackBar(content: Text('Si sblocca al livello ${item.minLevel}')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('Si sblocca al livello ${item.minLevel}', 'Unlocks at level ${item.minLevel}'))));
       return;
     }
     final xp = totalXp(store);
@@ -165,12 +166,15 @@ class _ItemTile extends StatelessWidget {
         icon: Text(item.preview, style: const TextStyle(fontSize: 40)),
         title: Text(item.name),
         content: Text(coins >= item.price
-            ? 'Costa ${item.price} monete. Te ne restano ${coins - item.price}.'
-            : 'Costa ${item.price} monete, ne hai $coins. Te ne servono altre ${item.price - coins} '
-                '(circa ${(item.price - coins) * xpPerCoin} XP).'),
+            ? tr('Costa ${item.price} monete. Te ne restano ${coins - item.price}.', 'It costs ${item.price} coins. You\'ll have ${coins - item.price} left.')
+            : tr(
+                'Costa ${item.price} monete, ne hai $coins. Te ne servono altre ${item.price - coins} '
+                    '(circa ${(item.price - coins) * xpPerCoin} XP).',
+                'It costs ${item.price} coins, you have $coins. You need ${item.price - coins} more '
+                    '(about ${(item.price - coins) * xpPerCoin} XP).')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-          if (coins >= item.price) FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Compra')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+          if (coins >= item.price) FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Compra', 'Buy'))),
         ],
       ),
     );
@@ -181,7 +185,7 @@ class _ItemTile extends StatelessWidget {
       return;
     }
     await Shop.equip(store, item);
-    messenger.showSnackBar(SnackBar(content: Text('Comprato! ${item.name} è in uso')));
+    messenger.showSnackBar(SnackBar(content: Text(tr('Comprato! ${item.name} è in uso', 'Bought! ${item.name} is in use'))));
     if (context.mounted) await checkAchievements(context);
   }
 }

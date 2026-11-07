@@ -8,6 +8,7 @@ import 'fun.dart';
 import 'search_page.dart';
 import 'settings_sheet.dart';
 import 'widgets.dart';
+import '../i18n.dart';
 
 /// [labs] = apre direttamente la scheda dei laboratori liberi.
 void openNowAtSchool(BuildContext context, {bool labs = false}) => Navigator.of(context)
@@ -63,16 +64,16 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
     final tt = store.timetable;
     if (tt == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Adesso a scuola')),
+        appBar: AppBar(title: Text(tr('Adesso a scuola', 'At school now'))),
         body: EmptyState(
           icon: Icons.table_view_rounded,
-          title: 'Serve il file Excel',
-          message: 'Per sapere dove sono i docenti e quali laboratori sono liberi, '
-              'importa il file dell\'orario della scuola.',
+          title: tr('Serve il file Excel', 'The Excel file is needed'),
+          message: tr('Per sapere dove sono i docenti e quali laboratori sono liberi, '
+              'importa il file dell\'orario della scuola.', 'To know where teachers are and which labs are free, import the school\'s timetable file.'),
           action: FilledButton.icon(
             onPressed: () => pickAndImportExcel(context),
             icon: const Icon(Icons.upload_file_rounded),
-            label: const Text('Importa file Excel'),
+            label: Text(tr('Importa file Excel', 'Import Excel file')),
           ),
         ),
       );
@@ -87,12 +88,12 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
       initialIndex: widget.initialTab,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Adesso a scuola'),
+          title: Text(tr('Adesso a scuola', 'At school now')),
           actions: const [AppMenuButton(), SizedBox(width: 4)],
-          bottom: const TabBar(tabs: [
-            Tab(icon: Icon(Icons.person_search_rounded), text: 'Dov\'è il prof'),
-            Tab(icon: Icon(Icons.science_outlined), text: 'Laboratori'),
-            Tab(icon: Icon(Icons.groups_outlined), text: 'Classi'),
+          bottom: TabBar(tabs: [
+            Tab(icon: const Icon(Icons.person_search_rounded), text: tr('Dov\'è il prof', 'Where\'s the teacher')),
+            Tab(icon: const Icon(Icons.science_outlined), text: tr('Laboratori', 'Labs')),
+            Tab(icon: const Icon(Icons.groups_outlined), text: tr('Classi', 'Classes')),
           ]),
         ),
         body: Center(
@@ -142,7 +143,7 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                   child: Text(
-                    '${day < dayNames.length ? dayNames[day] : ''}, ${hour + 1}ª ora'
+                    '${day < dayNames.length ? dayNames[day] : ''}, ${tr('${hour + 1}ª ora', 'period ${hour + 1}')}'
                     '${slot?.start != null ? ' (${slot!.startText}–${slot.endText})' : ''}',
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
                   ),
@@ -194,10 +195,10 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
         while (hours.contains(lastBlock + 1)) {
           lastBlock++;
         }
-        if (lastBlock == hours.last) status += ' · finisce alla ${lastBlock + 1}ª';
+        if (lastBlock == hours.last) status += tr(' · finisce alla ${lastBlock + 1}ª', ' · ends after period ${lastBlock + 1}');
         color = scheme.primary;
       } else if (hours.isEmpty) {
-        status = 'Oggi non ha lezione';
+        status = tr('Oggi non ha lezione', 'No lessons today');
         color = scheme.onSurfaceVariant;
       } else {
         final next = hours.where((h) => h > hour).toList();
@@ -205,7 +206,7 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
           final where = tt.teacherAt(t, day, next.first).classes.join(' + ');
           status = '${atSchool ? 'Ora buca' : 'Non ancora a scuola'} · poi ${_hourText(store, next.first)} in $where';
         } else {
-          status = 'Ha finito alla ${hours.last + 1}ª';
+          status = tr('Ha finito alla ${hours.last + 1}ª', 'Finished after period ${hours.last + 1}');
         }
         color = atSchool ? scheme.tertiary : scheme.onSurfaceVariant;
       }
@@ -232,10 +233,10 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
           child: TextField(
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               isDense: true,
-              prefixIcon: Icon(Icons.search_rounded),
-              hintText: 'Cerca per nome o materia…',
+              prefixIcon: const Icon(Icons.search_rounded),
+              hintText: tr('Cerca per nome o materia…', 'Search by name or subject…'),
             ),
             onChanged: (v) => setState(() => _q = v),
           ),
@@ -244,7 +245,7 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              for (final f in const [('tutti', 'Tutti'), ('classe', 'In classe'), ('liberi', 'Ora buca')])
+              for (final f in [('tutti', tr('Tutti', 'All')), ('classe', tr('In classe', 'In class')), ('liberi', tr('Ora buca', 'Free period'))])
                 Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: FilterChip(
@@ -258,7 +259,7 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
         ),
         Expanded(
           child: rows.isEmpty
-              ? const EmptyState(icon: Icons.person_off_outlined, title: 'Nessun docente', message: 'Prova a cambiare filtro o ricerca.')
+              ? EmptyState(icon: Icons.person_off_outlined, title: tr('Nessun docente', 'No teachers'), message: tr('Prova a cambiare filtro o ricerca.', 'Try changing the filter or search.'))
               : ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 24), children: rows),
         ),
       ],
@@ -276,7 +277,7 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
       final busy = at.subject != null || at.labs.isNotEmpty;
       final place = at.labs.isNotEmpty
           ? at.labs.map((l) => '${labInfo(l).emoji} $l').join(', ')
-          : (busy ? '🏫 In aula' : '');
+          : (busy ? tr('🏫 In aula', '🏫 In the classroom') : '');
       rows.add(ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 4),
         leading: CircleAvatar(
@@ -295,7 +296,7 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
           busy
               ? '$place${at.subject != null ? ' · ${at.subject}' : ''}'
                   '${at.teachers.isNotEmpty ? '\n${at.teachers.map(teacherLabel).join(' · ')}' : ''}'
-              : 'Nessuna lezione a quest\'ora',
+              : tr('Nessuna lezione a quest\'ora', 'No lessons at this time'),
           style: TextStyle(color: busy ? scheme.onSurface : scheme.onSurfaceVariant),
         ),
         isThreeLine: busy && at.teachers.isNotEmpty,
@@ -307,17 +308,17 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
           child: TextField(
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               isDense: true,
-              prefixIcon: Icon(Icons.search_rounded),
-              hintText: 'Cerca una classe… (es. 3B)',
+              prefixIcon: const Icon(Icons.search_rounded),
+              hintText: tr('Cerca una classe… (es. 3B)', 'Search for a class… (e.g. 3B)'),
             ),
             onChanged: (v) => setState(() => _qc = v),
           ),
         ),
         Expanded(
           child: rows.isEmpty
-              ? const EmptyState(icon: Icons.groups_outlined, title: 'Nessuna classe', message: 'Prova un\'altra ricerca.')
+              ? EmptyState(icon: Icons.groups_outlined, title: tr('Nessuna classe', 'No classes'), message: tr('Prova un\'altra ricerca.', 'Try another search.'))
               : ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 24), children: rows),
         ),
       ],
@@ -328,10 +329,10 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     if (tt.labs.isEmpty) {
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.science_outlined,
-        title: 'Nessun laboratorio',
-        message: 'Il file Excel non ha la sezione dei laboratori.',
+        title: tr('Nessun laboratorio', 'No labs'),
+        message: tr('Il file Excel non ha la sezione dei laboratori.', 'The Excel file has no labs section.'),
       );
     }
     final free = <Widget>[];
@@ -350,7 +351,7 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
           leading: Text(info.emoji, style: const TextStyle(fontSize: 26)),
           title: Text(lab, style: const TextStyle(fontWeight: FontWeight.w700)),
           subtitle: Text(
-            rest ? 'Libero per il resto della giornata' : 'Libero fino alla fine della ${until + 1}ª ora',
+            rest ? tr('Libero per il resto della giornata', 'Free for the rest of the day') : tr('Libero fino alla fine della ${until + 1}ª ora', 'Free until the end of period ${until + 1}'),
             style: TextStyle(color: scheme.primary),
           ),
         ));
@@ -359,7 +360,7 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
           contentPadding: const EdgeInsets.symmetric(horizontal: 4),
           leading: Opacity(opacity: 0.55, child: Text(info.emoji, style: const TextStyle(fontSize: 26))),
           title: Text(lab),
-          subtitle: Text('Occupato · ${use.join(' + ')}', style: TextStyle(color: scheme.onSurfaceVariant)),
+          subtitle: Text('${tr('Occupato', 'In use')} · ${use.join(' + ')}', style: TextStyle(color: scheme.onSurfaceVariant)),
           onTap: () => openSchedule(context, ScheduleRef(use.first, prof: false)),
         ));
       }
@@ -367,7 +368,7 @@ class _NowAtSchoolPageState extends State<NowAtSchoolPage> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
       children: [
-        SectionLabel('Liberi (${free.length})'),
+        SectionLabel('${tr('Liberi', 'Free')} (${free.length})'),
         ...free,
         SectionLabel('Occupati (${busy.length})'),
         ...busy,

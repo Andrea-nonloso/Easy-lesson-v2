@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../store.dart';
 import 'dev_page.dart';
+import '../i18n.dart';
 
 /// Icona e nome breve di un laboratorio, ricavati dal nome nell'orario
 /// (es. "W Chim biennio" → 🧪 Chimica, "E Fisica" → ⚛️ Fisica).
@@ -79,7 +80,7 @@ class CompresenzaBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.primary;
     return Tooltip(
-      message: 'Compresenza: $count docenti in quest\'ora',
+      message: tr('Compresenza: $count docenti in quest\'ora', 'Co-teaching: $count teachers this period'),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
         decoration: BoxDecoration(
@@ -124,8 +125,8 @@ class _CreditsFooterState extends State<CreditsFooter> {
           ..showSnackBar(SnackBar(
             duration: const Duration(milliseconds: 700),
             content: Text(store.devMode
-                ? 'Le opzioni sviluppatore sono già attive 😉'
-                : 'Ancora ${7 - _taps} tocchi per diventare sviluppatore…'),
+                ? tr('Le opzioni sviluppatore sono già attive 😉', 'Developer options are already on 😉')
+                : tr('Ancora ${7 - _taps} tocchi per diventare sviluppatore…', '${7 - _taps} more taps to become a developer…')),
           ));
       }
       return;
@@ -134,7 +135,7 @@ class _CreditsFooterState extends State<CreditsFooter> {
     messenger.hideCurrentSnackBar();
     if (!store.devMode) {
       store.setDevMode(true);
-      messenger.showSnackBar(const SnackBar(content: Text('🧪 Ora sei uno sviluppatore! Opzioni sviluppatore sbloccate')));
+      messenger.showSnackBar(SnackBar(content: Text(tr('🧪 Ora sei uno sviluppatore! Opzioni sviluppatore sbloccate', '🧪 You\'re a developer now! Developer options unlocked'))));
     }
     openDevPage(context);
   }
@@ -153,13 +154,13 @@ class _CreditsFooterState extends State<CreditsFooter> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Fatta da Andrea Bonanno',
+            tr('Fatta da Andrea Bonanno', 'Made by Andrea Bonanno'),
             textAlign: TextAlign.center,
             style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 2),
           Text(
-            'Venite in 1A IT a farmi i complimenti',
+            tr('Venite in 1A IT a farmi i complimenti', 'Come to 1A IT and tell me it\'s great'),
             textAlign: TextAlign.center,
             style: theme.textTheme.bodySmall?.copyWith(color: muted),
           ),

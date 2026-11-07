@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -14,18 +13,16 @@ import 'announcement_banner.dart';
 import 'bag_page.dart';
 import 'fun.dart';
 import 'more_pages.dart';
-import 'now_page.dart';
-import 'school_life_pages.dart';
-import 'search_page.dart';
 import 'school_shortcuts.dart';
-import 'settings_sheet.dart';
 import 'theme.dart';
-import 'widgets.dart';
 
-/// Prima schermata dell'app: data, saluto, ricerca rapida, la lezione di
-/// adesso, le scorciatoie e (se c'e' spazio) le prossime lezioni.
-/// La disposizione si adatta allo schermo: telefono, telefono in orizzontale,
-/// tablet e finestra di Windows.
+/// Prima schermata dell'app (3.8 "minimal"): una cosa in evidenza.
+///   - in alto: data, saluto, lente (Cerca) e segnalibro (Salvati);
+///   - la card grande: la lezione di adesso o la prossima, con i conti alla rovescia delle lezioni dentro;
+///   - "Dopo, oggi": le lezioni rimaste (o quelle del prossimo giorno di scuola);
+///   - tre riquadri con un numero (Voti, Assenze, Agenda: si cambiano tenendo premuto) e "Altro".
+/// Compiti in arrivo, zaino e conti alla rovescia delle feste si accendono da Impostazioni → Home e app.
+/// Su schermi larghi le lezioni del giorno vanno in una colonna a destra.
 class HomePage extends StatelessWidget {
   const HomePage({
     super.key,
@@ -38,26 +35,76 @@ class HomePage extends StatelessWidget {
   final VoidCallback onOpenMine;
   final VoidCallback onOpenSaved;
 
-  static const _months = [
-    'gen', 'feb', 'mar', 'apr', 'mag', 'giu',
-    'lug', 'ago', 'set', 'ott', 'nov', 'dic',
+  static const _monthsIt = [
+    'gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
+    'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre',
   ];
+  static const _monthsEn = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+  static List<String> get _months => appEnglish ? _monthsEn : _monthsIt;
 
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final now = DateTime.now();
+    final peek = store.opt('home.next', true) ? _peekFor(store, now) : null;
+    final todo = store.opt('home.agenda', false) ? store.agendaFrom(now, days: 7) : const <AgendaItem>[];
+    final plan = store.opt('home.bag', false) ? bagPlanFor(store, now) : null;
+    final showBag = plan != null && (peek == null || peek.title != tr('Oggi', 'Today'));
+
+    final main = <Widget>[
+      _header(context, store, now),
+      const ScheduleChangedBanner(),
+      const AnnouncementBanner(),
+      const SizedBox(height: 20),
+      // Si ridisegna ogni 30 s: barra dell'ora, minuti che mancano, ricreazione.
+      _Every30s(builder: (now) => _TodayCard(store: store, now: now, onOpenMine: onOpenMine, onSearch: onSearch)),
+      if (store.opt('home.countdown', false)) ...[const SizedBox(height: 12), _Countdowns(store: store)],
+    ];
+    final tiles = <Widget>[const SizedBox(height: 24), const SchoolTilesRow()];
+    final side = <Widget>[
+      if (peek != null && peek.items.isNotEmpty) ...[
+        const SizedBox(height: 24),
+        _DayPeek(peek: peek, max: peek.items.length, onOpen: onOpenMine),
+      ],
+      if (todo.isNotEmpty) ...[const SizedBox(height: 24), _AgendaPeek(items: todo, max: 5)],
+      if (showBag) ...[const SizedBox(height: 24), _BagPeek(plan: plan)],
+    ];
 
     return Scaffold(
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, box) {
-            // Tablet / finestra larga: due colonne.
-            if (box.maxWidth >= 840 && box.maxHeight >= 440) return _wide(context, store, now);
+            // Tablet / finestra larga: le lezioni del giorno in una colonna a destra.
+            if (box.maxWidth >= 840) {
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1100),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 6,
+                        child: ListView(padding: const EdgeInsets.fromLTRB(28, 24, 14, 24), children: [...main, ...tiles]),
+                      ),
+                      Expanded(
+                        flex: 5,
+                        child: ListView(padding: const EdgeInsets.fromLTRB(14, 24, 28, 24), children: side),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
             return Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 560),
-                child: _narrow(context, store, now, box.maxHeight),
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
+                  children: [...main, ...side, ...tiles],
+                ),
               ),
             );
           },
@@ -66,317 +113,70 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  /// Saluto, ricerca e cambio rapido.
-  List<Widget> _header(BuildContext context, AppStore store, DateTime now, {required bool tight}) {
+  /// Data, saluto, Cerca e Salvati.
+  Widget _header(BuildContext context, AppStore store, DateTime now) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return [
-      Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${dayShort[now.weekday - 1]} ${now.day} ${_months[now.month - 1]}',
-                  style: theme.textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant, letterSpacing: 0.6),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  store.username != null ? tr('Ciao, ${store.username}!', 'Hi, ${store.username}!') : tr('Ciao!', 'Hi!'),
-                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                // Sorprese del giorno (ultimo giorno di scuola, notte fonda, feste…).
-                if (easterMessage(store, now) case final egg?)
-                  Text(
-                    egg,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(color: scheme.primary, fontWeight: FontWeight.w600),
-                  ),
-              ],
-            ),
-          ),
-          IconButton(
-            tooltip: 'Impostazioni',
-            onPressed: () => showSettingsSheet(context),
-            icon: const Icon(Icons.tune_rounded),
-          ),
-          const SizedBox(width: 2),
-          const AppLogo(size: 38),
-        ],
-      ),
-      SizedBox(height: tight ? 4 : 8),
-      // 3.6: Voti, Assenze… e "Altro" (scelti dall'utente; tenendo premuto si cambiano).
-      const SchoolShortcutsRow(),
-      SizedBox(height: tight ? 4 : 8),
-      Material(
-        color: cardColor(context),
-        borderRadius: BorderRadius.circular(28),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(28),
-          onTap: onSearch,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-            child: Row(
-              children: [
-                Icon(Icons.search_rounded, size: 20, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 10),
-                Text(
-                  'Cerca classe o docente…',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      if (store.opt('home.shortcuts', true)) _QuickSwitch(store: store, onOpenMine: onOpenMine, onSearch: onSearch),
-      const ScheduleChangedBanner(),
-      const AnnouncementBanner(),
-      SizedBox(height: tight ? 10 : 16),
-      _TodayCard(store: store, now: now, onOpenMine: onOpenMine, onSearch: onSearch),
-      if (!tight && store.opt('home.countdown', true)) ...[const SizedBox(height: 10), _Countdowns(store: store)],
-    ];
-  }
-
-  /// Le tre scorciatoie. [inRow] = tutte e tre in fila (schermi bassi o larghi),
-  /// altrimenti quella grande a sinistra e due impilate a destra.
-  Widget _shortcuts(AppStore store, {required double height, required bool inRow}) {
-    final compact = height < 120;
-    final mine = _ShortcutCard(
-      icon: Icons.today_rounded,
-      title: 'Il mio orario',
-      subtitle: store.myRef?.displayName ?? 'Da impostare',
-      filled: true,
-      compact: compact && inRow,
-      onTap: store.myRef != null ? onOpenMine : onSearch,
-    );
-    final search = _ShortcutCard(
-      icon: Icons.search_rounded,
-      title: 'Cerca',
-      subtitle: 'Classi e docenti',
-      compact: inRow ? compact : height < 170,
-      onTap: onSearch,
-    );
-    final saved = _ShortcutCard(
-      icon: Icons.bookmark_rounded,
-      title: 'Salvati',
-      subtitle: '${store.favorites.length} offline',
-      compact: inRow ? compact : height < 170,
-      onTap: onOpenSaved,
-    );
-    if (inRow) {
-      return SizedBox(
-        height: height,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(child: mine),
-            const SizedBox(width: 10),
-            Expanded(child: search),
-            const SizedBox(width: 10),
-            Expanded(child: saved),
-          ],
-        ),
-      );
-    }
-    return SizedBox(
-      height: height,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(flex: 11, child: mine),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 10,
-            child: Column(
-              // stretch: le due card occupano tutta la larghezza della colonna.
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: search),
-                const SizedBox(height: 12),
-                Expanded(child: saved),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _narrow(BuildContext context, AppStore store, DateTime now, double height) {
-    final tight = height < 620;
-    final header = _header(context, store, now, tight: tight);
-    final gap = tight ? 12.0 : 16.0;
-
-    // Schermo basso (es. telefono in orizzontale): si scorre.
-    if (height < 440) {
-      return ListView(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-        children: [
-          ...header,
-          SizedBox(height: gap),
-          _shortcuts(store, height: 100, inRow: true),
-          SizedBox(height: gap),
-          _HomeExtras(store: store, now: now, onOpenMine: onOpenMine, scrollable: true),
-        ],
-      );
-    }
-
-    // Altrimenti tutto in una schermata, senza scorrere: le scorciatoie hanno
-    // proporzioni fisse (non si allungano piu' in altezza) e lo spazio che
-    // avanza va alle prossime lezioni e agli orari recenti.
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, tight ? 10 : 18, 20, tight ? 10 : 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ...header,
-          SizedBox(height: gap),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, rest) {
-                if (rest.maxHeight < 84) {
-                  return SingleChildScrollView(child: _shortcuts(store, height: 92, inRow: true));
-                }
-                // Riquadri grandi solo se resta spazio anche per il resto.
-                final big = math.min(rest.maxWidth * 0.46, 200.0);
-                final inRow = rest.maxHeight < big + 100;
-                final h = inRow ? math.min(rest.maxHeight, 112.0) : big;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _shortcuts(store, height: h, inRow: inRow),
-                    if (rest.maxHeight - h > 90) ...[
-                      SizedBox(height: gap),
-                      Expanded(child: _HomeExtras(store: store, now: now, onOpenMine: onOpenMine)),
-                    ],
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _wide(BuildContext context, AppStore store, DateTime now) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1100),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 18, 28, 16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    final day = dayNames[now.weekday - 1];
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                flex: 6,
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      ..._header(context, store, now, tight: false),
-                      const SizedBox(height: 16),
-                      _shortcuts(store, height: 120, inRow: true),
-                    ],
-                  ),
+              Text(
+                '$day ${now.day} ${_months[now.month - 1]}',
+                style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                store.username != null ? tr('Ciao, ${store.username}', 'Hi, ${store.username}') : tr('Ciao!', 'Hi!'),
+                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.3),
+              ),
+              // Sorprese del giorno (ultimo giorno di scuola, notte fonda, feste…).
+              if (easterMessage(store, now) case final egg?)
+                Text(
+                  egg,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(color: scheme.primary, fontWeight: FontWeight.w600),
                 ),
-              ),
-              const SizedBox(width: 28),
-              Expanded(
-                flex: 5,
-                child: _HomeExtras(store: store, now: now, onOpenMine: onOpenMine),
-              ),
             ],
           ),
         ),
+        _RoundIcon(icon: Icons.search_rounded, tooltip: tr('Cerca classe o docente', 'Search'), onTap: onSearch),
+        const SizedBox(width: 8),
+        _RoundIcon(icon: Icons.bookmark_border_rounded, tooltip: tr('Orari salvati', 'Saved'), onTap: onOpenSaved),
+      ],
+    );
+  }
+}
+
+/// Pulsante tondo in alto (Cerca, Salvati).
+class _RoundIcon extends StatelessWidget {
+  const _RoundIcon({required this.icon, required this.tooltip, required this.onTap});
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: cardColor(context),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox(width: 46, height: 46, child: Icon(icon, size: 22, semanticLabel: tooltip)),
+        ),
       ),
     );
   }
 }
 
-/// Le lezioni di oggi (o del prossimo giorno di scuola) e gli orari recenti:
-/// ne mostra quante entrano nello spazio disponibile.
-class _HomeExtras extends StatelessWidget {
-  const _HomeExtras({required this.store, required this.now, required this.onOpenMine, this.scrollable = false});
-
-  final AppStore store;
-  final DateTime now;
-  final VoidCallback onOpenMine;
-
-  /// true = dentro una lista che scorre: mostra tutto senza misurare.
-  final bool scrollable;
-
-  static const _peekTitle = 34.0;
-  static const _peekPad = 12.0;
-  static const _peekRow = 36.0;
-  static const _recentTitle = 36.0;
-  static const _recentRow = 74.0;
-
-  @override
-  Widget build(BuildContext context) {
-    // Cosa mostrare si sceglie in Impostazioni → Home e app.
-    final peek = store.opt('home.next', true) ? _peekFor(store, now) : null;
-    final todo = store.opt('home.agenda', true) ? store.agendaFrom(now, days: 7) : const <AgendaItem>[];
-    // Lo zaino compare quando le lezioni di oggi sono finite (o oggi non c'e' scuola).
-    final plan = store.opt('home.bag', true) ? bagPlanFor(store, now) : null;
-    final showBag = plan != null && (peek == null || peek.title != 'Oggi');
-    final mine = store.myRef?.key;
-    final others = store.opt('home.recents', true)
-        ? [...store.favorites, ...store.recents].where((s) => s.ref.key != mine).toList()
-        : const <CachedSchedule>[];
-
-    if (scrollable) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (todo.isNotEmpty) ...[_AgendaPeek(items: todo, max: 5), const SizedBox(height: 16)],
-          if (showBag) ...[_BagPeek(plan: plan), const SizedBox(height: 16)],
-          if (peek != null && peek.items.isNotEmpty) _DayPeek(peek: peek, max: peek.items.length, onOpen: onOpenMine),
-          if (peek != null && peek.items.isNotEmpty && others.isNotEmpty) const SizedBox(height: 16),
-          if (others.isNotEmpty) _Recents(items: others, max: 5),
-        ],
-      );
-    }
-
-    return LayoutBuilder(
-      builder: (context, box) {
-        var h = box.maxHeight;
-        final children = <Widget>[];
-        // Prima i compiti e le verifiche in arrivo (max 3), poi le lezioni, poi i recenti.
-        if (todo.isNotEmpty && h >= _peekTitle + _peekPad + _peekRow) {
-          final k = math.min(math.min(todo.length, 3), ((h - _peekTitle - _peekPad) / _peekRow).floor());
-          children.add(_AgendaPeek(items: todo, max: k));
-          h -= _peekTitle + _peekPad + _peekRow * k + 16;
-        }
-        if (showBag && h >= _peekTitle + _peekPad + _peekRow) {
-          if (children.isNotEmpty) children.add(const SizedBox(height: 16));
-          children.add(_BagPeek(plan: plan));
-          h -= _peekTitle + _peekPad + _peekRow + 16;
-        }
-        if (peek != null && peek.items.isNotEmpty && h >= _peekTitle + _peekPad + _peekRow) {
-          final k = math.min(peek.items.length, ((h - _peekTitle - _peekPad) / _peekRow).floor());
-          if (children.isNotEmpty) children.add(const SizedBox(height: 16));
-          children.add(_DayPeek(peek: peek, max: k, onOpen: onOpenMine));
-          h -= _peekTitle + _peekPad + _peekRow * k + 16;
-        }
-        if (others.isNotEmpty && h >= _recentTitle + _recentRow) {
-          if (children.isNotEmpty) children.add(const SizedBox(height: 16));
-          children.add(_Recents(items: others, max: ((h - _recentTitle) / _recentRow).floor()));
-        }
-        // Se la stima e' un po' larga, l'ultimo elemento viene tagliato invece di uscire dallo schermo.
-        return ClipRect(
-          child: SingleChildScrollView(
-            physics: const NeverScrollableScrollPhysics(),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
-          ),
-        );
-      },
-    );
-  }
-}
 
 class _PeekItem {
   const _PeekItem(this.hours, this.time, this.lesson, {this.now = false, this.note});
@@ -419,7 +219,7 @@ _Peek? _peekFor(AppStore store, DateTime now) {
     final left = [for (var k = 0; k < lessons.length; k++) if (!lessons[k].isEmpty && !finished(k)) k];
     if (left.isNotEmpty) {
       dayIdx = ti;
-      title = 'Oggi';
+      title = tr('Oggi', 'Today');
     }
   }
   if (dayIdx == null) {
@@ -429,7 +229,7 @@ _Peek? _peekFor(AppStore store, DateTime now) {
       final wd = d.weekday - 1;
       if (wd < days.length && !days[wd].isEmpty && cal.closureOn(d) == null) {
         dayIdx = wd;
-        title = off == 1 ? 'Domani' : (off < 7 ? dayNames[wd] : '${dayNames[wd]} ${d.day}/${d.month}');
+        title = off == 1 ? tr('Domani', 'Tomorrow') : (off < 7 ? dayNames[wd] : '${dayNames[wd]} ${d.day}/${d.month}');
         date = d;
         break;
       }
@@ -437,7 +237,7 @@ _Peek? _peekFor(AppStore store, DateTime now) {
   }
   if (dayIdx == null) return null;
 
-  final today = dayIdx == ti && title == 'Oggi';
+  final today = dayIdx == ti && title == tr('Oggi', 'Today');
   final cur = today ? currentSlot(slots, now) : null;
   final lessons = days[dayIdx].lessons;
   final items = <_PeekItem>[];
@@ -478,7 +278,7 @@ class _BagPeek extends StatelessWidget {
     final todo = plan.checklist.where((x) => !checked.contains(x)).toList();
     final line = plan.checklist.isEmpty
         ? '📚 ${plan.subjects.join(', ')}'
-        : (todo.isEmpty ? '✅ Zaino pronto!' : todo.join(' · '));
+        : (todo.isEmpty ? tr('✅ Zaino pronto!', '✅ Backpack ready!') : todo.join(' · '));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -486,10 +286,10 @@ class _BagPeek extends StatelessWidget {
           height: 34,
           child: Row(
             children: [
-              Text('🎒 Zaino', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              Text(tr('🎒 Zaino', '🎒 Backpack'), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(width: 8),
               Text(
-                'per ${friendlyDate(plan.date, DateTime.now()).toLowerCase()}',
+                tr('per ${friendlyDate(plan.date, DateTime.now()).toLowerCase()}', 'for ${friendlyDate(plan.date, DateTime.now()).toLowerCase()}'),
                 style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ],
@@ -533,7 +333,7 @@ class _AgendaPeek extends StatelessWidget {
           height: 34,
           child: Row(
             children: [
-              Text('In arrivo', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              Text(tr('In arrivo', 'Coming up'), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(width: 8),
               Text(
                 '${items.length} in agenda',
@@ -548,7 +348,7 @@ class _AgendaPeek extends StatelessWidget {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,
                 ),
-                child: const Text('Agenda'),
+                child: Text(tr('Agenda', 'Planner')),
               ),
             ],
           ),
@@ -626,7 +426,7 @@ class _DayPeek extends StatelessWidget {
               Text(peek.title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(width: 8),
               Text(
-                hidden > 0 ? '+$hidden dopo' : '${peek.items.length} ${peek.items.length == 1 ? 'lezione' : 'lezioni'}',
+                hidden > 0 ? tr('+$hidden dopo', '+$hidden later') : '${peek.items.length} ${peek.items.length == 1 ? tr('lezione', 'lesson') : tr('lezioni', 'lessons')}',
                 style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
               const Spacer(),
@@ -638,7 +438,7 @@ class _DayPeek extends StatelessWidget {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,
                 ),
-                child: const Text('Orario'),
+                child: Text(tr('Orario', 'Timetable')),
               ),
             ],
           ),
@@ -698,7 +498,77 @@ class _DayPeek extends StatelessWidget {
   }
 }
 
-/// Conti alla rovescia: ricreazione, ultima campanella, weekend, vacanze.
+String _mins(int m) => m < 60 ? '$m min' : '${m ~/ 60} h${m % 60 == 0 ? '' : ' ${m % 60} min'}';
+
+/// Conti alla rovescia delle lezioni di oggi (dentro la card grande): ricreazione e ultima campanella.
+List<String> lessonCountdowns(AppStore store, DateTime now) {
+  final out = <String>[];
+  final m = now.hour * 60 + now.minute;
+  final ref = store.myRef;
+  final cached = ref == null ? null : store.cached(ref);
+  if (cached == null || store.calendar.closureOn(now) != null) return out;
+  final days = cached.week.days;
+  final ti = todayIndex(now, days.length);
+  if (ti < 0 || days[ti].isEmpty) return out;
+  final slots = store.slots;
+  final lessons = days[ti].lessons;
+  int? lastEnd;
+  int? firstStart;
+  for (var k = 0; k < lessons.length && k < slots.length; k++) {
+    if (lessons[k].isEmpty) continue;
+    firstStart ??= slots[k].start;
+    lastEnd = slots[k].end ?? lastEnd;
+  }
+  if (firstStart == null || lastEnd == null || m >= lastEnd) return out;
+  for (final b in breaksOf(slots)) {
+    if (b.afterIndex + 1 >= lessons.length) continue;
+    if (m >= b.start && m < b.end) {
+      out.add(tr('☕ Ricreazione: ancora ${_mins(b.end - m)}', '☕ Break: ${_mins(b.end - m)} left'));
+      break;
+    }
+    if (b.start > m && m >= firstStart - 60) {
+      out.add(tr('☕ Ricreazione tra ${_mins(b.start - m)}', '☕ Break in ${_mins(b.start - m)}'));
+      break;
+    }
+  }
+  if (m >= firstStart) {
+    final h = lastEnd ~/ 60;
+    final mm = (lastEnd % 60).toString().padLeft(2, '0');
+    out.add(tr('🔔 Ultima campanella alle $h:$mm', '🔔 Last bell at $h:$mm'));
+  }
+  return out;
+}
+
+/// Ridisegna [builder] ogni 30 secondi (con l'ora giusta).
+class _Every30s extends StatefulWidget {
+  const _Every30s({required this.builder});
+  final Widget Function(DateTime now) builder;
+  @override
+  State<_Every30s> createState() => _Every30sState();
+}
+
+class _Every30sState extends State<_Every30s> {
+  Timer? _t;
+
+  @override
+  void initState() {
+    super.initState();
+    _t = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _t?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(DateTime.now());
+}
+
+/// Conti alla rovescia delle feste (opzione: Impostazioni → Home e app): weekend, i tuoi, vacanze.
 /// Si aggiorna da solo ogni 30 secondi.
 class _Countdowns extends StatefulWidget {
   const _Countdowns({required this.store});
@@ -726,64 +596,25 @@ class _CountdownsState extends State<_Countdowns> {
     super.dispose();
   }
 
-  static String _mins(int m) => m < 60 ? '$m min' : '${m ~/ 60} h${m % 60 == 0 ? '' : ' ${m % 60} min'}';
-
   List<String> _items(DateTime now) {
     final store = widget.store;
     final out = <String>[];
-    final m = now.hour * 60 + now.minute;
-    final ref = store.myRef;
-    final cached = ref == null ? null : store.cached(ref);
-    final cal = store.calendar;
-    final schoolToday = cal.closureOn(now) == null;
-    if (cached != null && schoolToday) {
-      final days = cached.week.days;
-      final ti = todayIndex(now, days.length);
-      if (ti >= 0 && !days[ti].isEmpty) {
-        final slots = store.slots;
-        final lessons = days[ti].lessons;
-        int? lastEnd;
-        int? firstStart;
-        for (var k = 0; k < lessons.length && k < slots.length; k++) {
-          if (lessons[k].isEmpty) continue;
-          firstStart ??= slots[k].start;
-          lastEnd = slots[k].end ?? lastEnd;
-        }
-        if (firstStart != null && lastEnd != null && m < lastEnd) {
-          // Ricreazione (adesso o la prossima)
-          for (final b in breaksOf(slots)) {
-            if (b.afterIndex + 1 >= lessons.length) continue;
-            if (m >= b.start && m < b.end) {
-              out.add('☕ Ricreazione: ancora ${_mins(b.end - m)}');
-              break;
-            }
-            if (b.start > m && m >= firstStart - 60) {
-              out.add('☕ Ricreazione tra ${_mins(b.start - m)}');
-              break;
-            }
-          }
-          out.add(m < firstStart
-              ? '🔔 Si entra tra ${_mins(firstStart - m)}'
-              : '🔔 Ultima campanella tra ${_mins(lastEnd - m)}');
-        }
-      }
-    }
     // Weekend (lun-ven)
     final wd = now.weekday;
     if (wd <= 4) {
       final n = 6 - wd;
-      out.add('🎉 Weekend tra $n giorni');
+      out.add(tr('🎉 Weekend tra $n giorni', '🎉 Weekend in $n days'));
     } else if (wd == 5) {
-      out.add('🎉 Domani è sabato!');
+      out.add(tr('🎉 Domani è sabato!', '🎉 Tomorrow is Saturday!'));
     }
     // Conti alla rovescia personali (gita, compleanno…), poi vacanze e feste.
     for (final e in store.countdowns) {
       final left = daysBetweenDates(now, e.date);
       if (left < 0 || left > 60) continue;
-      out.add(left == 0 ? '${e.emoji} ${e.name}: è oggi!' : '${e.emoji} ${e.name} tra $left ${left == 1 ? 'giorno' : 'giorni'}');
+      out.add(left == 0 ? tr('${e.emoji} ${e.name}: è oggi!', '${e.emoji} ${e.name}: it\'s today!') : '${e.emoji} ${e.name} ${tr('tra', 'in')} $left ${left == 1 ? tr('giorno', 'day') : tr('giorni', 'days')}');
     }
-    for (final c in cal.countdowns(now, max: 2)) {
-      out.add('${c.emoji} ${c.name} tra ${c.days} ${c.days == 1 ? 'giorno' : 'giorni'}');
+    for (final c in store.calendar.countdowns(now, max: 2)) {
+      out.add('${c.emoji} ${c.name} ${tr('tra', 'in')} ${c.days} ${c.days == 1 ? tr('giorno', 'day') : tr('giorni', 'days')}');
     }
     return out;
   }
@@ -838,20 +669,21 @@ class _TodayCard extends StatelessWidget {
     String title;
     String? subtitle;
     double? progress;
+    String? footer; // "Mancano 21 min · poi Inglese"
     String? place; // laboratorio della lezione di adesso / prossima
     VoidCallback onTap = onOpenMine;
 
     if (ref == null) {
-      overline = 'INIZIA DA QUI';
-      title = 'Imposta il tuo orario';
-      subtitle = 'Scegli la tua classe o il tuo nome: lo troverai sempre in apertura.';
+      overline = tr('INIZIA DA QUI', 'START HERE');
+      title = tr('Imposta il tuo orario', 'Set your timetable');
+      subtitle = tr('Scegli la tua classe o il tuo nome: lo troverai sempre in apertura.', 'Choose your class or your name: you\'ll always find it when you open the app.');
       onTap = onSearch;
     } else {
       final cached = store.cached(ref);
       if (cached == null) {
         overline = ref.displayName.toUpperCase();
-        title = 'Scarica l\'orario';
-        subtitle = 'Tocca qui per scaricarlo e averlo sempre con te.';
+        title = tr('Scarica l\'orario', 'Download the timetable');
+        subtitle = tr('Tocca qui per scaricarlo e averlo sempre con te.', 'Tap here to download it and always have it with you.');
       } else {
         final days = cached.week.days;
         final ti = todayIndex(now, days.length);
@@ -859,15 +691,15 @@ class _TodayCard extends StatelessWidget {
         if (closure != null && ti >= 0) {
           // Vacanza o festa in un giorno di scuola.
           final back = store.nextSchoolDay(now, daysPerWeek: days.length);
-          overline = 'OGGI NIENTE SCUOLA';
+          overline = tr('OGGI NIENTE SCUOLA', 'NO SCHOOL TODAY');
           title = '${closure.emoji} ${closure.name}';
           subtitle = back == null
-              ? 'Goditi la giornata.'
+              ? tr('Goditi la giornata.', 'Enjoy the day.')
               : 'Si torna ${friendlyDate(back, now).toLowerCase()} (${dayNames[back.weekday - 1].toLowerCase()} ${back.day}/${back.month}).';
         } else if (ti < 0 || days[ti].isEmpty) {
-          overline = 'OGGI';
-          title = 'Nessuna lezione oggi';
-          subtitle = 'Goditi la giornata.';
+          overline = tr('OGGI', 'TODAY');
+          title = tr('Nessuna lezione oggi', 'No lessons today');
+          subtitle = tr('Goditi la giornata.', 'Enjoy the day.');
         } else {
           final day = days[ti];
           final slots = store.slots;
@@ -877,11 +709,23 @@ class _TodayCard extends StatelessWidget {
           if (idx != null && idx < n) {
             final l = day.lessons[idx];
             final s = slots[idx];
-            overline = 'ADESSO · fino alle ${s.endText}';
-            title = l.isEmpty ? 'Ora libera' : l.title;
+            overline = tr('ADESSO · fino alle ${s.endText}', 'NOW · until ${s.endText}');
+            title = l.isEmpty ? tr('Ora libera', 'Free period') : l.title;
             if (l.lab.isNotEmpty) place = l.lab;
             progress = ((m - s.start!) / (s.end! - s.start!)).clamp(0.0, 1.0).toDouble();
             if (!l.isEmpty && l.details.isNotEmpty) subtitle = l.details.join(' · ');
+            // Quanto manca e cosa c'è dopo (la prima lezione diversa da questa).
+            String? after;
+            for (var k = idx + 1; k < n; k++) {
+              final x = day.lessons[k];
+              if (!x.isEmpty && x.signature != l.signature) {
+                after = x.title;
+                break;
+              }
+            }
+            final left = s.end! - m;
+            footer = [if (left > 0) tr('Mancano ${_mins(left)}', '${_mins(left)} left'), if (after != null) 'poi $after'].join(' · ');
+            if (footer.isEmpty) footer = null;
           } else {
             int? nextIdx;
             for (var k = 0; k < n; k++) {
@@ -892,25 +736,26 @@ class _TodayCard extends StatelessWidget {
             }
             final lastEnd = n > 0 ? slots[n - 1].end : null;
             if (nextIdx != null) {
-              overline = 'PROSSIMA · ore ${slots[nextIdx].startText}';
+              overline = tr('PROSSIMA · ore ${slots[nextIdx].startText}', 'NEXT · at ${slots[nextIdx].startText}');
               title = day.lessons[nextIdx].title;
               if (day.lessons[nextIdx].lab.isNotEmpty) place = day.lessons[nextIdx].lab;
               final mins = slots[nextIdx].start! - m;
-              subtitle = mins < 60 ? 'Tra $mins min' : 'Tra ${mins ~/ 60} h ${mins % 60} min';
+              subtitle = mins < 60 ? tr('Tra $mins min', 'In $mins min') : tr('Tra ${mins ~/ 60} h ${mins % 60} min', 'In ${mins ~/ 60} h ${mins % 60} min');
             } else if (lastEnd != null && m >= lastEnd) {
-              overline = 'OGGI';
-              title = 'Lezioni finite!';
-              subtitle = 'Goditi il resto della giornata.';
+              overline = tr('OGGI', 'TODAY');
+              title = tr('Lezioni finite!', 'Lessons are over!');
+              subtitle = tr('Goditi il resto della giornata.', 'Enjoy the rest of the day.');
             } else {
-              overline = 'OGGI';
+              overline = tr('OGGI', 'TODAY');
               title = ref.displayName;
-              subtitle = 'Tocca per vedere l\'orario di oggi.';
+              subtitle = tr('Tocca per vedere l\'orario di oggi.', 'Tap to see today\'s timetable.');
             }
           }
         }
       }
     }
 
+    final extra = ref == null ? const <String>[] : lessonCountdowns(store, now);
     final onCard = scheme.onPrimary;
     return Material(
       color: scheme.primary,
@@ -962,199 +807,17 @@ class _TodayCard extends StatelessWidget {
                   ),
                 ),
               ],
+              if (footer != null) ...[
+                const SizedBox(height: 10),
+                Text(footer, style: TextStyle(color: onCard.withAlpha(225), fontSize: 13.5)),
+              ],
+              // Conti alla rovescia delle lezioni (ricreazione, ultima campanella), dentro la card.
+              if (extra.isNotEmpty) ...[
+                SizedBox(height: footer == null ? 12 : 4),
+                Text(extra.join('  ·  '), style: TextStyle(color: onCard.withAlpha(225), fontSize: 13.5)),
+              ],
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Scorciatoia quadrata nella sezione "Per te".
-class _ShortcutCard extends StatelessWidget {
-  const _ShortcutCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.filled = false,
-    this.compact = false,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  /// true = card piena colorata (quella grande a sinistra).
-  final bool filled;
-
-  /// true = versione bassa per schermi piccoli (meno margine, icona piu' piccola).
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final bg = filled ? scheme.tertiaryContainer : cardColor(context);
-    final fg = filled ? scheme.onTertiaryContainer : scheme.onSurface;
-    final sub = filled ? scheme.onTertiaryContainer.withAlpha(190) : scheme.onSurfaceVariant;
-
-    return Material(
-      color: bg,
-      borderRadius: BorderRadius.circular(22),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(22),
-        onTap: onTap,
-        child: LayoutBuilder(builder: (context, box) {
-          // Troppo bassa per icona sopra e testo sotto: icona a sinistra.
-          final flat = box.maxHeight.isFinite && box.maxHeight < 84;
-          final ic = Icon(icon, color: fg, size: compact ? 22 : 26);
-          final texts = Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: fg),
-              ),
-              Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(color: sub),
-              ),
-            ],
-          );
-          return Padding(
-            padding: EdgeInsets.all(compact || flat ? 12 : 16),
-            child: flat
-                ? Row(children: [ic, const SizedBox(width: 10), Expanded(child: texts)])
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [ic, texts],
-                  ),
-          );
-        }),
-      ),
-    );
-  }
-}
-
-/// Ultimi orari aperti e salvati (senza il proprio), in fondo alla home.
-class _Recents extends StatelessWidget {
-  const _Recents({required this.items, this.max = 5});
-
-  final List<CachedSchedule> items;
-
-  /// Quanti orari mostrare (in base allo spazio libero).
-  final int max;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    if (items.isEmpty || max <= 0) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('I tuoi orari', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 12),
-        for (final s in items.take(max))
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Material(
-              color: cardColor(context),
-              borderRadius: BorderRadius.circular(18),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                leading: Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: SubjectColors.of(s.ref.name, theme.brightness).bg,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    s.ref.prof ? Icons.person_rounded : Icons.groups_rounded,
-                    size: 22,
-                    color: SubjectColors.of(s.ref.name, theme.brightness).fg,
-                  ),
-                ),
-                title: Text(
-                  s.ref.displayName,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                subtitle: Text(
-                  s.ref.kindLabel,
-                  style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-                trailing: Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
-                onTap: () => openSchedule(context, s.ref),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-/// Cambio rapido tra il proprio orario, quelli salvati (classi o docenti) e la ricerca.
-class _QuickSwitch extends StatelessWidget {
-  const _QuickSwitch({required this.store, required this.onOpenMine, required this.onSearch});
-
-  final AppStore store;
-  final VoidCallback onOpenMine;
-  final VoidCallback onSearch;
-
-  @override
-  Widget build(BuildContext context) {
-    final mine = store.myRef;
-    final others = store.favorites.where((s) => mine == null || s.ref.key != mine.key).take(6).toList();
-
-    Widget chip(String label, IconData icon, VoidCallback onTap, {bool selected = false}) => Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: ActionChip(
-            avatar: Icon(icon, size: 18),
-            label: Text(label),
-            onPressed: onTap,
-            side: selected ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.5) : null,
-          ),
-        );
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: SizedBox(
-        height: 40,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          children: [
-            if (mine != null) chip(mine.displayName, Icons.home_rounded, onOpenMine, selected: true),
-            for (final s in others)
-              chip(
-                s.ref.displayName,
-                s.ref.prof ? Icons.person_rounded : Icons.groups_rounded,
-                () => openSchedule(context, s.ref),
-              ),
-            chip('Docenti e classi', Icons.swap_horiz_rounded, onSearch),
-            if (store.usingExcel) chip('Dov\'è il prof', Icons.person_search_rounded, () => openNowAtSchool(context)),
-            if (store.usingExcel) chip('Lab liberi', Icons.science_outlined, () => openNowAtSchool(context, labs: true)),
-            chip('Agenda', Icons.event_note_rounded, () => openAgenda(context)),
-            chip('Zaino', Icons.backpack_outlined, () => openBag(context)),
-            chip(tr('Calendario', 'Calendar'), Icons.calendar_month_outlined, () => openMonth(context)),
-            chip(tr('Voti', 'Grades'), Icons.grade_outlined, () => openGrades(context)),
-            chip(tr('Ripasso', 'Study plan'), Icons.menu_book_outlined, () => openStudyPlan(context)),
-            chip('Assenze', Icons.event_busy_outlined, () => openAbsences(context)),
-            chip('Studia', Icons.timer_outlined, () => openStudyTimer(context)),
-            chip(tr('Verifica', 'Exam'), Icons.hourglass_bottom_rounded, () => openExamMode(context)),
-            chip(tr('Obiettivi', 'Achievements'), Icons.emoji_events_outlined, () => openAchievements(context)),
-          ],
         ),
       ),
     );

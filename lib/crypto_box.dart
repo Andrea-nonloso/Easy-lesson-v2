@@ -18,6 +18,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
+import 'i18n.dart';
 
 /// Alfabeto dei codici: niente 0/O, 1/l/I (si confondono) e niente "-" (separa i gruppi).
 const accountCodeAlphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#\$€/&%!?*+=';
@@ -110,7 +111,7 @@ class KeyBundle {
 
   /// Apre la DEK con il codice di recupero.
   Future<SecretKey> openWithRecovery(String recoveryCode) async {
-    if (recovery == null) throw CryptoFailure('Per questo account non c\'è un codice di recupero');
+    if (recovery == null) throw CryptoFailure(tr('Per questo account non c\'è un codice di recupero', 'There\'s no recovery code for this account'));
     return SecretKey(await openBytes(recovery!, await deriveKek(recoveryCode, base64.decode(salt))));
   }
 

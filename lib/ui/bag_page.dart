@@ -8,6 +8,7 @@ import '../store.dart';
 import 'app_menu.dart';
 import 'theme.dart';
 import 'widgets.dart';
+import '../i18n.dart';
 
 void openBag(BuildContext context) =>
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const BagPage()));
@@ -54,25 +55,25 @@ class BagPage extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Nuova regola'),
+        title: Text(tr('Nuova regola', 'New rule')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: match,
               autofocus: true,
-              decoration: const InputDecoration(labelText: 'Se nell\'orario c\'è… (es. "inglese")', isDense: true),
+              decoration: InputDecoration(labelText: tr('Se nell\'orario c\'è… (es. "inglese")', 'If the timetable has… (e.g. "English")'), isDense: true),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: item,
-              decoration: const InputDecoration(labelText: 'porta… (es. "Dizionario 📕")', isDense: true),
+              decoration: InputDecoration(labelText: tr('porta… (es. "Dizionario 📕")', 'bring… (e.g. "Dictionary 📕")'), isDense: true),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Aggiungi')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Aggiungi', 'Add'))),
         ],
       ),
     );
@@ -93,7 +94,7 @@ class BagPage extends StatelessWidget {
     final checked = plan == null ? const <String>{} : (store.bagChecked[AppStore.dayKey(plan.date)] ?? const <String>{});
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Zaino'), actions: const [AppMenuButton(), SizedBox(width: 4)]),
+      appBar: AppBar(title: Text(tr('Zaino', 'Backpack')), actions: const [AppMenuButton(), SizedBox(width: 4)]),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 640),
@@ -101,15 +102,15 @@ class BagPage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
             children: [
               if (plan == null)
-                const Padding(
-                  padding: EdgeInsets.only(top: 24),
-                  child: Text('Imposta il tuo orario per sapere cosa portare il prossimo giorno di scuola.'),
+                Padding(
+                  padding: const EdgeInsets.only(top: 24),
+                  child: Text(tr('Imposta il tuo orario per sapere cosa portare il prossimo giorno di scuola.', 'Set your timetable to know what to bring on the next school day.')),
                 )
               else ...[
-                SectionLabel('Per ${friendlyDate(plan.date, now).toLowerCase()} · '
-                    '${dayNames[plan.date.weekday - 1]} ${plan.date.day}/${plan.date.month}'),
+                SectionLabel(tr('Per ${friendlyDate(plan.date, now).toLowerCase()} · '
+                    '${dayNames[plan.date.weekday - 1]} ${plan.date.day}/${plan.date.month}', 'For ${friendlyDate(plan.date, now).toLowerCase()} · ')),
                 if (plan.subjects.isNotEmpty)
-                  Text('📚 Libri e quaderni: ${plan.subjects.join(', ')}', style: theme.textTheme.bodyLarge),
+                  Text('📚 ${tr('Libri e quaderni', 'Books and notebooks')}: ${plan.subjects.join(', ')}', style: theme.textTheme.bodyLarge),
                 const SizedBox(height: 8),
                 Material(
                   color: cardColor(context),
@@ -118,7 +119,7 @@ class BagPage extends StatelessWidget {
                   child: Column(
                     children: [
                       if (plan.checklist.isEmpty)
-                        const ListTile(title: Text('Niente di speciale da portare 🎉')),
+                        ListTile(title: Text(tr('Niente di speciale da portare 🎉', 'Nothing special to bring 🎉'))),
                       for (final it in plan.checklist)
                         CheckboxListTile(
                           value: checked.contains(it),
@@ -132,9 +133,9 @@ class BagPage extends StatelessWidget {
                   ),
                 ),
               ],
-              const SectionLabel('Regole'),
+              SectionLabel(tr('Regole', 'Rules')),
               Text(
-                'Se nella materia o nel laboratorio c\'è la parola a sinistra, nello zaino va quello a destra.',
+                tr('Se nella materia o nel laboratorio c\'è la parola a sinistra, nello zaino va quello a destra.', 'If the word on the left is in the subject or lab, what\'s on the right goes in the backpack.'),
                 style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
               const SizedBox(height: 6),
@@ -144,7 +145,7 @@ class BagPage extends StatelessWidget {
                   dense: true,
                   title: Text('"${r.match}" → ${r.item}'),
                   trailing: IconButton(
-                    tooltip: 'Elimina',
+                    tooltip: tr('Elimina', 'Delete'),
                     icon: const Icon(Icons.close_rounded),
                     onPressed: () => store.setBagRules([...store.bagRules]..remove(r)),
                   ),
@@ -156,11 +157,11 @@ class BagPage extends StatelessWidget {
                   FilledButton.tonalIcon(
                     onPressed: () => _addRule(context, store),
                     icon: const Icon(Icons.add_rounded),
-                    label: const Text('Aggiungi regola'),
+                    label: Text(tr('Aggiungi regola', 'Add rule')),
                   ),
                   TextButton(
                     onPressed: () => store.setBagRules([...defaultBagRules]),
-                    child: const Text('Ripristina'),
+                    child: Text(tr('Ripristina', 'Restore')),
                   ),
                 ],
               ),

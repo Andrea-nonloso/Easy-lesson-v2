@@ -1,17 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../cloud.dart';
+import '../live.dart';
 import '../shop.dart';
 import '../social.dart';
 import '../store.dart';
 import 'achievements.dart' show levelOf;
+import 'adult_chat.dart';
+import 'adult_dm.dart' show DmEntryTile;
 import 'class_chat.dart';
 import 'code_scanner.dart';
 import 'friends_page.dart';
 import 'notices.dart';
 import 'profile_page.dart';
+import '../i18n.dart';
 
 /// Classe e amici (3.0): profilo con soprannome, le mie classi, amici e classifica.
 /// Niente chat: solo compiti e verifiche, conferme e sfide. Si vede solo il soprannome.
@@ -47,14 +53,14 @@ Future<void> showShareCode(BuildContext context, {required String title, require
         actions: [
           TextButton.icon(
             icon: const Icon(Icons.copy_rounded, size: 18),
-            label: const Text('Copia'),
+            label: Text(tr('Copia', 'Copy')),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: code));
               Navigator.pop(c);
-              socialToast(context, 'Copiato');
+              socialToast(context, tr('Copiato', 'Copied'));
             },
           ),
-          FilledButton(onPressed: () => Navigator.pop(c), child: const Text('Fatto')),
+          FilledButton(onPressed: () => Navigator.pop(c), child: Text(tr('Fatto', 'Done'))),
         ],
       ),
     );
@@ -71,9 +77,9 @@ Future<String?> askSocialCode(BuildContext context, {required String title, requ
         autofocus: true,
         textCapitalization: TextCapitalization.characters,
         decoration: InputDecoration(
-          hintText: 'Es. K7PQ2MXA',
+          hintText: tr('Es. K7PQ2MXA', 'E.g. K7PQ2MXA'),
           suffixIcon: IconButton(
-            tooltip: 'Scansiona il QR',
+            tooltip: tr('Scansiona il QR', 'Scan the QR'),
             icon: const Icon(Icons.qr_code_scanner_rounded),
             onPressed: () async {
               final v = await scanQr(c, title: title);
@@ -86,7 +92,7 @@ Future<String?> askSocialCode(BuildContext context, {required String title, requ
         onSubmitted: (v) => Navigator.pop(c, v),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annulla')),
+        TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annulla', 'Cancel'))),
         FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: const Text('OK')),
       ],
     ),
@@ -104,21 +110,21 @@ Future<SocialProfile?> editSocialProfile(BuildContext context, {SocialProfile? c
     context: context,
     builder: (c) => StatefulBuilder(
       builder: (c, setState) => AlertDialog(
-        title: Text(current == null ? 'Il tuo soprannome' : 'Modifica profilo'),
+        title: Text(current == null ? tr('Il tuo soprannome', 'Your nickname') : tr('Modifica profilo', 'Edit profile')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Compagni e amici vedranno solo questo, mai il tuo nome vero. '
-                'Niente parolacce: i soprannomi offensivi vengono nascosti.',
+              Text(
+                tr('Compagni e amici vedranno solo questo, mai il tuo nome vero. '
+                'Niente parolacce: i soprannomi offensivi vengono nascosti.', 'Classmates and friends will only see this, never your real name. No swear words: offensive nicknames get hidden.'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: ctrl,
                 maxLength: 20,
-                decoration: InputDecoration(labelText: 'Soprannome', errorText: error),
+                decoration: InputDecoration(labelText: tr('Soprannome', 'Nickname'), errorText: error),
               ),
               const SizedBox(height: 4),
               Wrap(
@@ -138,7 +144,7 @@ Future<SocialProfile?> editSocialProfile(BuildContext context, {SocialProfile? c
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annulla')),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annulla', 'Cancel'))),
           FilledButton(
             onPressed: busy
                 ? null
@@ -157,7 +163,7 @@ Future<SocialProfile?> editSocialProfile(BuildContext context, {SocialProfile? c
                       });
                     }
                   },
-            child: const Text('Salva'),
+            child: Text(tr('Salva', 'Save')),
           ),
         ],
       ),
@@ -180,13 +186,34 @@ class _ClassHubPageState extends State<ClassHubPage> {
   Object? _error;
   bool _loading = true;
 
+  /// 3.8: ultimo messaggio di ogni classe, classifica e richieste (si caricano dopo, senza bloccare la pagina).
+  final Map<String, String> _lastMessage = {};
+  FriendsData? _friends;
+
   /// Per quale account si è caricato (se si entra o si esce dall'account, si ricarica).
   String? _loadedFor;
+
+  StreamSubscription<LiveEvent>? _live;
 
   @override
   void initState() {
     super.initState();
     _load();
+    // Avvisi, amicizie, 18+ dato o tolto: la pagina si aggiorna da sola (canale in diretta).
+    _live = Live.instance.events.where((e) => const {'notice', 'friends', 'me', 'chat'}.contains(e.type)).listen((e) {
+      if (!mounted) return;
+      if (e.type == 'chat') {
+        _loadExtras(onlyClass: e.classId);
+      } else {
+        _load();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _live?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -211,6 +238,7 @@ class _ClassHubPageState extends State<ClassHubPage> {
       });
       final lv = levelOf(store);
       if (me != null) Social.sync(store, xp: lv.xp, level: lv.level, force: true);
+      if (me != null) _loadExtras();
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -221,23 +249,47 @@ class _ClassHubPageState extends State<ClassHubPage> {
     }
   }
 
+  /// Ultimo messaggio delle classi e classifica degli amici. Gli errori si ignorano (la pagina c'è comunque).
+  Future<void> _loadExtras({String? onlyClass}) async {
+    final store = StoreScope.read(context);
+    final classes = (_classes ?? const <ClassSummary>[]).where((c) => onlyClass == null || c.id == onlyClass).toList();
+    await Future.wait([
+      for (final c in classes)
+        Social.chat(store, c.id).then((d) {
+          if (!mounted) return;
+          final last = d.messages.isEmpty ? null : d.messages.last;
+          setState(() {
+            if (last == null) {
+              _lastMessage.remove(c.id);
+            } else {
+              _lastMessage[c.id] = '${last.byMe ? 'Tu' : last.author}: ${last.text}';
+            }
+          });
+        }).catchError((_) {}),
+      if (onlyClass == null)
+        Social.friends(store).then((f) {
+          if (mounted) setState(() => _friends = f);
+        }).catchError((_) {}),
+    ]);
+  }
+
   Future<void> _create() async {
     final store = StoreScope.read(context);
     final ctrl = TextEditingController();
     final name = await showDialog<String>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Nuova classe'),
+        title: Text(tr('Nuova classe', 'New class')),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           maxLength: 30,
-          decoration: const InputDecoration(labelText: 'Nome', hintText: 'Es. 1A IT'),
+          decoration: InputDecoration(labelText: tr('Nome', 'Name'), hintText: tr('Es. 1A IT', 'E.g. 1A IT')),
           onSubmitted: (v) => Navigator.pop(c, v),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annulla')),
-          FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: const Text('Crea')),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annulla', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: Text(tr('Crea', 'Create'))),
         ],
       ),
     );
@@ -249,7 +301,7 @@ class _ClassHubPageState extends State<ClassHubPage> {
       await _load();
       if (!mounted) return;
       await showShareCode(context,
-          title: 'Invita i compagni', code: cl.joinCode, link: classLink(cl.joinCode), hint: 'Fagli inquadrare il QR o dagli il codice.');
+          title: tr('Invita i compagni', 'Invite classmates'), code: cl.joinCode, link: classLink(cl.joinCode), hint: tr('Fagli inquadrare il QR o dagli il codice.', 'Let them scan the QR or give them the code.'));
     } catch (e) {
       if (mounted) socialToast(context, e);
     }
@@ -257,7 +309,7 @@ class _ClassHubPageState extends State<ClassHubPage> {
 
   Future<void> _join([String? preset]) async {
     final store = StoreScope.read(context);
-    final code = preset ?? await askSocialCode(context, title: 'Entra in una classe', kind: 'class');
+    final code = preset ?? await askSocialCode(context, title: tr('Entra in una classe', 'Join a class'), kind: 'class');
     if (code == null || code.isEmpty) return;
     try {
       final id = await Social.joinClass(store, code);
@@ -274,14 +326,14 @@ class _ClassHubPageState extends State<ClassHubPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Cancellare il profilo?'),
-        content: const Text(
-          'Spariscono soprannome, amici e classifica, ed esci da tutte le classi. '
-          'I compiti che hai condiviso restano alla classe senza il tuo nome. Il tuo account e i progressi restano.',
+        title: Text(tr('Cancellare il profilo?', 'Delete the profile?')),
+        content: Text(
+          tr('Spariscono soprannome, amici e classifica, ed esci da tutte le classi. '
+          'I compiti che hai condiviso restano alla classe senza il tuo nome. Il tuo account e i progressi restano.', 'Your nickname, friends and leaderboard disappear, and you leave all classes. The homework you shared stays with the class without your name. Your account and progress stay.'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('No')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Cancella')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('No', 'No'))),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Cancella', 'Delete'))),
         ],
       ),
     );
@@ -321,15 +373,21 @@ class _ClassHubPageState extends State<ClassHubPage> {
         children: [
           const Text('👥', textAlign: TextAlign.center, style: TextStyle(fontSize: 56)),
           const SizedBox(height: 12),
-          Text('Classe e amici', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall),
+          Text(tr('Classe e amici', 'Class and friends'), textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 8),
-          const Text(
-            'Agenda condivisa con la classe, sfide e classifica con gli amici. '
-            'Serve l\'account Easy Lesson (anonimo, niente email).',
+          // 3.8 "minimal": una frase e un pulsante; tutto il resto nella pagina dell'account.
+          Text(
+            tr('Chat, agenda condivisa e sfide con la classe. Serve l\'account Easy Lesson: anonimo, niente email.', 'Chat, shared planner and challenges with the class. You need the Easy Lesson account: anonymous, no email.'),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
-          const AccountPanel(compact: true),
+          Center(
+            child: FilledButton.icon(
+              onPressed: () => openAccountPage(context),
+              icon: const Icon(Icons.key_rounded),
+              label: Text(tr('Crea o usa il tuo codice', 'Create or use your code')),
+            ),
+          ),
         ],
       );
     } else if (_loading && _me == null) {
@@ -338,7 +396,7 @@ class _ClassHubPageState extends State<ClassHubPage> {
       body = ListView(padding: const EdgeInsets.all(24), children: [
         Text(_error is CloudException ? (_error as CloudException).message : '$_error', style: TextStyle(color: scheme.error)),
         const SizedBox(height: 12),
-        FilledButton(onPressed: _load, child: const Text('Riprova')),
+        FilledButton(onPressed: _load, child: Text(tr('Riprova', 'Try again'))),
       ]);
     } else if (_me == null) {
       body = ListView(
@@ -346,14 +404,14 @@ class _ClassHubPageState extends State<ClassHubPage> {
         children: [
           const Text('🦊', textAlign: TextAlign.center, style: TextStyle(fontSize: 56)),
           const SizedBox(height: 12),
-          const Text(
-            'Scegli un soprannome e un\'emoji: è tutto quello che vedranno compagni e amici.',
+          Text(
+            tr('Scegli un soprannome e un\'emoji: è tutto quello che vedranno compagni e amici.', 'Choose a nickname and an emoji: it\'s all classmates and friends will see.'),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
             icon: const Icon(Icons.badge_outlined),
-            label: const Text('Scegli il soprannome'),
+            label: Text(tr('Scegli il soprannome', 'Choose a nickname')),
             onPressed: () async {
               final p = await editSocialProfile(context);
               if (p != null) await _load();
@@ -376,10 +434,10 @@ class _ClassHubPageState extends State<ClassHubPage> {
             leading: Text(me.avatar, style: const TextStyle(fontSize: 34)),
             title: Text(me.nickname, style: const TextStyle(fontWeight: FontWeight.w700)),
             subtitle: Text(me.hiddenByModeration
-                ? 'Soprannome nascosto dalla moderazione: cambialo'
-                : 'Codice amico ${me.friendCode} · ${me.weekXp} XP questa settimana'),
+                ? tr('Soprannome nascosto dalla moderazione: cambialo', 'Nickname hidden by moderation: change it')
+                : tr('Codice amico ${me.friendCode} · ${me.weekXp} XP questa settimana', 'Friend code ${me.friendCode} · ${me.weekXp} XP this week')),
             trailing: IconButton(
-              tooltip: 'Modifica',
+              tooltip: tr('Modifica', 'Edit'),
               icon: const Icon(Icons.edit_outlined),
               onPressed: () async {
                 final p = await editSocialProfile(context, current: me);
@@ -394,23 +452,27 @@ class _ClassHubPageState extends State<ClassHubPage> {
             child: ListTile(
               leading: Icon(Icons.block_rounded, color: scheme.onErrorContainer),
               title: Text(me.suspension!, style: TextStyle(color: scheme.onErrorContainer)),
-              subtitle: Text('Puoi guardare, ma non scrivere.', style: TextStyle(color: scheme.onErrorContainer)),
+              subtitle: Text(tr('Puoi guardare, ma non scrivere.', 'You can look, but not write.'), style: TextStyle(color: scheme.onErrorContainer)),
             ),
           ),
-        section('La tua classe'),
+        section(tr('La tua classe', 'Your class')),
         if ((_classes ?? const []).isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text('Non sei ancora in nessuna classe. Entra con il codice di un compagno o creane una: '
-                'chat rapida, agenda condivisa e sfida della settimana.'),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(tr('Non sei ancora in nessuna classe. Entra con il codice di un compagno o creane una: '
+                'chat rapida, agenda condivisa e sfida della settimana.', 'You\'re not in any class yet. Join with a classmate\'s code or create one: quick chat, shared planner and the weekly challenge.')),
           ),
         for (final c in _classes ?? const <ClassSummary>[])
           Card(
             child: ListTile(
               leading: CircleAvatar(child: Text(c.name.characters.take(2).toString())),
               title: Text(c.name),
-              subtitle: Text('Chat, agenda e sfide · ${c.members} ${c.members == 1 ? 'membro' : 'membri'}${c.admin ? ' · amministratore' : ''}'),
-              trailing: const Icon(Icons.chevron_right_rounded),
+              subtitle: Text(
+                _lastMessage[c.id] ?? 'Chat, agenda e sfide · ${c.members} ${c.members == 1 ? 'membro' : 'membri'}${c.admin ? ' · amministratore' : ''}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: UnreadDot(chat: 'class:${c.id}', name: c.name),
               onTap: () => _open(c.id),
             ),
           ),
@@ -419,19 +481,33 @@ class _ClassHubPageState extends State<ClassHubPage> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            FilledButton.tonalIcon(onPressed: () => _join(), icon: const Icon(Icons.login_rounded), label: const Text('Entra con un codice')),
-            OutlinedButton.icon(onPressed: _create, icon: const Icon(Icons.add_rounded), label: const Text('Crea una classe')),
+            FilledButton.tonalIcon(onPressed: () => _join(), icon: const Icon(Icons.login_rounded), label: Text(tr('Entra con un codice', 'Join with a code'))),
+            OutlinedButton.icon(onPressed: _create, icon: const Icon(Icons.add_rounded), label: Text(tr('Crea una classe', 'Create a class'))),
           ],
         ),
-        section('Amici'),
+        section(tr('Classifica della settimana', 'This week\'s leaderboard')),
+        // 3.8: i primi tre direttamente qui; tutto il resto (e le richieste) nella pagina degli amici.
         Card(
-          child: ListTile(
-            leading: Icon(Icons.emoji_events_rounded, color: scheme.primary),
-            title: const Text('Classifica e richieste'),
-            subtitle: const Text('Chi ha fatto più XP questa settimana, richieste di amicizia'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const FriendsPage())).then((_) => _load()),
-          ),
+          child: Column(children: [
+            for (final f in (_friends?.leaderboard ?? const <Friend>[]).take(3))
+              ListTile(
+                dense: true,
+                leading: SizedBox(width: 24, child: Center(child: Text('${f.rank}', style: const TextStyle(fontWeight: FontWeight.w800)))),
+                title: Text('${f.avatar} ${f.me ? tr('Tu', 'You') : f.nickname}', style: TextStyle(fontWeight: f.me ? FontWeight.w700 : null)),
+                trailing: Text('${f.weekXp} XP'),
+              ),
+            ListTile(
+              leading: Icon(Icons.emoji_events_rounded, color: scheme.primary),
+              title: Text((_friends?.incoming.isNotEmpty ?? false)
+                  ? '${_friends!.incoming.length} ${_friends!.incoming.length == 1 ? tr('richiesta di amicizia', 'friend request') : tr('richieste di amicizia', 'friend requests')}'
+                  : tr('Classifica completa e amici', 'Full leaderboard and friends')),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (_friends?.incoming.isNotEmpty ?? false) Badge(label: Text('${_friends!.incoming.length}')),
+                const Icon(Icons.chevron_right_rounded),
+              ]),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const FriendsPage())).then((_) => _load()),
+            ),
+          ]),
         ),
         const SizedBox(height: 4),
         Wrap(
@@ -440,30 +516,44 @@ class _ClassHubPageState extends State<ClassHubPage> {
           children: [
             FilledButton.tonalIcon(
               onPressed: () => showShareCode(context,
-                  title: 'Il tuo codice amico', code: me.friendCode, link: friendLink(me.friendCode), hint: 'Inquadra con Easy Lesson'),
+                  title: tr('Il tuo codice amico', 'Your friend code'), code: me.friendCode, link: friendLink(me.friendCode), hint: tr('Inquadra con Easy Lesson', 'Scan with Easy Lesson')),
               icon: const Icon(Icons.qr_code_2_rounded),
-              label: const Text('Il mio codice'),
+              label: Text(tr('Il mio codice', 'My code')),
             ),
             OutlinedButton.icon(
               onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const FriendsPage())).then((_) => _load()),
               icon: const Icon(Icons.person_add_alt_1_rounded),
-              label: const Text('Aggiungi'),
+              label: Text(tr('Aggiungi', 'Add')),
             ),
           ],
         ),
+        // 3.7.1: solo per i maggiorenni verificati di persona dalla moderazione (gli altri non la vedono).
+        if (me.adult) ...[
+          section(tr('Chat dei grandi', 'Adults\' chat')),
+          Card(
+            child: ListTile(
+              leading: const Text('🔞', style: TextStyle(fontSize: 28)),
+              title: Text(tr('Chat dei grandi', 'Adults\' chat')),
+              subtitle: Text(tr('Solo maggiorenni verificati · testo, foto e sticker · 24 ore', 'Verified adults only · text, photos and stickers · 24 hours')),
+              trailing: const UnreadDot(chat: 'adult'),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AdultChatPage())).then((_) => _load()),
+            ),
+          ),
+          const DmEntryTile(),
+        ],
         if (me.strikes > 0)
           ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 4),
             leading: Icon(Icons.gavel_rounded, color: scheme.error),
-            title: const Text('Avvisi della moderazione'),
-            subtitle: Text('${me.strikes} ${me.strikes == 1 ? 'avviso' : 'avvisi'}'),
-            trailing: const Icon(Icons.chevron_right_rounded),
+            title: Text(tr('Avvisi della moderazione', 'Moderation notices')),
+            subtitle: Text('${me.strikes} ${me.strikes == 1 ? tr('avviso', 'warning') : tr('avvisi', 'warnings')}'),
+            trailing: const UnreadDot(chat: 'notice'),
             onTap: _openNotices,
           ),
         const SizedBox(height: 20),
         Text(
-          'Nella classe si usano solo frasi pronte, compiti e verifiche. '
-          'Se vedi qualcosa di brutto, tienilo premuto e segnalalo.',
+          tr('Nella classe si usano solo frasi pronte, compiti e verifiche. '
+          'Se vedi qualcosa di brutto, tienilo premuto e segnalalo.', 'In the class you can only use ready-made phrases, homework and tests. If you see something bad, press and hold it and report it.'),
           style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
         ),
         const SizedBox(height: 8),
@@ -472,7 +562,7 @@ class _ClassHubPageState extends State<ClassHubPage> {
           child: TextButton.icon(
             style: TextButton.styleFrom(foregroundColor: scheme.error),
             icon: const Icon(Icons.person_remove_outlined),
-            label: const Text('Cancella il profilo di classe e amici'),
+            label: Text(tr('Cancella il profilo di classe e amici', 'Delete the class and friends profile')),
             onPressed: _deleteProfile,
           ),
         ),
@@ -507,7 +597,7 @@ class _ClassHubPageState extends State<ClassHubPage> {
         ),
       );
     }
-    final title = widget.asTab ? 'Amici' : 'Classe e amici';
+    final title = widget.asTab ? tr('Amici', 'Friends') : tr('Classe e amici', 'Class and friends');
     return Scaffold(
       appBar: AppBar(title: Text(title), automaticallyImplyLeading: !widget.asTab),
       body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 720), child: body)),
@@ -530,7 +620,7 @@ Future<void> openSocialLink(BuildContext context, String link) async {
       if (context.mounted) await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ClassPage(classId: id)));
     } else if (kind == 'friend') {
       final status = await Social.addFriend(store, code);
-      if (context.mounted) socialToast(context, status == 'friends' ? 'Siete amici!' : 'Richiesta di amicizia mandata');
+      if (context.mounted) socialToast(context, status == 'friends' ? tr('Siete amici!', 'You\'re friends!') : tr('Richiesta di amicizia mandata', 'Friend request sent'));
     }
   } on CloudException catch (e) {
     if (!context.mounted) return;
@@ -544,10 +634,10 @@ Future<void> openSocialLink(BuildContext context, String link) async {
 
 // ---------------------------------------------------------------------------- una classe
 
-const _kinds = {
-  'test': ('Verifica', Icons.assignment_late_outlined),
-  'homework': ('Compiti', Icons.menu_book_outlined),
-  'other': ('Altro', Icons.push_pin_outlined),
+Map<String, (String, IconData)> get _kinds => {
+  'test': (tr('Verifica', 'Test'), Icons.assignment_late_outlined),
+  'homework': (tr('Compiti', 'Homework'), Icons.menu_book_outlined),
+  'other': (tr('Altro', 'Other'), Icons.push_pin_outlined),
 };
 
 const _months = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
@@ -557,9 +647,9 @@ String _dayLabel(DateTime d) {
   final today = DateTime.now();
   final t = DateTime(today.year, today.month, today.day);
   final diff = DateTime(d.year, d.month, d.day).difference(t).inDays;
-  if (diff == 0) return 'Oggi';
-  if (diff == 1) return 'Domani';
-  if (diff == -1) return 'Ieri';
+  if (diff == 0) return tr('Oggi', 'Today');
+  if (diff == 1) return tr('Domani', 'Tomorrow');
+  if (diff == -1) return tr('Ieri', 'Yesterday');
   return '${_weekdays[d.weekday - 1][0].toUpperCase()}${_weekdays[d.weekday - 1].substring(1)} ${d.day} ${_months[d.month - 1]}';
 }
 
@@ -624,24 +714,24 @@ class _ClassPageState extends State<ClassPage> {
           children: [
             ListTile(
               title: Text(it.title),
-              subtitle: Text('${it.subject.isEmpty ? '' : '${it.subject} · '}${_dayLabel(it.date)} · scritto da ${it.author}'),
+              subtitle: Text('${it.subject.isEmpty ? '' : '${it.subject} · '}${_dayLabel(it.date)} · ${tr('scritto da', 'written by')} ${it.author}'),
             ),
             ListTile(
               leading: const Icon(Icons.add_task_rounded),
-              title: const Text('Aggiungi alla mia agenda'),
+              title: Text(tr('Aggiungi alla mia agenda', 'Add to my planner')),
               onTap: () => Navigator.pop(c, 'agenda'),
             ),
             ListTile(
               leading: Icon(it.confirmedByMe ? Icons.thumb_up_alt_rounded : Icons.thumb_up_alt_outlined),
-              title: Text(it.confirmedByMe ? 'Togli la conferma' : 'Confermo, è giusto'),
+              title: Text(it.confirmedByMe ? tr('Togli la conferma', 'Remove the confirmation') : tr('Confermo, è giusto', 'I confirm, it\'s right')),
               onTap: () => Navigator.pop(c, 'confirm'),
             ),
             if (it.canDelete)
-              ListTile(leading: const Icon(Icons.delete_outline_rounded), title: const Text('Cancella'), onTap: () => Navigator.pop(c, 'delete')),
+              ListTile(leading: const Icon(Icons.delete_outline_rounded), title: Text(tr('Cancella', 'Delete')), onTap: () => Navigator.pop(c, 'delete')),
             if (!it.byMe)
               ListTile(
                 leading: const Icon(Icons.flag_outlined),
-                title: const Text('Segnala (falso o offensivo)'),
+                title: Text(tr('Segnala (falso o offensivo)', 'Report (fake or offensive)')),
                 onTap: () => Navigator.pop(c, 'report'),
               ),
           ],
@@ -658,7 +748,7 @@ class _ClassPageState extends State<ClassPage> {
             subject: it.subject,
             text: it.title,
           );
-          if (mounted) socialToast(context, 'Aggiunto alla tua agenda');
+          if (mounted) socialToast(context, tr('Aggiunto alla tua agenda', 'Added to your planner'));
         case 'confirm':
           await Social.confirm(store, widget.classId, it.id);
           await _load();
@@ -667,7 +757,7 @@ class _ClassPageState extends State<ClassPage> {
           await _load();
         case 'report':
           await Social.report(store, kind: 'item', target: it.id);
-          if (mounted) socialToast(context, 'Segnalato, grazie');
+          if (mounted) socialToast(context, tr('Segnalato, grazie', 'Reported, thanks'));
       }
     } catch (e) {
       if (mounted) socialToast(context, e);
@@ -679,7 +769,7 @@ class _ClassPageState extends State<ClassPage> {
     final info = _info;
     if (info == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Classe')),
+        appBar: AppBar(title: Text(tr('Classe', 'Class'))),
         body: Center(
           child: _error == null
               ? const CircularProgressIndicator()
@@ -697,17 +787,17 @@ class _ClassPageState extends State<ClassPage> {
           title: Text(info.name),
           actions: [
             IconButton(
-              tooltip: 'Invita',
+              tooltip: tr('Invita', 'Invite'),
               icon: const Icon(Icons.qr_code_rounded),
               onPressed: () => showShareCode(context,
-                  title: 'Invita in ${info.name}', code: info.joinCode, link: classLink(info.joinCode), hint: 'Inquadra il QR con Easy Lesson'),
+                  title: tr('Invita in ${info.name}', 'Invite to ${info.name}'), code: info.joinCode, link: classLink(info.joinCode), hint: tr('Inquadra il QR con Easy Lesson', 'Scan the QR with Easy Lesson')),
             ),
           ],
-          bottom: const TabBar(tabs: [
-            Tab(icon: Icon(Icons.event_note_outlined), text: 'Agenda'),
-            Tab(icon: Icon(Icons.chat_bubble_outline_rounded), text: 'Chat'),
-            Tab(icon: Icon(Icons.emoji_events_outlined), text: 'Sfide'),
-            Tab(icon: Icon(Icons.groups_outlined), text: 'Classe'),
+          bottom: TabBar(tabs: [
+            Tab(icon: const Icon(Icons.event_note_outlined), text: tr('Agenda', 'Planner')),
+            const Tab(icon: Icon(Icons.chat_bubble_outline_rounded), text: 'Chat'),
+            Tab(icon: const Icon(Icons.emoji_events_outlined), text: tr('Sfide', 'Challenges')),
+            Tab(icon: const Icon(Icons.groups_outlined), text: tr('Classe', 'Class')),
           ]),
         ),
         // Il pulsante per aggiungere compiti solo nella scheda Agenda.
@@ -720,7 +810,7 @@ class _ClassPageState extends State<ClassPage> {
                   ? FloatingActionButton.extended(
                       onPressed: _addItem,
                       icon: const Icon(Icons.add_rounded),
-                      label: const Text('Compito o verifica'),
+                      label: Text(tr('Compito o verifica', 'Homework or test')),
                     )
                   : const SizedBox.shrink(),
             );
@@ -740,10 +830,10 @@ class _ClassPageState extends State<ClassPage> {
     final items = _items ?? const <ClassItem>[];
     final scheme = Theme.of(context).colorScheme;
     if (items.isEmpty) {
-      return ListView(padding: const EdgeInsets.all(32), children: const [
-        Text('📭', textAlign: TextAlign.center, style: TextStyle(fontSize: 48)),
-        SizedBox(height: 8),
-        Text('Ancora niente. Aggiungi la prossima verifica o i compiti: li vede tutta la classe.', textAlign: TextAlign.center),
+      return ListView(padding: const EdgeInsets.all(32), children: [
+        const Text('📭', textAlign: TextAlign.center, style: TextStyle(fontSize: 48)),
+        const SizedBox(height: 8),
+        Text(tr('Ancora niente. Aggiungi la prossima verifica o i compiti: li vede tutta la classe.', 'Nothing yet. Add the next test or homework: the whole class sees it.'), textAlign: TextAlign.center),
       ]);
     }
     final rows = <Widget>[];
@@ -800,7 +890,7 @@ class _ItemDialogState extends State<_ItemDialog> {
     final store = StoreScope.read(context);
     final subjects = {for (final a in store.agenda) if (a.subject.isNotEmpty) a.subject}.toList()..sort();
     return AlertDialog(
-      title: const Text('Per tutta la classe'),
+      title: Text(tr('Per tutta la classe', 'For the whole class')),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -823,14 +913,14 @@ class _ItemDialogState extends State<_ItemDialog> {
                   controller: ctrl,
                   focusNode: focus,
                   maxLength: 40,
-                  decoration: const InputDecoration(labelText: 'Materia'),
+                  decoration: InputDecoration(labelText: tr('Materia', 'Subject')),
                 );
               },
             ),
             TextField(
               controller: _title,
               maxLength: 80,
-              decoration: const InputDecoration(labelText: 'Cosa', hintText: 'Es. capitolo 4, esercizi 1-10'),
+              decoration: InputDecoration(labelText: tr('Cosa', 'What'), hintText: tr('Es. capitolo 4, esercizi 1-10', 'E.g. chapter 4, exercises 1-10')),
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -846,18 +936,18 @@ class _ItemDialogState extends State<_ItemDialog> {
                 if (d != null) setState(() => _day = d);
               },
             ),
-            Text('Lo vedono tutti i compagni con il tuo soprannome.', style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor)),
+            Text(tr('Lo vedono tutti i compagni con il tuo soprannome.', 'All classmates see it with your nickname.'), style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor)),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annulla', 'Cancel'))),
         FilledButton(
           onPressed: () {
             if (_title.text.trim().length < 2) return;
             Navigator.pop(context, (_kind, _subject?.text.trim() ?? '', _title.text.trim(), _day));
           },
-          child: const Text('Condividi'),
+          child: Text(tr('Condividi', 'Share')),
         ),
       ],
     );
@@ -897,7 +987,7 @@ class _ChallengesTab extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 '${c.done} / ${c.target}${c.metric == 'studied' ? ' minuti' : ''} · ${c.players} ${c.players == 1 ? 'compagno ha' : 'compagni hanno'} contribuito'
-                '${c.active ? ' · ${left.inDays > 0 ? 'mancano ${left.inDays} giorni' : 'ultimo giorno'}' : ''}',
+                '${c.active ? ' · ${left.inDays > 0 ? tr('mancano ${left.inDays} giorni', '${left.inDays} days left') : tr('ultimo giorno', 'last day')}' : ''}',
                 style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
               ),
             ],
@@ -909,7 +999,7 @@ class _ChallengesTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
       children: [
-        Text('Si conta quello che fate da quando parte la sfida: studio (con il timer), compiti segnati come fatti, giorni.',
+        Text(tr('Si conta quello che fate da quando parte la sfida: studio (con il timer), compiti segnati come fatti, giorni.', 'What counts is what you do from when the challenge starts: study (with the timer), homework marked done, days.'),
             style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
         const SizedBox(height: 8),
         ...active.map(card),
@@ -918,13 +1008,13 @@ class _ChallengesTab extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Nuova sfida'),
+              label: Text(tr('Nuova sfida', 'New challenge')),
               onPressed: () => _newChallenge(context),
             ),
           ),
         if (past.isNotEmpty) ...[
           const SizedBox(height: 16),
-          Text('Finite', style: Theme.of(context).textTheme.titleSmall),
+          Text(tr('Finite', 'Finished'), style: Theme.of(context).textTheme.titleSmall),
           ...past.map(card),
         ],
       ],
@@ -942,7 +1032,7 @@ class _ChallengesTab extends StatelessWidget {
       context: context,
       builder: (c) => StatefulBuilder(
         builder: (c, setState) => AlertDialog(
-          title: const Text('Nuova sfida'),
+          title: Text(tr('Nuova sfida', 'New challenge')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -963,7 +1053,7 @@ class _ChallengesTab extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              Text('Obiettivo: ${target.round()}${metric == 'studied' ? ' minuti (${(target / 60).round()} ore)' : ''}'),
+              Text('${tr('Obiettivo', 'Goal')}: ${target.round()}${metric == 'studied' ? ' ${tr('minuti', 'minutes')} (${(target / 60).round()} ${tr('ore', 'hours')})' : ''}'),
               Slider(
                 value: target,
                 min: perMember(metric),
@@ -971,13 +1061,13 @@ class _ChallengesTab extends StatelessWidget {
                 divisions: (n * 4 - 1).clamp(1, 200),
                 onChanged: (v) => setState(() => target = v),
               ),
-              Text('Durata: ${days.round()} giorni'),
+              Text(tr('Durata: ${days.round()} giorni', 'Duration: ${days.round()} days')),
               Slider(value: days, min: 1, max: 31, divisions: 30, onChanged: (v) => setState(() => days = v)),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Lancia')),
+            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+            FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Lancia', 'Start'))),
           ],
         ),
       ),
@@ -1014,8 +1104,8 @@ class _MembersTab extends StatelessWidget {
           title: Text(title),
           content: Text(text),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('No')),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Sì')),
+            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('No', 'No'))),
+            FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Sì', 'Yes'))),
           ],
         ),
       ) ==
@@ -1031,24 +1121,24 @@ class _MembersTab extends StatelessWidget {
         Card(
           child: ListTile(
             leading: const Icon(Icons.vpn_key_outlined),
-            title: Text('Codice d\'invito: ${info.joinCode}'),
-            subtitle: Text(info.admin ? 'Tocca per il QR · tieni premuto per cambiarlo' : 'Tocca per il QR'),
-            onTap: () => showShareCode(context, title: 'Invita in ${info.name}', code: info.joinCode, link: classLink(info.joinCode)),
+            title: Text(tr('Codice d\'invito: ${info.joinCode}', 'Invite code: ${info.joinCode}')),
+            subtitle: Text(info.admin ? tr('Tocca per il QR · tieni premuto per cambiarlo', 'Tap for the QR · press and hold to change it') : tr('Tocca per il QR', 'Tap for the QR')),
+            onTap: () => showShareCode(context, title: tr('Invita in ${info.name}', 'Invite to ${info.name}'), code: info.joinCode, link: classLink(info.joinCode)),
             onLongPress: !info.admin
                 ? null
                 : () async {
-                    if (!await _sure(context, 'Cambiare il codice?', 'Quello vecchio non funzionerà più (chi è già dentro resta).')) return;
-                    if (context.mounted) await _act(context, () => Social.newJoinCode(store, info.id), 'Codice cambiato');
+                    if (!await _sure(context, tr('Cambiare il codice?', 'Change the code?'), tr('Quello vecchio non funzionerà più (chi è già dentro resta).', 'The old one won\'t work anymore (those already in stay).'))) return;
+                    if (context.mounted) await _act(context, () => Social.newJoinCode(store, info.id), tr('Codice cambiato', 'Code changed'));
                   },
           ),
         ),
         const SizedBox(height: 8),
-        Text('${info.members.length} membri', style: Theme.of(context).textTheme.titleSmall),
+        Text(tr('${info.members.length} membri', '${info.members.length} members'), style: Theme.of(context).textTheme.titleSmall),
         for (final m in info.members)
           ListTile(
             leading: Text(m.avatar, style: const TextStyle(fontSize: 28)),
             title: Text(m.me ? '${m.nickname} (tu)' : m.nickname),
-            subtitle: Text('Livello ${m.level}${m.owner ? ' · ha creato la classe' : m.admin ? ' · amministratore' : m.moderator ? ' · moderatore' : ''}'),
+            subtitle: Text('${tr('Livello', 'Level')} ${m.level}${m.owner ? tr(' · ha creato la classe', ' · created the class') : m.admin ? tr(' · amministratore', ' · admin') : m.moderator ? tr(' · moderatore', ' · moderator') : ''}'),
             trailing: m.me
                 ? null
                 : PopupMenuButton<String>(
@@ -1059,21 +1149,21 @@ class _MembersTab extends StatelessWidget {
                         case 'moderator':
                           await _act(context, () => Social.member(store, info.id, m.id, v));
                         case 'kick':
-                          if (await _sure(context, 'Togliere ${m.nickname}?', 'Potrà rientrare solo con un nuovo codice.') && context.mounted) {
+                          if (await _sure(context, 'Togliere ${m.nickname}?', tr('Potrà rientrare solo con un nuovo codice.', 'They can only come back with a new code.')) && context.mounted) {
                             await _act(context, () => Social.member(store, info.id, m.id, 'kick'));
                           }
                         case 'report':
-                          await _act(context, () => Social.report(store, kind: 'member', target: '${info.id}:${m.id}'), 'Segnalato, grazie');
+                          await _act(context, () => Social.report(store, kind: 'member', target: '${info.id}:${m.id}'), tr('Segnalato, grazie', 'Reported, thanks'));
                       }
                     },
                     itemBuilder: (_) => [
-                      if (info.admin && !m.admin) const PopupMenuItem(value: 'promote', child: Text('Rendi amministratore')),
+                      if (info.admin && !m.admin) PopupMenuItem(value: 'promote', child: Text(tr('Rendi amministratore', 'Make admin'))),
                       if (info.admin && !m.admin && !m.moderator)
-                        const PopupMenuItem(value: 'moderator', child: Text('Rendi moderatore (può togliere i compiti)')),
-                      if (info.admin && m.moderator) const PopupMenuItem(value: 'demote', child: Text('Togli moderatore')),
-                      if (info.admin && m.admin && !m.owner) const PopupMenuItem(value: 'demote', child: Text('Togli amministratore')),
-                      if (info.admin && !m.owner) const PopupMenuItem(value: 'kick', child: Text('Togli dalla classe')),
-                      const PopupMenuItem(value: 'report', child: Text('Segnala il soprannome')),
+                        PopupMenuItem(value: 'moderator', child: Text(tr('Rendi moderatore (può togliere i compiti)', 'Make moderator (can remove homework)'))),
+                      if (info.admin && m.moderator) PopupMenuItem(value: 'demote', child: Text(tr('Togli moderatore', 'Remove moderator'))),
+                      if (info.admin && m.admin && !m.owner) PopupMenuItem(value: 'demote', child: Text(tr('Togli amministratore', 'Remove admin'))),
+                      if (info.admin && !m.owner) PopupMenuItem(value: 'kick', child: Text(tr('Togli dalla classe', 'Remove from the class'))),
+                      PopupMenuItem(value: 'report', child: Text(tr('Segnala il soprannome', 'Report the nickname'))),
                     ],
                   ),
           ),
@@ -1081,17 +1171,17 @@ class _MembersTab extends StatelessWidget {
         if (info.admin)
           ListTile(
             leading: const Icon(Icons.edit_outlined),
-            title: const Text('Rinomina la classe'),
+            title: Text(tr('Rinomina la classe', 'Rename the class')),
             onTap: () async {
               final ctrl = TextEditingController(text: info.name);
               final name = await showDialog<String>(
                 context: context,
                 builder: (c) => AlertDialog(
-                  title: const Text('Nome della classe'),
+                  title: Text(tr('Nome della classe', 'Class name')),
                   content: TextField(controller: ctrl, maxLength: 30, autofocus: true),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annulla')),
-                    FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: const Text('Salva')),
+                    TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annulla', 'Cancel'))),
+                    FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: Text(tr('Salva', 'Save'))),
                   ],
                 ),
               );
@@ -1102,10 +1192,10 @@ class _MembersTab extends StatelessWidget {
           ),
         ListTile(
           leading: Icon(Icons.logout_rounded, color: scheme.error),
-          title: Text('Esci dalla classe', style: TextStyle(color: scheme.error)),
-          subtitle: info.members.length == 1 ? const Text('Sei l\'ultimo: la classe verrà cancellata') : null,
+          title: Text(tr('Esci dalla classe', 'Leave the class'), style: TextStyle(color: scheme.error)),
+          subtitle: info.members.length == 1 ? Text(tr('Sei l\'ultimo: la classe verrà cancellata', 'You\'re the last one: the class will be deleted')) : null,
           onTap: () async {
-            if (!await _sure(context, 'Uscire da ${info.name}?', 'Potrai rientrare con il codice.')) return;
+            if (!await _sure(context, tr('Uscire da ${info.name}?', 'Leave ${info.name}?'), tr('Potrai rientrare con il codice.', 'You can come back with the code.'))) return;
             try {
               await Social.leaveClass(store, info.id);
               if (context.mounted) Navigator.of(context).pop();
@@ -1138,20 +1228,44 @@ class ModLockBanner extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                count == 1 ? 'Hai un avviso della moderazione da leggere' : 'Hai $count avvisi della moderazione da leggere',
+                count == 1 ? tr('Hai un avviso della moderazione da leggere', 'You have a moderation notice to read') : tr('Hai $count avvisi della moderazione da leggere', 'You have $count moderation notices to read'),
                 style: TextStyle(fontWeight: FontWeight.w800, color: scheme.onErrorContainer),
               ),
             ),
           ]),
           const SizedBox(height: 6),
           Text(
-            'Finché non lo leggi, chat, classi e amici restano in grigio. Orario, voti e il resto dell\'app funzionano.',
+            tr('Finché non lo leggi, chat, classi e amici restano in grigio. Orario, voti e il resto dell\'app funzionano.', 'Until you read it, chat, classes and friends stay grey. Timetable, grades and the rest of the app work.'),
             style: TextStyle(color: scheme.onErrorContainer),
           ),
           const SizedBox(height: 12),
-          FilledButton.icon(onPressed: onOpen, icon: const Icon(Icons.mark_email_unread_rounded), label: const Text('Leggi l\'avviso')),
+          FilledButton.icon(onPressed: onOpen, icon: const Icon(Icons.mark_email_unread_rounded), label: Text(tr('Leggi l\'avviso', 'Read the notice'))),
         ]),
       ),
+    );
+  }
+}
+
+/// Freccia della riga, con il numero dei messaggi nuovi arrivati in diretta (se ce ne sono).
+class UnreadDot extends StatelessWidget {
+  const UnreadDot({super.key, required this.chat, this.name});
+  final String chat;
+
+  /// Nome da usare nelle notifiche di questa chat (es. il nome della classe).
+  final String? name;
+
+  @override
+  Widget build(BuildContext context) {
+    if (name != null) Live.instance.names[chat] = name!;
+    return ListenableBuilder(
+      listenable: Live.instance,
+      builder: (context, _) {
+        final n = Live.instance.unreadOf(chat);
+        return Row(mainAxisSize: MainAxisSize.min, children: [
+          if (n > 0) Badge(label: Text(n > 99 ? '99+' : '$n')),
+          const Icon(Icons.chevron_right_rounded),
+        ]);
+      },
     );
   }
 }

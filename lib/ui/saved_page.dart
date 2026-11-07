@@ -5,6 +5,7 @@ import 'app_menu.dart';
 import 'search_page.dart';
 import 'theme.dart';
 import 'widgets.dart';
+import '../i18n.dart';
 
 class SavedPage extends StatelessWidget {
   const SavedPage({super.key, required this.onSearch});
@@ -19,10 +20,10 @@ class SavedPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Salvati'),
+        title: Text(tr('Salvati', 'Saved')),
         actions: [
           AppMenuButton(items: [
-            AppMenuItem(Icons.search_rounded, 'Cerca un orario', onSearch),
+            AppMenuItem(Icons.search_rounded, tr('Cerca un orario', 'Search for a timetable'), onSearch),
           ]),
           const SizedBox(width: 4),
         ],
@@ -30,13 +31,13 @@ class SavedPage extends StatelessWidget {
       body: favs.isEmpty && recents.isEmpty
           ? EmptyState(
               icon: Icons.bookmark_border_rounded,
-              title: 'Nessun orario salvato',
+              title: tr('Nessun orario salvato', 'No saved timetables'),
               message:
-                  'Apri un orario e tocca il segnalibro: lo avrai sempre a portata di mano, anche senza connessione.',
+                  tr('Apri un orario e tocca il segnalibro: lo avrai sempre a portata di mano, anche senza connessione.', 'Open a timetable and tap the bookmark: you\'ll always have it at hand, even offline.'),
               action: FilledButton.icon(
                 onPressed: onSearch,
                 icon: const Icon(Icons.search_rounded),
-                label: const Text('Cerca un orario'),
+                label: Text(tr('Cerca un orario', 'Search for a timetable')),
               ),
             )
           : Center(
@@ -46,11 +47,11 @@ class SavedPage extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                   children: [
                     if (favs.isNotEmpty) ...[
-                      const SectionLabel('Disponibili offline'),
+                      SectionLabel(tr('Disponibili offline', 'Available offline')),
                       for (final s in favs) _SavedTile(s, mine: store.isMine(s.ref)),
                     ],
                     if (recents.isNotEmpty) ...[
-                      const SectionLabel('Visti di recente'),
+                      SectionLabel(tr('Visti di recente', 'Recently viewed')),
                       for (final s in recents) _SavedTile(s, mine: false),
                     ],
                   ],
@@ -106,7 +107,7 @@ class _SavedTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    'IL MIO',
+                    tr('IL MIO', 'MINE'),
                     style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
@@ -118,7 +119,7 @@ class _SavedTile extends StatelessWidget {
               ],
             ],
           ),
-          subtitle: Text('${s.ref.kindLabel} · aggiornato ${relativeTime(s.updatedAt)}'),
+          subtitle: Text(tr('${s.ref.kindLabel} · aggiornato ${relativeTime(s.updatedAt)}', '${s.ref.kindLabel} · updated ${relativeTime(s.updatedAt)}')),
           onTap: () => openSchedule(context, s.ref),
           trailing: PopupMenuButton<String>(
             onSelected: (v) {
@@ -134,13 +135,13 @@ class _SavedTile extends StatelessWidget {
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'mine',
-                child: Text(mine ? 'Non è il mio orario' : 'Imposta come mio orario'),
+                child: Text(mine ? tr('Non è il mio orario', 'It\'s not my timetable') : tr('Imposta come mio orario', 'Set as my timetable')),
               ),
               PopupMenuItem(
                 value: 'fav',
-                child: Text(s.favorite ? 'Togli dagli offline' : 'Salva offline'),
+                child: Text(s.favorite ? tr('Togli dagli offline', 'Remove from offline') : tr('Salva offline', 'Save offline')),
               ),
-              const PopupMenuItem(value: 'del', child: Text('Elimina dal dispositivo')),
+              PopupMenuItem(value: 'del', child: Text(tr('Elimina dal dispositivo', 'Delete from the device'))),
             ],
           ),
         ),

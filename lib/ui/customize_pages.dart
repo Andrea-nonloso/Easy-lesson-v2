@@ -2,9 +2,11 @@ import 'school_shortcuts.dart';
 import 'package:flutter/material.dart';
 
 import '../models.dart';
+import '../live.dart';
 import '../native.dart';
 import '../store.dart';
 import 'widgets.dart';
+import '../i18n.dart';
 
 // ---------------------------------------------------------------------------
 // Pagine "Personalizza": soprannomi ed emoji, campanelle, home, icona, notifiche.
@@ -117,13 +119,13 @@ Future<void> editNickname(BuildContext context, String original, {bool withEmoji
                 controller: name,
                 autofocus: true,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(labelText: 'Soprannome', hintText: original, helperText: 'Vuoto = nome originale'),
+                decoration: InputDecoration(labelText: tr('Soprannome', 'Nickname'), hintText: original, helperText: tr('Vuoto = nome originale', 'Empty = original name')),
               ),
               if (withEmoji) ...[
                 const SizedBox(height: 16),
                 TextField(
                   controller: emoji,
-                  decoration: const InputDecoration(labelText: 'Emoji', helperText: 'Compare davanti al nome'),
+                  decoration: InputDecoration(labelText: 'Emoji', helperText: tr('Compare davanti al nome', 'Shown before the name')),
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 12),
@@ -157,10 +159,10 @@ Future<void> editNickname(BuildContext context, String original, {bool withEmoji
               emoji.clear();
               Navigator.pop(c, true);
             },
-            child: const Text('Ripristina'),
+            child: Text(tr('Ripristina', 'Restore')),
           ),
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Salva')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Salva', 'Save'))),
         ],
       ),
     ),
@@ -178,19 +180,19 @@ class NicknamesPage extends StatelessWidget {
     final v = await showDialog<String>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Rinomina un nome'),
+        title: Text(tr('Rinomina un nome', 'Rename a name')),
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Nome esatto come nell\'orario',
-            hintText: 'Es. Matematica, Rossi, 3B',
+          decoration: InputDecoration(
+            labelText: tr('Nome esatto come nell\'orario', 'Exact name as in the timetable'),
+            hintText: tr('Es. Matematica, Rossi, 3B', 'E.g. Maths, Rossi, 3B'),
           ),
           onSubmitted: (v) => Navigator.pop(c, v),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annulla')),
-          FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: const Text('Avanti')),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annulla', 'Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: Text(tr('Avanti', 'Next'))),
         ],
       ),
     );
@@ -213,18 +215,18 @@ class NicknamesPage extends StatelessWidget {
           child: Text(e ?? (subject ? '📘' : '👤'), style: const TextStyle(fontSize: 18)),
         ),
         title: Text(changed ? decorateSubject(original) : original),
-        subtitle: changed ? Text('Originale: $original') : null,
+        subtitle: changed ? Text(tr('Originale: $original', 'Original: $original')) : null,
         trailing: const Icon(Icons.edit_outlined, size: 20),
         onTap: () => editNickname(context, original),
       );
     }
 
     return _Page(
-      title: 'Soprannomi ed emoji',
+      title: tr('Soprannomi ed emoji', 'Nicknames and emoji'),
       actions: [
         if (nicknames.isNotEmpty || subjectEmojis.isNotEmpty)
           IconButton(
-            tooltip: 'Togli tutti i soprannomi',
+            tooltip: tr('Togli tutti i soprannomi', 'Remove all nicknames'),
             icon: const Icon(Icons.restart_alt_rounded),
             onPressed: () => store.resetNicknames(),
           ),
@@ -232,25 +234,25 @@ class NicknamesPage extends StatelessWidget {
       fab: FloatingActionButton.extended(
         onPressed: () => _addManual(context),
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Altro nome'),
+        label: Text(tr('Altro nome', 'Another name')),
       ),
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 8),
           child: Text(
-            'Dai un soprannome e un\'emoji a materie, prof e classi: li vedrai nell\'orario, '
-            'nella home, nel widget e nelle notifiche. Solo su questo dispositivo.',
+            tr('Dai un soprannome e un\'emoji a materie, prof e classi: li vedrai nell\'orario, '
+            'nella home, nel widget e nelle notifiche. Solo su questo dispositivo.', 'Give a nickname and an emoji to subjects, teachers and classes: you\'ll see them in the timetable, on the home screen, in the widget and in notifications. Only on this device.'),
             style: TextStyle(color: scheme.onSurfaceVariant),
           ),
         ),
         if (c.subjects.isEmpty && c.people.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(top: 32),
-            child: Text('Salva prima il tuo orario: qui compariranno le materie e i prof.'),
+          Padding(
+            padding: const EdgeInsets.only(top: 32),
+            child: Text(tr('Salva prima il tuo orario: qui compariranno le materie e i prof.', 'Save your timetable first: subjects and teachers will show up here.')),
           ),
-        if (c.subjects.isNotEmpty) const SectionLabel('Materie'),
+        if (c.subjects.isNotEmpty) SectionLabel(tr('Materie', 'Subjects')),
         for (final s in c.subjects) row(s, subject: true),
-        if (c.people.isNotEmpty) const SectionLabel('Prof e classi'),
+        if (c.people.isNotEmpty) SectionLabel(tr('Prof e classi', 'Teachers and classes')),
         for (final p in c.people) row(p, subject: false),
       ],
     );
@@ -287,8 +289,8 @@ class _BellsPageState extends State<BellsPage> {
 
   String? get _error {
     for (var i = 0; i < _bells.length; i++) {
-      if (_bells[i].$2 <= _bells[i].$1) return 'La ${i + 1}ª ora finisce prima di iniziare';
-      if (i > 0 && _bells[i].$1 < _bells[i - 1].$2) return 'La ${i + 1}ª ora inizia prima della fine della $iª';
+      if (_bells[i].$2 <= _bells[i].$1) return tr('La ${i + 1}ª ora finisce prima di iniziare', 'Period ${i + 1} ends before it starts');
+      if (i > 0 && _bells[i].$1 < _bells[i - 1].$2) return tr('La ${i + 1}ª ora inizia prima della fine della $iª', 'Period ${i + 1} starts before period $i ends');
     }
     return null;
   }
@@ -300,7 +302,7 @@ class _BellsPageState extends State<BellsPage> {
 
   Future<void> _edit(int i, bool start) async {
     final b = _bells[i];
-    final v = await _pickTime(context, start ? b.$1 : b.$2, help: '${i + 1}ª ora · ${start ? 'inizio' : 'fine'}');
+    final v = await _pickTime(context, start ? b.$1 : b.$2, help: '${tr('${i + 1}ª ora', 'Period ${i + 1}')} · ${start ? tr('inizio', 'start') : tr('fine', 'end')}');
     if (v == null) return;
     _set(() => _bells[i] = start ? (v, b.$2) : (b.$1, v));
   }
@@ -316,7 +318,7 @@ class _BellsPageState extends State<BellsPage> {
     if (!mounted) return;
     setState(() => _dirty = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(same ? 'Si usano gli orari della scuola' : 'Orari salvati: valgono in tutta l\'app')),
+      SnackBar(content: Text(same ? tr('Si usano gli orari della scuola', 'The school times are used') : 'Orari salvati: valgono in tutta l\'app')),
     );
   }
 
@@ -327,7 +329,7 @@ class _BellsPageState extends State<BellsPage> {
     final error = _error;
     final pauses = breaksOf(TimeSlot.parseAll(bellLabels(_bells)));
     return _Page(
-      title: 'Orari delle campanelle',
+      title: tr('Orari delle campanelle', 'Bell times'),
       actions: [
         PopupMenuButton<String>(
           onSelected: (v) {
@@ -342,11 +344,11 @@ class _BellsPageState extends State<BellsPage> {
                 _shift(-5);
             }
           },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'school', child: Text('Orari della scuola')),
-            PopupMenuItem(value: 'default', child: Text('Orari predefiniti dell\'app')),
-            PopupMenuItem(value: 'plus5', child: Text('Sposta tutto di +5 min')),
-            PopupMenuItem(value: 'minus5', child: Text('Sposta tutto di −5 min')),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: 'school', child: Text(tr('Orari della scuola', 'School times'))),
+            PopupMenuItem(value: 'default', child: Text(tr('Orari predefiniti dell\'app', 'App default times'))),
+            PopupMenuItem(value: 'plus5', child: Text(tr('Sposta tutto di +5 min', 'Move everything +5 min'))),
+            PopupMenuItem(value: 'minus5', child: Text(tr('Sposta tutto di −5 min', 'Move everything −5 min'))),
           ],
         ),
       ],
@@ -354,7 +356,7 @@ class _BellsPageState extends State<BellsPage> {
           ? FloatingActionButton.extended(
               onPressed: error == null ? _save : null,
               icon: const Icon(Icons.save_rounded),
-              label: const Text('Salva'),
+              label: Text(tr('Salva', 'Save')),
             )
           : null,
       children: [
@@ -362,9 +364,9 @@ class _BellsPageState extends State<BellsPage> {
           padding: const EdgeInsets.only(top: 8, bottom: 8),
           child: Text(
             store.customBells == null
-                ? 'Ora si usano gli orari della scuola. Se cambiano (es. la ricreazione passa alle 10:10) '
-                    'correggili qui: valgono per orario, home, widget e notifiche.'
-                : 'Stai usando orari scelti da te. Dal menù ⋮ puoi tornare a quelli della scuola.',
+                ? tr('Ora si usano gli orari della scuola. Se cambiano (es. la ricreazione passa alle 10:10) '
+                    'correggili qui: valgono per orario, home, widget e notifiche.', 'The school times are used now. If they change (e.g. the break moves to 10:10) fix them here: they apply to the timetable, home, widget and notifications.')
+                : tr('Stai usando orari scelti da te. Dal menù ⋮ puoi tornare a quelli della scuola.', 'You\'re using times you chose. From the ⋮ menu you can go back to the school\'s.'),
             style: TextStyle(color: scheme.onSurfaceVariant),
           ),
         ),
@@ -383,10 +385,10 @@ class _BellsPageState extends State<BellsPage> {
                   const Text('–'),
                   TextButton(onPressed: () => _edit(i, false), child: Text(_hhmm(_bells[i].$2))),
                   const Spacer(),
-                  Text('${_bells[i].$2 - _bells[i].$1} min', style: TextStyle(color: scheme.onSurfaceVariant)),
+                  Text(tr('${_bells[i].$2 - _bells[i].$1} min', '${_bells[i].$2 - _bells[i].$1} min'), style: TextStyle(color: scheme.onSurfaceVariant)),
                   if (i == _bells.length - 1 && _bells.length > 1)
                     IconButton(
-                      tooltip: 'Togli l\'ultima ora',
+                      tooltip: tr('Togli l\'ultima ora', 'Remove the last period'),
                       onPressed: () => _set(() => _bells.removeLast()),
                       icon: const Icon(Icons.remove_circle_outline_rounded),
                     ),
@@ -398,7 +400,7 @@ class _BellsPageState extends State<BellsPage> {
             if (p.afterIndex == i)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 12),
-                child: Text('☕ ${p.label} (${p.end - p.start} min)', style: TextStyle(color: scheme.tertiary)),
+                child: Text(tr('☕ ${p.label} (${p.end - p.start} min)', '☕ ${p.label} (${p.end - p.start} min)'), style: TextStyle(color: scheme.tertiary)),
               ),
         ],
         const SizedBox(height: 8),
@@ -410,7 +412,7 @@ class _BellsPageState extends State<BellsPage> {
               _bells.add((last.$2, last.$2 + len));
             }),
             icon: const Icon(Icons.add_rounded),
-            label: const Text('Aggiungi un\'ora'),
+            label: Text(tr('Aggiungi un\'ora', 'Add a period')),
           ),
         if (error != null)
           Padding(
@@ -419,7 +421,7 @@ class _BellsPageState extends State<BellsPage> {
           ),
         const SizedBox(height: 12),
         Text(
-          'Per la ricreazione lascia un buco tra la fine di un\'ora e l\'inizio della successiva.',
+          tr('Per la ricreazione lascia un buco tra la fine di un\'ora e l\'inizio della successiva.', 'For the break, leave a gap between the end of a period and the start of the next.'),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
         ),
       ],
@@ -446,41 +448,40 @@ class HomeOptionsPage extends StatelessWidget {
           onChanged: (v) => store.setOpt(key, v == def ? null : v),
         );
     return _Page(
-      title: 'Home e app',
+      title: tr('Home e app', 'Home and app'),
       children: [
         const SectionLabel('All\'apertura'),
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: SegmentedButton<int>(
-            segments: const [
-              ButtonSegment(value: 0, icon: Icon(Icons.home_rounded), label: Text('Home')),
-              ButtonSegment(value: 1, icon: Icon(Icons.today_rounded), label: Text('Il mio orario')),
-              ButtonSegment(value: 2, icon: Icon(Icons.search_rounded), label: Text('Cerca')),
+            segments: [
+              ButtonSegment(value: 0, icon: const Icon(Icons.home_rounded), label: Text(tr('Home', 'Home'))),
+              ButtonSegment(value: 1, icon: const Icon(Icons.today_rounded), label: Text(tr('Il mio orario', 'My timetable'))),
+              ButtonSegment(value: 2, icon: const Icon(Icons.search_rounded), label: Text(tr('Cerca', 'Search'))),
             ],
             selected: {store.opt('start.tab', 0)},
             onSelectionChanged: (s) => store.setOpt('start.tab', s.first == 0 ? null : s.first),
           ),
         ),
-        const SectionLabel('Cosa mostrare nella home'),
+        SectionLabel(tr('Cosa mostrare nella home', 'What to show on the home screen')),
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.apps_rounded),
-          title: const Text('Pulsanti della scuola'),
-          subtitle: Text('${chosenSchoolTools(store).map((t) => t.label).join(', ')} · Altro'),
+          title: Text(tr('Pulsanti della scuola', 'School buttons')),
+          subtitle: Text('${chosenSchoolTools(store).map((t) => t.label).join(', ')} · ${tr('Altro', 'More')}'),
           trailing: const Icon(Icons.chevron_right_rounded),
           onTap: () => editSchoolShortcuts(context),
         ),
-        sw('home.countdown', Icons.timer_outlined, 'Conto alla rovescia', 'Fine dell\'ora, fine della scuola, vacanze'),
-        sw('home.agenda', Icons.event_note_outlined, 'Compiti e verifiche in arrivo', null),
-        sw('home.bag', Icons.backpack_outlined, 'Zaino per domani', null),
-        sw('home.next', Icons.view_agenda_outlined, 'Lezioni del giorno', null),
-        sw('home.recents', Icons.history_rounded, 'Orari salvati e recenti', null),
-        sw('home.shortcuts', Icons.bolt_rounded, 'Scorciatoie rapide', 'Dov\'è il prof, Agenda, Zaino…'),
-        const SectionLabel('Lingua'),
+        // 3.8 "minimal": di base solo la card della lezione (con ricreazione e campanella) e le lezioni del giorno.
+        sw('home.next', Icons.view_agenda_outlined, tr('Lezioni del giorno', 'Today\'s lessons'), null),
+        sw('home.countdown', Icons.timer_outlined, tr('Conti alla rovescia delle feste', 'Holiday countdowns'), tr('Weekend, vacanze e i tuoi', 'Weekends, holidays and yours'), def: false),
+        sw('home.agenda', Icons.event_note_outlined, tr('Compiti e verifiche in arrivo', 'Upcoming homework and tests'), null, def: false),
+        sw('home.bag', Icons.backpack_outlined, tr('Zaino per domani', 'Backpack for tomorrow'), null, def: false),
+        SectionLabel(tr('Lingua', 'Language')),
         SegmentedButton<String>(
           segments: const [
             ButtonSegment(value: 'it', label: Text('🇮🇹 Italiano')),
-            ButtonSegment(value: 'en', label: Text('🇬🇧 English (beta)')),
+            ButtonSegment(value: 'en', label: Text('🇬🇧 English')),
           ],
           selected: {store.opt('lang', 'it')},
           onSelectionChanged: (s) => store.setLanguage(s.first),
@@ -489,15 +490,15 @@ class HomeOptionsPage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Text(
-              'Menus, days, dates and main screens are in English; some pages are still in Italian.',
+              'The whole app is in English. Subjects, teachers and classes stay as in the school timetable.',
               style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
             ),
           ),
-        const SectionLabel('Accessibilità'),
+        SectionLabel(tr('Accessibilità', 'Accessibility')),
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading: Icon(Icons.format_size_rounded, color: scheme.primary),
-          title: const Text('Dimensione del testo'),
+          title: Text(tr('Dimensione del testo', 'Text size')),
           subtitle: Slider(
             value: store.opt('a11y.text', 100).toDouble(),
             min: 85,
@@ -508,29 +509,29 @@ class HomeOptionsPage extends StatelessWidget {
           ),
           trailing: Text('${store.opt('a11y.text', 100)}%'),
         ),
-        sw('a11y.contrast', Icons.contrast_rounded, 'Alto contrasto', 'Testi grigi più scuri e bordi più marcati', def: false),
-        sw('a11y.motion', Icons.animation_rounded, 'Riduci le animazioni', 'Meno movimento negli sfondi e nei passaggi',
+        sw('a11y.contrast', Icons.contrast_rounded, tr('Alto contrasto', 'High contrast'), tr('Testi grigi più scuri e bordi più marcati', 'Darker grey text and stronger borders'), def: false),
+        sw('a11y.motion', Icons.animation_rounded, tr('Riduci le animazioni', 'Reduce animations'), tr('Meno movimento negli sfondi e nei passaggi', 'Less motion in backgrounds and transitions'),
             def: false),
-        sw('a11y.font', Icons.font_download_outlined, 'Font ad alta leggibilità',
-            'Lexend, con più spazio tra lettere e righe: aiuta con la dislessia (la prima volta serve internet)',
+        sw('a11y.font', Icons.font_download_outlined, tr('Font ad alta leggibilità', 'High-readability font'),
+            tr('Lexend, con più spazio tra lettere e righe: aiuta con la dislessia (la prima volta serve internet)', 'Lexend, with more space between letters and lines: helps with dyslexia (needs internet the first time)'),
             def: false),
-        const SectionLabel('Orario'),
-        sw('ui.emoji', Icons.emoji_emotions_outlined, 'Emoji dei laboratori', '🧪 Chimica, 💻 Informatica…'),
-        sw('ui.haptic', Icons.vibration_rounded, 'Vibrazione', 'Un piccolo tocco quando cambi pagina', def: false),
+        SectionLabel(tr('Orario', 'Timetable')),
+        sw('ui.emoji', Icons.emoji_emotions_outlined, tr('Emoji dei laboratori', 'Lab emoji'), tr('🧪 Chimica, 💻 Informatica…', '🧪 Chemistry, 💻 Computer science…')),
+        sw('ui.haptic', Icons.vibration_rounded, tr('Vibrazione', 'Vibration'), tr('Un piccolo tocco quando cambi pagina', 'A small tap when you change page'), def: false),
       ],
     );
   }
 }
 
 /// Icone dell'app (Android): nome, colore mostrato nella scelta.
-const appIconChoices = [
-  ('default', 'Verde', Color(0xFF16A34A)),
-  ('blue', 'Blu', Color(0xFF2563EB)),
-  ('purple', 'Viola', Color(0xFF7C3AED)),
-  ('red', 'Rosso', Color(0xFFDC2626)),
-  ('orange', 'Arancione', Color(0xFFEA580C)),
-  ('pink', 'Rosa', Color(0xFFDB2777)),
-  ('black', 'Nero', Color(0xFF111827)),
+List<(String, String, Color)> get appIconChoices => [
+  ('default', tr('Verde', 'Green'), const Color(0xFF16A34A)),
+  ('blue', tr('Blu', 'Blue'), const Color(0xFF2563EB)),
+  ('purple', tr('Viola', 'Purple'), const Color(0xFF7C3AED)),
+  ('red', tr('Rosso', 'Red'), const Color(0xFFDC2626)),
+  ('orange', tr('Arancione', 'Orange'), const Color(0xFFEA580C)),
+  ('pink', tr('Rosa', 'Pink'), const Color(0xFFDB2777)),
+  ('black', tr('Nero', 'Black'), const Color(0xFF111827)),
 ];
 
 Future<void> pickAppIcon(BuildContext context) async {
@@ -547,9 +548,9 @@ Future<void> pickAppIcon(BuildContext context) async {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Icona dell\'app', style: Theme.of(c).textTheme.titleLarge),
+            Text(tr('Icona dell\'app', 'App icon'), style: Theme.of(c).textTheme.titleLarge),
             const SizedBox(height: 4),
-            const Text('Il telefono può metterci qualche secondo a cambiarla.'),
+            Text(tr('Il telefono può metterci qualche secondo a cambiarla.', 'The phone may take a few seconds to change it.')),
             const SizedBox(height: 16),
             Wrap(
               spacing: 14,
@@ -591,7 +592,7 @@ Future<void> pickAppIcon(BuildContext context) async {
   );
   if (id == null || id == current) return;
   await NativeBridge.setAppIcon(id);
-  messenger.showSnackBar(const SnackBar(content: Text('Icona cambiata! Guarda la schermata home')));
+  messenger.showSnackBar(SnackBar(content: Text(tr('Icona cambiata! Guarda la schermata home', 'Icon changed! Check the home screen'))));
 }
 
 // ---------------------------------------------------------------------------
@@ -623,24 +624,24 @@ class NotificationsPage extends StatelessWidget {
     final eveningAt = store.opt('n.eveningAt', 20 * 60);
     final lead = store.opt('n.morningLead', 30);
     return _Page(
-      title: 'Notifiche',
+      title: tr('Notifiche', 'Notifications'),
       children: [
         if (store.myRef == null)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              'Imposta prima "il mio orario": le notifiche si basano su quello.',
+              tr('Imposta prima "il mio orario": le notifiche si basano su quello.', 'Set "my timetable" first: notifications are based on it.'),
               style: TextStyle(color: scheme.error),
             ),
           ),
-        const SectionLabel('Lezioni'),
+        SectionLabel(tr('Lezioni', 'Lessons')),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           secondary: Icon(Icons.notifications_active_outlined, color: scheme.primary),
-          title: const Text('Prima di ogni lezione'),
+          title: Text(tr('Prima di ogni lezione', 'Before each lesson')),
           subtitle: Text(store.notifyMinutes == null
-              ? 'Materia, aula e verifiche del giorno'
-              : (store.notifyMinutes == 0 ? 'All\'inizio della lezione' : '${store.notifyMinutes} minuti prima')),
+              ? tr('Materia, aula e verifiche del giorno', 'Subject, room and tests of the day')
+              : (store.notifyMinutes == 0 ? tr('All\'inizio della lezione', 'At the start of the lesson') : tr('${store.notifyMinutes} minuti prima', '${store.notifyMinutes} minutes before'))),
           value: store.notifyMinutes != null,
           onChanged: (v) async {
             if (v) await NativeBridge.requestNotificationPermission();
@@ -651,85 +652,98 @@ class NotificationsPage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(value: 0, label: Text('All\'inizio')),
-                ButtonSegment(value: 5, label: Text('5 min')),
-                ButtonSegment(value: 10, label: Text('10 min')),
-                ButtonSegment(value: 15, label: Text('15 min')),
+              segments: [
+                ButtonSegment(value: 0, label: Text(tr('All\'inizio', 'At the start'))),
+                const ButtonSegment(value: 5, label: Text('5 min')),
+                const ButtonSegment(value: 10, label: Text('10 min')),
+                const ButtonSegment(value: 15, label: Text('15 min')),
               ],
               selected: {store.notifyMinutes!},
               onSelectionChanged: (sel) => store.setNotifyMinutes(sel.first),
             ),
           ),
-        sw('n.last', Icons.hourglass_bottom_rounded, 'Ultima ora', '"Ultima ora! 💪" quando inizia'),
-        sw('n.break', Icons.coffee_rounded, 'Ricreazione', 'Quando suona, con la lezione dopo'),
-        sw('n.end', Icons.celebration_outlined, 'Fine della scuola', '"Scuola finita! 🎉" e a che ora entri domani'),
-        const SectionLabel('La tua giornata'),
-        sw('n.evening', Icons.nights_stay_outlined, 'Riepilogo della sera',
-            'Il giorno dopo: ore, verifiche, compiti e cosa mettere nello zaino'),
+        // 3.8: messaggi in diretta (classe, grandi, moderazione). Accese di base.
+        SwitchListTile(
+          secondary: const Icon(Icons.chat_bubble_outline_rounded),
+          title: Text(tr('Messaggi', 'Messages')),
+          subtitle: Text(tr('Nuovi messaggi nelle chat, anche con l\'app chiusa', 'New chat messages, even with the app closed')),
+          value: store.opt('n.chat', true),
+          onChanged: (v) async {
+            if (v) await NativeBridge.requestNotificationPermission();
+            await store.setOpt('n.chat', v ? null : false);
+            // Con l'app chiusa avvisa il server (Firebase): si registra o si toglie il telefono.
+            Live.instance.syncPush();
+          },
+        ),
+        sw('n.last', Icons.hourglass_bottom_rounded, tr('Ultima ora', 'Last period'), tr('"Ultima ora! 💪" quando inizia', '"Last period! 💪" when it starts')),
+        sw('n.break', Icons.coffee_rounded, tr('Ricreazione', 'Break'), tr('Quando suona, con la lezione dopo', 'When the bell rings, with the next lesson')),
+        sw('n.end', Icons.celebration_outlined, tr('Fine della scuola', 'End of school'), tr('"Scuola finita! 🎉" e a che ora entri domani', '"School\'s over! 🎉" and what time you start tomorrow')),
+        SectionLabel(tr('La tua giornata', 'Your day')),
+        sw('n.evening', Icons.nights_stay_outlined, tr('Riepilogo della sera', 'Evening summary'),
+            tr('Il giorno dopo: ore, verifiche, compiti e cosa mettere nello zaino', 'The next day: periods, tests, homework and what to put in the backpack')),
         if (store.opt('n.evening', false) || store.opt('n.holiday', false))
           ListTile(
             contentPadding: const EdgeInsets.only(left: 56),
-            title: const Text('Ora del riepilogo'),
+            title: Text(tr('Ora del riepilogo', 'Summary time')),
             trailing: TextButton(
               onPressed: () async {
-                final v = await _pickTime(context, eveningAt, help: 'Riepilogo della sera');
+                final v = await _pickTime(context, eveningAt, help: tr('Riepilogo della sera', 'Evening summary'));
                 if (v != null) await store.setOpt('n.eveningAt', v == 20 * 60 ? null : v);
               },
               child: Text(_hhmm(eveningAt)),
             ),
           ),
-        sw('n.morning', Icons.wb_sunny_outlined, 'Buongiorno', 'Prima di entrare: prima ora, uscita e verifiche'),
+        sw('n.morning', Icons.wb_sunny_outlined, tr('Buongiorno', 'Good morning'), tr('Prima di entrare: prima ora, uscita e verifiche', 'Before going in: first period, exit and tests')),
         if (store.opt('n.morning', false))
           Padding(
             padding: const EdgeInsets.only(left: 56, bottom: 8),
             child: SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(value: 15, label: Text('15 min')),
-                ButtonSegment(value: 30, label: Text('30 min')),
-                ButtonSegment(value: 60, label: Text('1 ora')),
-                ButtonSegment(value: 90, label: Text('1 h 30')),
+              segments: [
+                const ButtonSegment(value: 15, label: Text('15 min')),
+                const ButtonSegment(value: 30, label: Text('30 min')),
+                ButtonSegment(value: 60, label: Text(tr('1 ora', '1 hour'))),
+                const ButtonSegment(value: 90, label: Text('1 h 30')),
               ],
               selected: {lead},
               onSelectionChanged: (s) => store.setOpt('n.morningLead', s.first == 30 ? null : s.first),
             ),
           ),
-        sw('n.holiday', Icons.beach_access_outlined, 'Giorni senza scuola',
-            'La sera prima di vacanze, feste e ponti'),
-        sw('n.homework', Icons.assignment_late_outlined, 'Compiti non fatti',
-            'Il pomeriggio prima, se in agenda ci sono compiti per domani non ancora spuntati'),
+        sw('n.holiday', Icons.beach_access_outlined, tr('Giorni senza scuola', 'Days without school'),
+            tr('La sera prima di vacanze, feste e ponti', 'The evening before holidays and long weekends')),
+        sw('n.homework', Icons.assignment_late_outlined, tr('Compiti non fatti', 'Homework not done'),
+            tr('Il pomeriggio prima, se in agenda ci sono compiti per domani non ancora spuntati', 'The afternoon before, if the planner has homework for tomorrow not yet ticked off')),
         if (store.opt('n.homework', false))
           ListTile(
             contentPadding: const EdgeInsets.only(left: 56),
-            title: const Text('Ora dell\'avviso'),
+            title: Text(tr('Ora dell\'avviso', 'Reminder time')),
             trailing: TextButton(
               onPressed: () async {
-                final v = await _pickTime(context, store.opt('n.homeworkAt', 18 * 60), help: 'Compiti non fatti');
+                final v = await _pickTime(context, store.opt('n.homeworkAt', 18 * 60), help: tr('Compiti non fatti', 'Homework not done'));
                 if (v != null) await store.setOpt('n.homeworkAt', v == 18 * 60 ? null : v);
               },
               child: Text(_hhmm(store.opt('n.homeworkAt', 18 * 60))),
             ),
           ),
-        sw('n.plan', Icons.menu_book_outlined, 'Piano di studio',
-            'Ogni pomeriggio cosa ripassare per le verifiche in arrivo'),
+        sw('n.plan', Icons.menu_book_outlined, tr('Piano di studio', 'Study plan'),
+            tr('Ogni pomeriggio cosa ripassare per le verifiche in arrivo', 'Every afternoon, what to review for upcoming tests')),
         if (store.opt('n.plan', false))
           ListTile(
             contentPadding: const EdgeInsets.only(left: 56),
-            title: const Text('Ora del ripasso'),
+            title: Text(tr('Ora del ripasso', 'Review time')),
             trailing: TextButton(
               onPressed: () async {
-                final v = await _pickTime(context, store.opt('n.planAt', 16 * 60), help: 'Piano di studio');
+                final v = await _pickTime(context, store.opt('n.planAt', 16 * 60), help: tr('Piano di studio', 'Study plan'));
                 if (v != null) await store.setOpt('n.planAt', v == 16 * 60 ? null : v);
               },
               child: Text(_hhmm(store.opt('n.planAt', 16 * 60))),
             ),
           ),
-        const SectionLabel('A scuola'),
+        SectionLabel(tr('A scuola', 'At school')),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           secondary: Icon(Icons.do_not_disturb_on_outlined, color: scheme.primary),
-          title: const Text('Silenzioso a scuola'),
-          subtitle: const Text('Non disturbare dalla prima all\'ultima ora (con entrate e uscite), poi torna normale'),
+          title: Text(tr('Silenzioso a scuola', 'Silent at school')),
+          subtitle: Text(tr('Non disturbare dalla prima all\'ultima ora (con entrate e uscite), poi torna normale', 'Do not disturb from the first to the last period (with late entries and early exits), then back to normal')),
           value: store.opt('silence', false),
           onChanged: (v) async {
             if (v && !await NativeBridge.silenceAllowed()) {
@@ -737,14 +751,14 @@ class NotificationsPage extends StatelessWidget {
               final go = await showDialog<bool>(
                 context: context,
                 builder: (c) => AlertDialog(
-                  title: const Text('Serve un permesso'),
-                  content: const Text(
-                    'Android chiede di dare a Easy Lesson l\'"Accesso a Non disturbare". '
-                    'Si apre la pagina giusta: attiva Easy Lesson e torna qui.',
+                  title: Text(tr('Serve un permesso', 'Permission needed')),
+                  content: Text(
+                    tr('Android chiede di dare a Easy Lesson l\'"Accesso a Non disturbare". '
+                    'Si apre la pagina giusta: attiva Easy Lesson e torna qui.', 'Android asks you to give Easy Lesson "Do Not Disturb access". The right page opens: turn on Easy Lesson and come back here.'),
                   ),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-                    FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Apri')),
+                    TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+                    FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Apri', 'Open'))),
                   ],
                 ),
               );
@@ -754,22 +768,22 @@ class NotificationsPage extends StatelessWidget {
           },
         ),
         const SectionLabel('App'),
-        sw('n.updates', Icons.system_update_outlined, 'Nuove versioni',
-            'Controlla GitHub ogni qualche ora, anche ad app chiusa',
+        sw('n.updates', Icons.system_update_outlined, tr('Nuove versioni', 'New versions'),
+            tr('Controlla GitHub ogni qualche ora, anche ad app chiusa', 'Check GitHub every few hours, even with the app closed'),
             def: true),
         const SizedBox(height: 8),
         OutlinedButton.icon(
           onPressed: () async {
             await NativeBridge.requestNotificationPermission();
-            await NativeBridge.testNotification('Funziona! 🔔', 'Così arriveranno le notifiche di Easy Lesson');
+            await NativeBridge.testNotification(tr('Funziona! 🔔', 'It works! 🔔'), tr('Così arriveranno le notifiche di Easy Lesson', 'So Easy Lesson notifications will arrive'));
           },
           icon: const Icon(Icons.notifications_rounded),
-          label: const Text('Mandami una notifica di prova'),
+          label: Text(tr('Mandami una notifica di prova', 'Send me a test notification')),
         ),
         const SizedBox(height: 12),
         Text(
-          'Ogni tipo di notifica si può spegnere anche dalle impostazioni di Android. '
-          'Le notifiche delle lezioni saltano vacanze e giorni aggiunti nel calendario scolastico.',
+          tr('Ogni tipo di notifica si può spegnere anche dalle impostazioni di Android. '
+          'Le notifiche delle lezioni saltano vacanze e giorni aggiunti nel calendario scolastico.', 'Each type of notification can also be turned off from the Android settings. Lesson notifications skip holidays and days added to the school calendar.'),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
         ),
       ],
