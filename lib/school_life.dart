@@ -43,7 +43,7 @@ class AbsenceEntry {
   String get label => switch (kind) {
         'entrata' => tr('Entrata alla $hourª ora', 'Late entry at period $hour'),
         'uscita' => tr('Uscita dopo la $hourª ora', 'Early exit after period $hour'),
-        _ => 'Assenza',
+        _ => tr('Assenza', 'Absence'),
       };
 
   /// Indici delle ore perse (0 = prima ora) in un giorno con [count] ore.

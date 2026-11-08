@@ -12,6 +12,8 @@ sticker. In più c'è l'app tutta in inglese e Linux è completo.
 - Nella **scheda Orario** il titolo è un selettore: il mio orario, gli orari salvati oppure "Cerca".
 - **Amici**: per ogni classe vedi l'ultimo messaggio e i non letti, poi la classifica della settimana e le richieste.
 - Il **Profilo** è più compatto: livello, missioni, poi un solo blocco con obiettivi, ricompense, negozio e account.
+- **Voti e Assenze come sul registro**: una card per ogni voto o assenza con il bollino colorato, menu a tendina per
+  periodo e materia (o tipo), e i contatori di assenze, entrate e uscite. I colori seguono il tema scelto.
 
 ## ⚡ Messaggi istantanei
 - Le chat (della classe, dei grandi e con la moderazione) arrivano **subito**, senza aspettare l'aggiornamento.

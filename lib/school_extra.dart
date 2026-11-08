@@ -98,7 +98,7 @@ int gradePeriod(DateTime d, {String mode = 'tri'}) {
 }
 
 String periodName(int p, {String mode = 'tri'}) =>
-    mode == 'quad' ? '$pº quadrimestre' : (p == 1 ? 'Trimestre' : 'Pentamestre');
+    mode == 'quad' ? tr('$pº quadrimestre', 'Semester $p') : (p == 1 ? tr('Trimestre', 'Trimester') : tr('Pentamestre', 'Pentamester'));
 
 /// Voto in pagella: arrotondato all'intero (dal ,5 in su si sale).
 int reportCardMark(double average) => (average + 0.0001).round().clamp(1, 10);

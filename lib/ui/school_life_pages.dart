@@ -16,11 +16,9 @@ import 'report_pdf.dart';
 import 'widgets.dart';
 import '../i18n.dart';
 
-void openAbsences(BuildContext context) =>
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AbsencesPage()));
+void openAbsences(BuildContext context) => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AbsencesPage()));
 
-void openGrades(BuildContext context) =>
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const GradesPage()));
+void openGrades(BuildContext context) => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const GradesPage()));
 
 void openStudyTimer(BuildContext context, {String? subject}) =>
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => StudyTimerPage(subject: subject)));
@@ -103,8 +101,10 @@ Future<void> addAbsenceDialog(BuildContext context, {String kind = 'assenza', Da
                 const SizedBox(height: 12),
                 Text(
                   k == 'assenza'
-                      ? tr('Quel giorno niente notifiche delle lezioni né silenzioso.', 'That day no lesson notifications and no silent mode.')
-                      : tr('Widget, notifiche e riepilogo della sera terranno conto dell\'orario.', 'Widget, notifications and evening summary will take the timetable into account.'),
+                      ? tr('Quel giorno niente notifiche delle lezioni né silenzioso.',
+                          'That day no lesson notifications and no silent mode.')
+                      : tr('Widget, notifiche e riepilogo della sera terranno conto dell\'orario.',
+                          'Widget, notifications and evening summary will take the timetable into account.'),
                   style: Theme.of(c).textTheme.bodySmall,
                 ),
               ],
@@ -132,30 +132,49 @@ class AbsencesPage extends StatelessWidget {
     final ref = store.myMainRef;
     final week = ref == null ? null : store.cached(ref)?.week;
     final now = DateTime.now();
+    final today = dateOnly(now);
     final stats = week == null ? null : absenceStats(store.absences, week, now);
-    final future = store.absences.where((a) => a.date.isAfter(dateOnly(now))).toList()
-      ..sort((a, b) => a.date.compareTo(b.date));
-    final past = store.absences.where((a) => !a.date.isAfter(dateOnly(now))).toList();
+    final mode = store.opt('periods', 'tri');
+    final view = store.opt('absences.view', 0);
+    final kindFilter = store.opt('absences.kind', '');
+    final inView = store.absences.where((a) => view == 0 || gradePeriod(a.date, mode: mode) == view).toList();
+    final shown = inView.where((a) => kindFilter.isEmpty || a.kind == kindFilter).toList()..sort((a, b) => b.date.compareTo(a.date));
+    int count(String k) => inView.where((a) => a.kind == k && !a.date.isAfter(today)).length;
 
     Color level(double r) => r >= 0.2 ? scheme.error : (r >= 0.15 ? Colors.orange : scheme.primary);
+    final accent = stats == null ? scheme.primary : level(stats.ratio);
+    void setKind(String k) => store.setOpt('absences.kind', k.isEmpty || k == kindFilter ? null : k);
 
-    Widget entry(AbsenceEntry a, {bool planned = false}) => Dismissible(
-          key: ValueKey(a.id),
-          direction: DismissDirection.endToStart,
-          background: Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20),
-            color: scheme.errorContainer,
-            child: Icon(Icons.delete_outline_rounded, color: scheme.onErrorContainer),
-          ),
-          onDismissed: (_) => store.removeAbsence(a),
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Text(a.emoji, style: const TextStyle(fontSize: 24)),
-            title: Text('${a.label}${planned ? tr(' · in programma', ' · planned') : ''}'),
-            subtitle: Text([_date(a.date), if (a.note.isNotEmpty) a.note].join(' · ')),
-          ),
-        );
+    Widget entry(AbsenceEntry a) {
+      final color = _absenceColor(scheme, a.kind);
+      final planned = a.date.isAfter(today);
+      return Dismissible(
+        key: ValueKey(a.id),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(color: scheme.errorContainer, borderRadius: BorderRadius.circular(18)),
+          child: Icon(Icons.delete_outline_rounded, color: scheme.onErrorContainer),
+        ),
+        onDismissed: (_) => store.removeAbsence(a),
+        child: _RecordCard(
+          badge: _Badge(_absenceLetter(a.kind), color),
+          date: '${_fullDate(a.date)}${planned ? tr(' · in programma', ' · planned') : ''}',
+          dateColor: color,
+          children: [
+            Text(_absenceTitle(a.kind), style: const TextStyle(fontWeight: FontWeight.w700)),
+            Text(switch (a.kind) {
+              'entrata' => tr('Entra alla ${a.hour}ª ora', 'Comes in at period ${a.hour}'),
+              'uscita' => tr('Esce dopo la ${a.hour}ª ora', 'Leaves after period ${a.hour}'),
+              _ => tr('Tutto il giorno', 'All day'),
+            }),
+            if (a.note.isNotEmpty) _labelled(context, tr('Nota', 'Note'), a.note),
+          ],
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -163,10 +182,17 @@ class AbsencesPage extends StatelessWidget {
         actions: [
           // Importa dal registro incollando il testo degli screenshot (beta, per tutti dalla 3.6).
           IconButton(
-              tooltip: tr('Incolla dal registro (beta)', 'Paste from the register (beta)'),
-              icon: const Icon(Icons.document_scanner_outlined),
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const RegisterImportPage())),
-            ),
+            tooltip: tr('Incolla dal registro (beta)', 'Paste from the register (beta)'),
+            icon: const Icon(Icons.document_scanner_outlined),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const RegisterImportPage())),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (k) => addAbsenceDialog(context, kind: k),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'entrata', child: Text(tr('⏰ Domani entro dopo', '⏰ Late entry tomorrow'))),
+              PopupMenuItem(value: 'uscita', child: Text(tr('🚪 Domani esco prima', '🚪 Early exit tomorrow'))),
+            ],
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -175,93 +201,317 @@ class AbsencesPage extends StatelessWidget {
         label: Text(tr('Segna', 'Mark')),
       ),
       body: _body([
-        if (stats == null)
-          Padding(
-            padding: const EdgeInsets.only(top: 16),
-            child: Text(tr('Imposta "il mio orario" per contare le ore perse per materia.', 'Set "my timetable" to count the hours missed per subject.')),
-          )
-        else
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(tr('${stats.lost} ore perse', '${stats.lost} hours missed'), style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  Text(
-                    tr('Limite: ${stats.limitHours} ore (25% di ${stats.yearHours} ore all\'anno) · '
-                    '${stats.days} giorni interi', 'Limit: ${stats.limitHours} hours (25% of ${stats.yearHours} hours a year) · ${stats.days} full days'),
-                    style: TextStyle(color: scheme.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 12),
+        // Riquadro della percentuale, come sul registro.
+        Card(
+          color: Color.alphaBlend(accent.withAlpha(46), scheme.surfaceContainerHigh),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(tr('Percentuale assenze totali', 'Total absence rate'),
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                    ),
+                    _Badge(stats == null ? '—' : '${(stats.ratio * 100).toStringAsFixed(1)}%', accent, size: 60),
+                  ],
+                ),
+                if (stats == null)
+                  Text(tr('Imposta "il mio orario" per contare le ore perse.', 'Set "my timetable" to count the hours missed.'),
+                      style: TextStyle(color: scheme.onSurfaceVariant))
+                else ...[
+                  const SizedBox(height: 10),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: LinearProgressIndicator(
                       value: (stats.ratio / absenceLimit).clamp(0.0, 1.0),
-                      minHeight: 10,
-                      color: level(stats.ratio),
+                      minHeight: 8,
+                      color: accent,
+                      backgroundColor: scheme.surface.withAlpha(120),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     stats.left > 0
-                        ? tr('${(stats.ratio * 100).toStringAsFixed(1)}% · puoi perdere ancora ${stats.left} ore', '${(stats.ratio * 100).toStringAsFixed(1)}% · you can still miss ${stats.left} hours')
-                        : tr('⚠️ Hai superato il limite: parlane con il coordinatore (ci sono deroghe per motivi di salute)', '⚠️ You\'ve gone over the limit: talk to the coordinator (there are exceptions for health reasons)'),
-                    style: TextStyle(color: level(stats.ratio), fontWeight: FontWeight.w600),
+                        ? tr('${stats.lost} ore perse su ${stats.limitHours} · puoi perderne ancora ${stats.left}',
+                            '${stats.lost} hours missed out of ${stats.limitHours} · you can still miss ${stats.left}')
+                        : tr('⚠️ Hai superato il limite: parlane con il coordinatore (ci sono deroghe per motivi di salute)',
+                            '⚠️ You\'ve gone over the limit: talk to the coordinator (there are exceptions for health reasons)'),
+                    style: TextStyle(color: stats.left > 0 ? scheme.onSurfaceVariant : accent, fontWeight: FontWeight.w600),
                   ),
                 ],
-              ),
+              ],
             ),
           ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
+        ),
+        _Picker<int>(
+          value: view,
+          accent: accent,
+          items: [
+            (0, tr('Tutto l\'anno', 'Whole year')),
+            (1, periodName(1, mode: mode)),
+            (2, periodName(2, mode: mode)),
+          ],
+          onChanged: (v) => store.setOpt('absences.view', v == 0 ? null : v),
+        ),
+        _Picker<String>(
+          value: kindFilter,
+          accent: accent,
+          items: [
+            ('', tr('Tutti i tipi', 'All kinds')),
+            for (final k in AbsenceEntry.kinds) (k, _absenceTitle(k)),
+          ],
+          onChanged: setKind,
+        ),
+        const SizedBox(height: 14),
+        Row(
           children: [
-            ActionChip(
-              avatar: const Text('⏰'),
-              label: Text(tr('Domani entro dopo', 'Late entry tomorrow')),
-              onPressed: () => addAbsenceDialog(context, kind: 'entrata'),
-            ),
-            ActionChip(
-              avatar: const Text('🚪'),
-              label: Text(tr('Domani esco prima', 'Early exit tomorrow')),
-              onPressed: () => addAbsenceDialog(context, kind: 'uscita'),
-            ),
+            for (final k in AbsenceEntry.kinds) ...[
+              if (k != AbsenceEntry.kinds.first) const SizedBox(width: 10),
+              Expanded(
+                child: _Counter(
+                  label: _absenceShort(k),
+                  value: count(k),
+                  color: _absenceColor(scheme, k),
+                  selected: kindFilter == k,
+                  onTap: () => setKind(k),
+                ),
+              ),
+            ],
           ],
         ),
-        if (future.isNotEmpty) ...[
-          SectionLabel(tr('In programma', 'Planned')),
-          for (final a in future) entry(a, planned: true),
-        ],
-        if (stats != null && stats.bySubject.isNotEmpty) ...[
-          SectionLabel(tr('Per materia', 'By subject')),
-          for (final e in (stats.bySubject.entries.toList()..sort((a, b) => b.value.compareTo(a.value))))
-            Builder(builder: (context) {
-              final year = AbsenceStats.subjectYearHours(week!, e.key);
-              final r = year == 0 ? 0.0 : e.value / year;
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(e.key),
-                subtitle: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(value: (r / absenceLimit).clamp(0.0, 1.0), color: level(r)),
-                ),
-                trailing: Text('${e.value}/$year h'),
-              );
-            }),
-        ],
-        SectionLabel(tr('Storico', 'History')),
-        if (past.isEmpty)
-          Text(tr('Nessuna assenza. Grande! 💪', 'No absences. Great! 💪'), style: TextStyle(color: scheme.onSurfaceVariant)),
-        for (final a in past) entry(a),
+        const SizedBox(height: 8),
+        if (shown.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Text(
+              store.absences.isEmpty
+                  ? tr('Nessuna assenza. Grande! 💪', 'No absences. Great! 💪')
+                  : tr('Niente in questo periodo.', 'Nothing in this period.'),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+          ),
+        for (final a in shown) entry(a),
+        if (stats != null && stats.bySubject.isNotEmpty)
+          Card(
+            margin: const EdgeInsets.only(top: 12),
+            clipBehavior: Clip.antiAlias,
+            child: ExpansionTile(
+              shape: const Border(),
+              title: Text(tr('Ore perse per materia', 'Hours missed by subject'), style: const TextStyle(fontWeight: FontWeight.w600)),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              children: [
+                for (final e in (stats.bySubject.entries.toList()..sort((a, b) => b.value.compareTo(a.value))))
+                  Builder(builder: (context) {
+                    final year = AbsenceStats.subjectYearHours(week!, e.key);
+                    final r = year == 0 ? 0.0 : e.value / year;
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(e.key),
+                      subtitle: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(value: (r / absenceLimit).clamp(0.0, 1.0), color: level(r)),
+                      ),
+                      trailing: Text('${e.value}/$year h'),
+                    );
+                  }),
+              ],
+            ),
+          ),
         const SizedBox(height: 12),
         Text(
-          tr('Il conto è una stima: $schoolWeeks settimane di lezione con il tuo orario attuale. '
-          'Il numero ufficiale è quello del registro elettronico.', 'The count is an estimate: $schoolWeeks weeks of lessons with your current timetable. The official number is the one in the electronic register.'),
+          tr(
+              'Il conto è una stima: $schoolWeeks settimane di lezione con il tuo orario attuale. '
+                  'Il numero ufficiale è quello del registro elettronico.',
+              'The count is an estimate: $schoolWeeks weeks of lessons with your current timetable. The official number is the one in the electronic register.'),
           style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
         ),
       ]),
+    );
+  }
+}
+
+Color _absenceColor(ColorScheme scheme, String kind) => switch (kind) {
+      'entrata' => scheme.tertiary,
+      'uscita' => scheme.primary,
+      _ => scheme.error,
+    };
+
+String _absenceLetter(String kind) => switch (kind) {
+      'entrata' => tr('E', 'L'),
+      'uscita' => tr('U', 'E'),
+      _ => 'A',
+    };
+
+String _absenceTitle(String kind) => switch (kind) {
+      'entrata' => tr('Entrata in ritardo', 'Late entry'),
+      'uscita' => tr('Uscita anticipata', 'Early exit'),
+      _ => tr('Assenza', 'Absence'),
+    };
+
+String _absenceShort(String kind) => switch (kind) {
+      'entrata' => tr('Entrate', 'Late'),
+      'uscita' => tr('Uscite', 'Early'),
+      _ => tr('Assenze', 'Absences'),
+    };
+
+// ---------------------------------------------------------------------------
+// Pezzi in comune tra Voti e Assenze (layout a card, come sul registro)
+
+String _fullDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+/// "Etichetta: testo", con l'etichetta nel colore del tema.
+Widget _labelled(BuildContext context, String label, String text) => Text.rich(
+      TextSpan(children: [
+        TextSpan(text: '$label: ', style: TextStyle(fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary)),
+        TextSpan(text: text),
+      ]),
+    );
+
+/// Menu a tendina a tutta larghezza; il bordo si colora quando è scelto qualcosa.
+class _Picker<T> extends StatelessWidget {
+  const _Picker({required this.value, required this.items, required this.onChanged, this.accent});
+  final T value;
+  final List<(T, String)> items;
+  final ValueChanged<T> onChanged;
+  final Color? accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = accent ?? scheme.primary;
+    final active = value != items.first.$1;
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: active ? color : Colors.transparent, width: 1.5),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<T>(
+            value: value,
+            isExpanded: true,
+            borderRadius: BorderRadius.circular(14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+            icon: Icon(Icons.keyboard_arrow_down_rounded, color: color),
+            items: [
+              for (final (v, label) in items) DropdownMenuItem(value: v, child: Text(label, overflow: TextOverflow.ellipsis)),
+            ],
+            onChanged: (v) {
+              if (v != null) onChanged(v);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bollino tondo pieno con il voto o la lettera.
+class _Badge extends StatelessWidget {
+  const _Badge(this.text, this.color, {this.size = 52});
+  final String text;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final onColor = ThemeData.estimateBrightnessForColor(color) == Brightness.dark ? Colors.white : Colors.black87;
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: FittedBox(
+          child: Text(text, style: TextStyle(color: onColor, fontWeight: FontWeight.w800, fontSize: 20)),
+        ),
+      ),
+    );
+  }
+}
+
+/// Card di un voto o di un'assenza: bollino a sinistra, data colorata e righe a destra.
+class _RecordCard extends StatelessWidget {
+  const _RecordCard({required this.badge, required this.date, required this.children, this.dateColor, this.onTap});
+  final Widget badge;
+  final String date;
+  final Color? dateColor;
+  final List<Widget> children;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 16, 14),
+          child: Row(
+            children: [
+              badge,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 2,
+                  children: [
+                    Text(date,
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700, color: dateColor ?? theme.colorScheme.primary)),
+                    ...children,
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Contatore con l'etichetta colorata e la riga sotto, come sul registro.
+class _Counter extends StatelessWidget {
+  const _Counter({required this.label, required this.value, required this.color, this.selected = false, this.onTap});
+  final String label;
+  final int value;
+  final Color color;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: selected ? Color.alphaBlend(color.withAlpha(40), scheme.surfaceContainerHigh) : scheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+              child: FittedBox(child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700))),
+            ),
+            Container(height: 2, color: color),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text('$value', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -380,7 +630,8 @@ Future<void> addGradeDialog(BuildContext context, {String subject = ''}) async {
   if (ok == true && v != null) {
     await store.addGrade(date: day, subject: subj.text, value: v, weight: weight, kind: kind, note: note.text);
     if (v >= 9.99 && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('🔟 DIECI?! Qualcuno offre la pizza 🍕', '🔟 A TEN?! Someone\'s buying pizza 🍕'))));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(tr('🔟 DIECI?! Qualcuno offre la pizza 🍕', '🔟 A TEN?! Someone\'s buying pizza 🍕'))));
     }
   }
 }
@@ -396,6 +647,11 @@ class GradesPage extends StatelessWidget {
     // Periodo: 0 = tutto l'anno, 1 = trimestre/1º quadrimestre, 2 = pentamestre/2º.
     final mode = store.opt('periods', 'tri');
     final view = store.opt('grades.view', 0);
+    // 3.8: elenco a card come sul registro (predefinito) oppure medie per materia.
+    final bySubjectLayout = store.opt('grades.layout', 'list') == 'subjects';
+    final allSubjects = {for (final g in store.grades) g.subject}.toList()..sort();
+    final picked = store.opt('grades.subject', '');
+    final subjectFilter = allSubjects.contains(picked) ? picked : '';
     final shown = store.grades.where((g) => view == 0 || gradePeriod(g.date, mode: mode) == view).toList();
     final bySubject = <String, List<Grade>>{};
     for (final g in shown) {
@@ -404,10 +660,19 @@ class GradesPage extends StatelessWidget {
     final subjects = bySubject.keys.toList()..sort();
     final avgs = [for (final s in subjects) average(bySubject[s]!)!];
     final overall = avgs.isEmpty ? null : avgs.reduce((a, b) => a + b) / avgs.length;
+    final listed = shown.where((g) => subjectFilter.isEmpty || g.subject == subjectFilter).toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+    final subjectAvg = subjectFilter.isEmpty ? null : average(listed);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(tr('Voti', 'Grades')),
         actions: [
+          IconButton(
+            tooltip: bySubjectLayout ? tr('Elenco dei voti', 'Grade list') : tr('Medie per materia', 'Averages by subject'),
+            onPressed: () => store.setOpt('grades.layout', bySubjectLayout ? null : 'subjects'),
+            icon: Icon(bySubjectLayout ? Icons.view_agenda_outlined : Icons.leaderboard_outlined),
+          ),
           IconButton(tooltip: tr('Grafici', 'Charts'), onPressed: () => openCharts(context), icon: const Icon(Icons.show_chart_rounded)),
           PopupMenuButton<String>(
             onSelected: (v) {
@@ -424,86 +689,125 @@ class GradesPage extends StatelessWidget {
             itemBuilder: (_) => [
               PopupMenuItem(value: 'pdf', child: Text(tr('📄 Resoconto PDF per i genitori', '📄 PDF report for parents'))),
               PopupMenuItem(value: 'credits', child: Text(tr('🎓 Crediti scolastici', '🎓 School credits'))),
-              CheckedPopupMenuItem(value: 'tri', checked: mode == 'tri', child: Text(tr('Trimestre e pentamestre', 'Trimester and pentamester'))),
+              CheckedPopupMenuItem(
+                  value: 'tri', checked: mode == 'tri', child: Text(tr('Trimestre e pentamestre', 'Trimester and pentamester'))),
               CheckedPopupMenuItem(value: 'quad', checked: mode == 'quad', child: Text(tr('Due quadrimestri', 'Two semesters'))),
             ],
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => addGradeDialog(context),
+        onPressed: () => addGradeDialog(context, subject: subjectFilter),
         icon: const Icon(Icons.add_rounded),
         label: Text(tr('Voto', 'Grade')),
       ),
       body: _body([
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
             child: Row(
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(tr('Media generale', 'Overall average'), style: TextStyle(color: scheme.onSurfaceVariant)),
-                      Text(
-                        overall == null ? '—' : overall.toStringAsFixed(2),
-                        style: theme.textTheme.displaySmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: overall == null ? null : gradeColor(context, overall),
-                        ),
-                      ),
+                      Text(tr('Media generale', 'Overall average'),
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                       Text(tr('${shown.length} voti · ${subjects.length} materie', '${shown.length} grades · ${subjects.length} subjects'),
                           style: TextStyle(color: scheme.onSurfaceVariant)),
                     ],
                   ),
                 ),
-                const Text('📊', style: TextStyle(fontSize: 48)),
+                _Badge(overall == null ? '—' : overall.toStringAsFixed(2), overall == null ? scheme.outline : gradeColor(context, overall),
+                    size: 60),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 8),
-        SegmentedButton<int>(
-          segments: [
-            ButtonSegment(value: 0, label: Text(tr('Tutto l\'anno', 'Whole year'))),
-            ButtonSegment(value: 1, label: Text(periodName(1, mode: mode))),
-            ButtonSegment(value: 2, label: Text(periodName(2, mode: mode))),
+        _Picker<int>(
+          value: view,
+          items: [
+            (0, tr('Tutto l\'anno', 'Whole year')),
+            (1, periodName(1, mode: mode)),
+            (2, periodName(2, mode: mode)),
           ],
-          selected: {view},
-          onSelectionChanged: (s) => store.setOpt('grades.view', s.first == 0 ? null : s.first),
+          onChanged: (v) => store.setOpt('grades.view', v == 0 ? null : v),
         ),
-        if (subjects.isEmpty)
+        if (!bySubjectLayout && allSubjects.isNotEmpty)
+          _Picker<String>(
+            value: subjectFilter,
+            items: [('', tr('Tutte le materie', 'All subjects')), for (final s in allSubjects) (s, s)],
+            onChanged: (v) => store.setOpt('grades.subject', v.isEmpty ? null : v),
+          ),
+        const SizedBox(height: 8),
+        if (shown.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 24),
-            child: Text(tr('Aggiungi il primo voto con il tasto qui sotto. Si salvano solo su questo dispositivo.', 'Add the first grade with the button below. They\'re only saved on this device.')),
-          ),
-        if (subjects.isNotEmpty) SectionLabel(tr('Per materia', 'By subject')),
-        for (var i = 0; i < subjects.length; i++)
-          Card(
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            child: ListTile(
-              title: Text(subjects[i], style: const TextStyle(fontWeight: FontWeight.w600)),
-              // Sotto il 6: subito quanto serve alla prossima (3.8).
-              isThreeLine: avgs[i] < 6,
-              subtitle: Text([
-                bySubject[subjects[i]]!.take(8).map((g) => Grade.format(g.value)).join('  '),
-                if (avgs[i] < 6) planText(planToReach(bySubject[subjects[i]]!, 6), 6),
-              ].join('\n')),
-              trailing: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    avgs[i].toStringAsFixed(2),
-                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800, color: gradeColor(context, avgs[i])),
-                  ),
-                  Text(tr('pagella: ${reportCardMark(avgs[i])}', 'report card: ${reportCardMark(avgs[i])}'), style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
-                ],
-              ),
-              onTap: () => _subjectSheet(context, subjects[i]),
+            child: Text(
+              store.grades.isEmpty
+                  ? tr('Aggiungi il primo voto con il tasto qui sotto. Si salvano solo su questo dispositivo.',
+                      'Add the first grade with the button below. They\'re only saved on this device.')
+                  : tr('Nessun voto in questo periodo.', 'No grades in this period.'),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onSurfaceVariant),
             ),
           ),
+        if (bySubjectLayout)
+          for (var i = 0; i < subjects.length; i++)
+            Card(
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              child: ListTile(
+                title: Text(subjects[i], style: const TextStyle(fontWeight: FontWeight.w600)),
+                // Sotto il 6: subito quanto serve alla prossima (3.8).
+                isThreeLine: avgs[i] < 6,
+                subtitle: Text([
+                  bySubject[subjects[i]]!.take(8).map((g) => Grade.format(g.value)).join('  '),
+                  if (avgs[i] < 6) planText(planToReach(bySubject[subjects[i]]!, 6), 6),
+                ].join('\n')),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      avgs[i].toStringAsFixed(2),
+                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800, color: gradeColor(context, avgs[i])),
+                    ),
+                    Text(tr('pagella: ${reportCardMark(avgs[i])}', 'report card: ${reportCardMark(avgs[i])}'),
+                        style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+                  ],
+                ),
+                onTap: () => _subjectSheet(context, subjects[i]),
+              ),
+            )
+        else ...[
+          // Materia scelta: media e "quanto mi serve?" a portata di dito.
+          if (subjectAvg != null)
+            Card(
+              margin: const EdgeInsets.symmetric(vertical: 6),
+              color: scheme.secondaryContainer,
+              child: ListTile(
+                title: Text(
+                    '${tr('Media', 'Average')} ${subjectAvg.toStringAsFixed(2)} · ${tr('pagella', 'report card')} ${reportCardMark(subjectAvg)}',
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(subjectAvg < 6
+                    ? planText(planToReach(listed, 6), 6)
+                    : tr('Quanto mi serve? Tocca per calcolarlo', 'How much do I need? Tap to work it out')),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => _subjectSheet(context, subjectFilter),
+              ),
+            ),
+          for (final g in listed)
+            _RecordCard(
+              badge: _Badge(Grade.format(g.value), gradeColor(context, g.value)),
+              date: _fullDate(g.date),
+              children: [
+                Text('${_kindName(g.kind)}${g.weight != 1 ? ' · ${tr('peso', 'weight')} ${g.weight}' : ''}'),
+                Text(g.subject.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w700)),
+                if (g.note.isNotEmpty) _labelled(context, tr('Argomento', 'Topic'), g.note),
+              ],
+              onTap: () => _subjectSheet(context, g.subject),
+            ),
+        ],
       ]),
     );
   }
@@ -537,9 +841,7 @@ class _SubjectGradesState extends State<_SubjectGrades> {
     // Stesso periodo della pagina Voti (tutto l'anno, trimestre/pentamestre o quadrimestri).
     final mode = store.opt('periods', 'tri');
     final view = store.opt('grades.view', 0);
-    final list = store.grades
-        .where((g) => g.subject == widget.subject && (view == 0 || gradePeriod(g.date, mode: mode) == view))
-        .toList();
+    final list = store.grades.where((g) => g.subject == widget.subject && (view == 0 || gradePeriod(g.date, mode: mode) == view)).toList();
     final avg = average(list);
     String needText() => planText(planToReach(list, _target, weight: _weight), _target);
 
@@ -550,7 +852,8 @@ class _SubjectGradesState extends State<_SubjectGrades> {
         children: [
           Text(widget.subject, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
           if (avg != null)
-            Text('${tr('Media', 'Average')} ${avg.toStringAsFixed(2)} · ${list.length} ${tr('voti', 'grades')}${view == 0 ? '' : ' · ${periodName(view, mode: mode)}'}'),
+            Text(
+                '${tr('Media', 'Average')} ${avg.toStringAsFixed(2)} · ${list.length} ${tr('voti', 'grades')}${view == 0 ? '' : ' · ${periodName(view, mode: mode)}'}'),
           SectionLabel(tr('Quanto mi serve?', 'How much do I need?')),
           Text(tr('Per arrivare a ${Grade.format(_target)} di media', 'To reach a ${Grade.format(_target)} average')),
           Slider(
@@ -577,8 +880,7 @@ class _SubjectGradesState extends State<_SubjectGrades> {
               contentPadding: EdgeInsets.zero,
               leading: CircleAvatar(
                 backgroundColor: gradeColor(context, g.value).withAlpha(40),
-                child: Text(Grade.format(g.value),
-                    style: TextStyle(fontWeight: FontWeight.w800, color: gradeColor(context, g.value))),
+                child: Text(Grade.format(g.value), style: TextStyle(fontWeight: FontWeight.w800, color: gradeColor(context, g.value))),
               ),
               title: Text('${_kindName(g.kind)}${g.weight != 1 ? ' · ${tr('peso', 'weight')} ${g.weight}' : ''}'),
               subtitle: Text([_date(g.date), if (g.note.isNotEmpty) g.note].join(' · ')),
@@ -662,7 +964,11 @@ class _StudyTimerPageState extends State<StudyTimerPage> with WidgetsBindingObse
     if (!_onBreak) {
       store.addStudy(_subject, _focus);
       _rounds++;
-      DesktopBridge.notify(tr('Pausa! ☕', 'Break! ☕'), appEnglish ? '$_focus minutes of ${_subject.isEmpty ? 'study' : _subject} done' : '$_focus minuti di ${_subject.isEmpty ? 'studio' : _subject} fatti');
+      DesktopBridge.notify(
+          tr('Pausa! ☕', 'Break! ☕'),
+          appEnglish
+              ? '$_focus minutes of ${_subject.isEmpty ? 'study' : _subject} done'
+              : '$_focus minuti di ${_subject.isEmpty ? 'studio' : _subject} fatti');
     } else {
       DesktopBridge.notify(tr('Si riparte! 📚', 'Back to it! 📚'), tr('Altri $_focus minuti', 'Another $_focus minutes'));
     }
@@ -684,7 +990,9 @@ class _StudyTimerPageState extends State<StudyTimerPage> with WidgetsBindingObse
       _notifyId,
       end,
       _onBreak ? tr('Fine pausa! 📚', 'Break over! 📚') : tr('Tempo! ☕ Fai una pausa', 'Time! ☕ Take a break'),
-      _onBreak ? tr('Si torna a studiare', 'Back to studying') : '${_subject.isEmpty ? tr('Studio', 'Study') : _subject}: $_focus ${tr('minuti fatti', 'minutes done')}',
+      _onBreak
+          ? tr('Si torna a studiare', 'Back to studying')
+          : '${_subject.isEmpty ? tr('Studio', 'Study') : _subject}: $_focus ${tr('minuti fatti', 'minutes done')}',
     );
   }
 
@@ -836,8 +1144,10 @@ Future<void> abWeekDialog(BuildContext context) async {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                tr('Se il tuo orario cambia a settimane alterne: la settimana A usa "il mio orario", '
-                'la B un altro orario salvato (cercalo e salvalo prima).', 'If your timetable changes on alternate weeks: week A uses "my timetable", week B another saved timetable (search for it and save it first).'),
+                tr(
+                    'Se il tuo orario cambia a settimane alterne: la settimana A usa "il mio orario", '
+                        'la B un altro orario salvato (cercalo e salvalo prima).',
+                    'If your timetable changes on alternate weeks: week A uses "my timetable", week B another saved timetable (search for it and save it first).'),
               ),
               const SizedBox(height: 12),
               RadioGroup<String>(
@@ -845,7 +1155,8 @@ Future<void> abWeekDialog(BuildContext context) async {
                 onChanged: (v) => setState(() => alt = v ?? ''),
                 child: Column(
                   children: [
-                    RadioListTile<String>(contentPadding: EdgeInsets.zero, value: '', title: Text(tr('Niente settimane alternate', 'No alternating weeks'))),
+                    RadioListTile<String>(
+                        contentPadding: EdgeInsets.zero, value: '', title: Text(tr('Niente settimane alternate', 'No alternating weeks'))),
                     for (final s in options)
                       RadioListTile<String>(
                         contentPadding: EdgeInsets.zero,
@@ -887,8 +1198,10 @@ Future<void> abWeekDialog(BuildContext context) async {
   final monday = DateTime(now.year, now.month, now.day - (now.weekday - 1));
   final b = thisIsB ? monday : monday.add(const Duration(days: 7));
   await store.setOpt('ab.alt', alt);
-  await store.setOpt('ab.anchor', '${b.year.toString().padLeft(4, '0')}-${b.month.toString().padLeft(2, '0')}-'
-      '${b.day.toString().padLeft(2, '0')}');
+  await store.setOpt(
+      'ab.anchor',
+      '${b.year.toString().padLeft(4, '0')}-${b.month.toString().padLeft(2, '0')}-'
+          '${b.day.toString().padLeft(2, '0')}');
 }
 
 /// Tipo di voto (scritto, orale, pratico) nella lingua dell'app.
