@@ -52,7 +52,7 @@ class Live extends ChangeNotifier {
   Live._();
   static final Live instance = Live._();
 
-  static const _types = ['hello', 'chat', 'adult', 'dm', 'typing', 'notice', 'friends', 'me', 'mod'];
+  static const _types = ['hello', 'chat', 'adult', 'dm', 'typing', 'notice', 'friends', 'me', 'mod', 'progress'];
 
   /// Collegato e in ascolto.
   bool connected = false;
@@ -294,6 +294,11 @@ class Live extends ChangeNotifier {
         _setConnected(true, force: true);
         syncPush();
         return;
+      case 'progress':
+        // La moderazione ha cambiato livello, monete o obiettivi: si prendono subito.
+        final store = _store;
+        if (store != null) unawaited(CloudSync.syncNow(store, quiet: true));
+        break;
       case 'typing':
         final chat = ev.chat;
         if (chat == null) return;

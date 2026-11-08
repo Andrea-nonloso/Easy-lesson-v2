@@ -526,7 +526,8 @@ int totalXp(AppStore s) {
   for (final a in achievements) {
     if (done.contains(a.id)) xp += a.tier.xp;
   }
-  return xp + s.stat('days') * xpPerDay + s.stat('missionXp') + s.stat('xpBonus');
+  // xpBonus e xpPenalty: XP date o tolte dalla moderazione.
+  return (xp + s.stat('days') * xpPerDay + s.stat('missionXp') + s.stat('xpBonus') - s.stat('xpPenalty')).clamp(0, 1 << 30);
 }
 
 LevelInfo levelOf(AppStore s) => LevelInfo(totalXp(s));

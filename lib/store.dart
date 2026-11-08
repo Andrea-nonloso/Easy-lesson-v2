@@ -1138,7 +1138,7 @@ class AppStore extends ChangeNotifier {
   /// Opzioni (dentro el.extras) che nessun backup può portare né cambiare (sicurezza EL-01):
   /// stato di questo dispositivo (cloud.*, dev.* — compreso l'indirizzo del server —, missioni…)
   /// e i regali che può dare solo il server. Restano sempre quelle di qui.
-  static bool isProtectedOption(String k) => isLocalOnlyOption(k) || k == 'stat.xpBonus' || k == 'stat.coinBonus';
+  static bool isProtectedOption(String k) => isLocalOnlyOption(k) || const {'stat.xpBonus', 'stat.coinBonus', 'stat.xpPenalty'}.contains(k);
 
   /// Ripristina una copia fatta con [backup]. Lancia FormatException se non è valida.
   /// Prima controlla e prepara tutto il documento, poi scrive: un backup rovinato non lascia
@@ -1490,19 +1490,35 @@ class AppStore extends ChangeNotifier {
   /// segni delle sorprese e oggetti usati del negozio (azzeramento deciso dalla moderazione sul server).
   Future<bool> applyProgress(ProgressData remote, {int resetAt = 0}) async {
     if (resetAt > opt('cloud.resetSeen', 0)) {
+      // Due casi: azzeramento (progressi vuoti) o modifica della moderazione (livello, monete, oggetti…).
+      // Nella modifica restano le cose che il server non conosce: serie di oggi, statistiche, sorprese e
+      // oggetti indossati (se sono ancora tuoi).
+      final edit = remote.achievements.isNotEmpty || remote.counters.isNotEmpty;
+      final keep = <String, Object?>{
+        if (edit)
+          for (final e in _extras.entries)
+            if (e.key.startsWith('statmap.') ||
+                e.key.startsWith('egg.') ||
+                const {'stat.streak', 'stat.lastDay', 'stat.hoursToday'}.contains(e.key) ||
+                (e.key.startsWith('shop.eq.') && (remote.counters['own.${e.value}'] ?? 0) > 0))
+              e.key: e.value,
+      };
       _extras.removeWhere((k, _) =>
           k.startsWith('ach.') || k.startsWith('stat.') || k.startsWith('statmap.') || k.startsWith('egg.') || k.startsWith('shop.eq.'));
+      _extras.addAll(keep);
       _extras['cloud.resetSeen'] = resetAt;
       _extras['ach.done'] = (remote.achievements.toList()..sort()).join(',');
       for (final e in remote.counters.entries) {
         _extras['stat.${e.key}'] = e.value;
       }
-      AppLog.w('cloud', 'Progressi azzerati dalla moderazione');
+      AppLog.w('cloud', edit ? 'Progressi modificati dalla moderazione' : 'Progressi azzerati dalla moderazione');
       notifyListeners();
       await _prefs.setString(_kExtras, jsonEncode(_extras));
       return true;
     }
     final local = progressData;
+    // La serie la imposta la moderazione solo con una modifica (sopra): nelle unioni normali conta quella di qui.
+    remote.counters.remove('streak');
     final merged = local.merge(remote);
     if (merged.sameAs(local)) return false;
     _extras['ach.done'] = (merged.achievements.toList()..sort()).join(',');

@@ -47,4 +47,5 @@ sticker. In più c'è l'app tutta in inglese e Linux è completo.
 - Un **secondo server** si tiene allineato con quello principale: se uno si spegne, l'altro va avanti senza perdere
   niente.
 - La moderazione vede gli aggiornamenti in diretta.
+- La moderazione può correggere livello, monete, oggetti e obiettivi di un account (per esempio dopo un errore).
 - Tante piccole correzioni emerse durante le prove.
