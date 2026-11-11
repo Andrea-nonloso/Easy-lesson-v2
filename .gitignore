@@ -53,3 +53,7 @@ app.*.map.json
 # iOS non supportato: niente file generati per iPhone
 /ios/
 
+
+# Firebase: dalla CI (segreto GOOGLE_SERVICES_JSON) o copiato a mano, mai nel repository
+google-services.json
+firebase*.json
