@@ -30,6 +30,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.9
           cache: true
       - run: flutter pub get
       # Inno Setup: se c'e' gia' sulla macchina di GitHub non lo reinstalla.
@@ -69,6 +70,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.9
           cache: true
       - name: Chiave di firma Android
         if: env.KEYSTORE_B64 != ''
@@ -110,6 +112,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.9
           cache: true
       - run: flutter pub get
       - run: flutter build web --release --dart-define=EL_TAG=${{ github.ref_name }}
@@ -132,6 +135,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.9
           cache: true
       - run: flutter pub get
       - run: flutter build linux --release
