@@ -52,6 +52,7 @@ scuola. Server 3.9.0 (migrazioni 0015 e 0016) e moderazione 2.5.0.
 - **Sospensioni**: cancellare e rifare il profilo non toglie più una sospensione né gli avvisi.
 - Da sospesi non si può più rinominare una classe, cambiarne il codice o gestirne i membri.
 - Una classe la può segnalare solo chi ne fa parte.
+- Gli annunci aprono solo link `https`, e la conferma del link di accesso dice che il codice arriva da un link.
 - Server: una richiesta troppo grande viene rifiutata subito, senza caricarla in memoria.
 - Moderazione: per entrare con la chiave di sicurezza servono anche nome e password; più limiti ai tentativi di
   accesso; una chiave già registrata non si può sovrascrivere.

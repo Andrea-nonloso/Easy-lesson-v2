@@ -630,7 +630,8 @@ Future<void> openAccountLink(BuildContext context, String link) async {
       icon: const Icon(Icons.key_rounded),
       title: Text(kind == 'login' ? tr('Entrare con questo codice?', 'Sign in with this code?') : 'Recuperare l\'account?'),
       content: Text(kind == 'login'
-          ? tr('Livello, obiettivi e backup dell\'account arriveranno su questo dispositivo.', 'The account\'s level, achievements and backup will come to this device.')
+          ? tr('Questo codice arriva da un link o da un QR. Usalo solo se è il tuo: se è di un altro, entri nel suo account e quello che salvi finisce lì.\n\nLivello, obiettivi e backup dell\'account arriveranno su questo dispositivo.',
+              'This code comes from a link or a QR. Use it only if it\'s yours: if it belongs to someone else, you enter their account and what you save ends up there.\n\nThe account\'s level, achievements and backup will come to this device.')
           : tr('Con il codice di recupero ricevi un codice nuovo; quello vecchio smette di funzionare.', 'With the recovery code you get a new code; the old one stops working.')),
       actions: [
         TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),

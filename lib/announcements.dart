@@ -43,7 +43,8 @@ class Announcement {
       title: title,
       body: j['body'] is String ? j['body'] as String : '',
       level: const {'info', 'warning', 'urgent'}.contains(j['level']) ? j['level'] as String : 'info',
-      link: link is String && (link.startsWith('https://') || link.startsWith('http://')) ? link : null,
+      // Solo https: un link in chiaro si può cambiare per strada.
+      link: link is String && link.startsWith('https://') ? link : null,
       starts: DateTime.fromMillisecondsSinceEpoch(s.toInt()),
       ends: DateTime.fromMillisecondsSinceEpoch(e.toInt()),
     );
