@@ -1,3 +1,4 @@
+import 'seasons.dart';
 import 'store.dart';
 import 'i18n.dart';
 
@@ -14,7 +15,7 @@ import 'i18n.dart';
 const xpPerCoin = 4;
 
 class ShopItem {
-  const ShopItem(this.id, this.slot, this.name, this.price, this.preview, {this.minLevel = 1, this.description = ''});
+  const ShopItem(this.id, this.slot, this.name, this.price, this.preview, {this.minLevel = 1, this.description = '', this.season});
   final String id;
 
   /// frame | title | avatar | theme
@@ -26,6 +27,9 @@ class ShopItem {
   final String preview;
   final int minLevel;
   final String description;
+
+  /// 3.9: oggetto a tempo, si compra solo durante questo evento (id di [seasons]). Chi l'ha già lo tiene.
+  final String? season;
 }
 
 Map<String, (String, String)> get shopSlots => {
@@ -72,7 +76,26 @@ List<ShopItem> get shopItems => <ShopItem>[
   const ShopItem('theme.matrix', 'theme', 'Matrix', 450, '💚', minLevel: 6),
   const ShopItem('theme.oro', 'theme', 'Nero e oro', 550, '🖤', minLevel: 10),
   const ShopItem('theme.cosmo', 'theme', 'Cosmo', 800, '🪐', minLevel: 15),
+  // 3.9: oggetti a tempo (cornici disegnate in ui/achievements.dart: frameColors)
+  const ShopItem('frame.zucca', 'frame', 'Zucca', 180, '🎃', season: 'halloween'),
+  ShopItem('title.fantasma', 'title', tr('Fantasma del registro', 'Ghost of the register'), 150, '👻', season: 'halloween'),
+  const ShopItem('avatar.vampiro', 'avatar', 'Vampiro', 120, '🧛', season: 'halloween'),
+  const ShopItem('avatar.zucca', 'avatar', 'Zucca', 100, '🎃', season: 'halloween'),
+  const ShopItem('frame.natale', 'frame', 'Bastoncino di zucchero', 180, '🍭', season: 'natale'),
+  ShopItem('title.elfo', 'title', tr('Elfo dei compiti', 'Homework elf'), 150, '🧝', season: 'natale'),
+  const ShopItem('avatar.pupazzo', 'avatar', 'Pupazzo di neve', 100, '⛄', season: 'natale'),
+  const ShopItem('avatar.renna', 'avatar', 'Renna', 120, '🦌', season: 'natale'),
+  const ShopItem('frame.cuori', 'frame', 'Cuori', 180, '💗', season: 'sanvalentino'),
+  ShopItem('title.cupido', 'title', tr('Cupido della classe', 'Class cupid'), 150, '💘', season: 'sanvalentino'),
+  const ShopItem('avatar.unicorno', 'avatar', 'Unicorno', 120, '🦄', season: 'sanvalentino'),
+  const ShopItem('frame.mare', 'frame', 'Mare', 180, '🌊', season: 'finescuola'),
+  ShopItem('title.libero', 'title', tr('Finalmente libero', 'Free at last'), 150, '🏖️', season: 'finescuola'),
+  const ShopItem('avatar.sole', 'avatar', 'Sole', 100, '😎', season: 'finescuola'),
 ];
+
+/// Si vede nel negozio: gli oggetti normali sempre, quelli a tempo solo durante l'evento o se li hai già.
+bool shopVisible(AppStore s, ShopItem i, DateTime now) =>
+    i.season == null || seasonById(i.season)?.isActive(now) == true || Shop.owns(s, i.id);
 
 ShopItem? shopItem(String id) {
   for (final i in shopItems) {
@@ -101,9 +124,12 @@ class Shop {
   }
 
   /// null = comprato; altrimenti il motivo.
-  static Future<String?> buy(AppStore s, ShopItem item, {required int totalXp, required int level}) async {
+  static Future<String?> buy(AppStore s, ShopItem item, {required int totalXp, required int level, DateTime? now}) async {
     if (owns(s, item.id)) return tr('Ce l\'hai già', 'You already have it');
     if (level < item.minLevel) return tr('Serve il livello ${item.minLevel}', 'You need level ${item.minLevel}');
+    if (item.season != null && seasonById(item.season)?.isActive(now ?? DateTime.now()) != true) {
+      return tr('L\'evento è finito', 'The event is over');
+    }
     if (balance(totalXp, s) < item.price) return tr('Non hai abbastanza monete', 'You don\'t have enough coins');
     await s.setOpt('stat.own.${item.id}', 1);
     await s.bump('coinsSpent', item.price);

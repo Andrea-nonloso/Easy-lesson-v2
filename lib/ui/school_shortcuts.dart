@@ -5,6 +5,15 @@ import '../school_life.dart';
 import '../store.dart';
 import 'agenda_page.dart';
 import 'bag_page.dart';
+import 'flashcards_page.dart';
+import 'formulary_page.dart';
+import 'wellbeing_pages.dart';
+import 'exam_page.dart';
+import 'recap_page.dart';
+import 'scanner_page.dart';
+import '../exam_prep.dart';
+import '../wellbeing.dart';
+import '../flashcards.dart';
 import 'more_pages.dart';
 import 'photos_page.dart';
 import 'school_life_pages.dart';
@@ -60,6 +69,22 @@ List<SchoolTool> schoolTools() => [
         final n = s.agendaFrom(DateTime.now()).length;
         return n == 0 ? null : '$n';
       }, color: Colors.teal),
+      SchoolTool('flashcard', Icons.style_rounded, tr('Flashcard', 'Flashcards'), openFlashcards, badge: (s) {
+        final n = Flashcards.dueCount(s);
+        return n == 0 ? null : '$n';
+      }, color: Colors.deepPurpleAccent),
+      SchoolTool('formule', Icons.functions_rounded, tr('Formulario', 'Formulas'), openFormulary, color: Colors.blue),
+      SchoolTool('abitudini', Icons.check_circle_outline_rounded, tr('Abitudini', 'Habits'), openHabits, badge: (s) {
+        final (done, total) = Habits.today(s);
+        return total == 0 ? null : '$done/$total';
+      }, color: Colors.green.shade700),
+      SchoolTool('umore', Icons.mood_rounded, tr('Umore', 'Mood'), openMood, color: Colors.pinkAccent),
+      SchoolTool('maturita', Icons.school_rounded, tr('Maturità', 'Final exam'), openExamPrep, badge: (s) {
+        final left = ExamPlan.load(s).daysLeft(DateTime.now());
+        return left == null || left < 0 ? null : '-$left';
+      }, color: Colors.deepOrangeAccent),
+      SchoolTool('riepilogo', Icons.insights_rounded, tr('Riepilogo', 'Recap'), openRecap, color: Colors.deepPurple),
+      if (scannerSupported) SchoolTool('scanner', Icons.document_scanner_rounded, 'Scanner', openScanner, color: Colors.blueGrey.shade700),
       SchoolTool('timer', Icons.timer_rounded, 'Timer', (c) => openStudyTimer(c), color: Colors.deepOrange),
       SchoolTool('zaino', Icons.backpack_rounded, tr('Zaino', 'Backpack'), openBag, color: Colors.brown),
       SchoolTool('prof', Icons.contact_mail_rounded, tr('Prof', 'Teachers'), openTeachers, color: Colors.indigo),

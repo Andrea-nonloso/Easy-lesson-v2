@@ -5,12 +5,17 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../store.dart';
 import '../agenda.dart';
+import '../exam_prep.dart';
 import '../i18n.dart';
 import '../school_extra.dart';
 import 'achievements.dart';
 import 'agenda_page.dart';
 import 'announcement_banner.dart';
 import 'bag_page.dart';
+import 'exam_page.dart';
+import 'recap_page.dart';
+import 'speak_button.dart';
+import '../missions.dart' show weekKey;
 import 'fun.dart';
 import 'more_pages.dart';
 import 'school_shortcuts.dart';
@@ -62,6 +67,29 @@ class HomePage extends StatelessWidget {
       // Si ridisegna ogni 30 s: barra dell'ora, minuti che mancano, ricreazione.
       _Every30s(builder: (now) => _TodayCard(store: store, now: now, onOpenMine: onOpenMine, onSearch: onSearch)),
       if (store.opt('home.countdown', false)) ...[const SizedBox(height: 12), _Countdowns(store: store)],
+      if (store.opt('home.exam', true)) _ExamCard(store: store, now: now),
+      // 3.9: la domenica e il lunedì, il riepilogo della settimana (si chiude fino alla prossima).
+      if ((now.weekday == DateTime.sunday || now.weekday == DateTime.monday) && store.opt('recap.seen', '') != weekKey(now.subtract(const Duration(days: 1))))
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Card(
+            margin: EdgeInsets.zero,
+            child: ListTile(
+              leading: const Text('📊', style: TextStyle(fontSize: 26)),
+              title: Text(tr('La tua settimana è pronta', 'Your week is ready'), style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text(tr('Studio, voti, abitudini: guarda e condividi', 'Study, grades, habits: view and share')),
+              trailing: IconButton(
+                tooltip: tr('Chiudi', 'Close'),
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => store.setOpt('recap.seen', weekKey(now.subtract(const Duration(days: 1)))),
+              ),
+              onTap: () {
+                store.setOpt('recap.seen', weekKey(now.subtract(const Duration(days: 1))));
+                openRecap(context);
+              },
+            ),
+          ),
+        ),
     ];
     final tiles = <Widget>[const SizedBox(height: 24), const SchoolTilesRow()];
     final side = <Widget>[
@@ -340,6 +368,12 @@ class _AgendaPeek extends StatelessWidget {
                 style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
               const Spacer(),
+              SpeakButton(
+                size: 20,
+                text: () => [
+                  for (final a in items.take(max)) '${friendlyDate(a.date, now)}, ${[a.subject, a.text].where((t) => t.isNotEmpty).join(': ')}',
+                ].join('. '),
+              ),
               TextButton(
                 onPressed: () => openAgenda(context),
                 style: TextButton.styleFrom(
@@ -430,6 +464,13 @@ class _DayPeek extends StatelessWidget {
                 style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
               const Spacer(),
+              // 3.9: legge la giornata ad alta voce.
+              SpeakButton(
+                size: 20,
+                text: () => '${peek.title}. ${[
+                  for (final it in peek.items) '${it.time.isEmpty ? it.hours : it.time}: ${it.lesson.title}',
+                ].join('. ')}.',
+              ),
               TextButton(
                 onPressed: onOpen,
                 style: TextButton.styleFrom(
@@ -818,6 +859,41 @@ class _TodayCard extends StatelessWidget {
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Maturità in home (3.9): solo se la data è segnata e mancano al massimo 200 giorni.
+class _ExamCard extends StatelessWidget {
+  const _ExamCard({required this.store, required this.now});
+  final AppStore store;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final plan = ExamPlan.load(store);
+    final left = plan.daysLeft(now);
+    if (left == null || left < 0 || left > 200) return const SizedBox.shrink();
+    final pct = (plan.progress * 100).round();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: ListTile(
+          leading: const Text('🎓', style: TextStyle(fontSize: 26)),
+          title: Text(left == 0 ? tr('Maturità: è oggi! 🍀', 'Final exam: today! 🍀') : tr('Maturità tra $left giorni', 'Final exam in $left days'),
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(children: [
+              Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: plan.progress, minHeight: 6))),
+              const SizedBox(width: 8),
+              Text('$pct%'),
+            ]),
+          ),
+          onTap: () => openExamPrep(context),
         ),
       ),
     );

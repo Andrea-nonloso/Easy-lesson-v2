@@ -21,6 +21,7 @@ Map<String, String> get _categories => {'saluti': tr('👋 Saluti', '👋 Greeti
 
 class _ClassChatTabState extends State<ClassChatTab> with LivePoll {
   ChatData? _data;
+  List<ClassPoll> _polls = const [];
   Object? _error;
   bool _sending = false;
   String get _chat => 'class:${widget.classId}';
@@ -33,27 +34,42 @@ class _ClassChatTabState extends State<ClassChatTab> with LivePoll {
     startLivePoll(
       const Duration(seconds: 5),
       chat: _chat,
-      relevant: (e) => (e.type == 'chat' && e.classId == widget.classId) || e.type == 'me',
+      relevant: (e) => ((e.type == 'chat' || e.type == 'poll') && e.classId == widget.classId) || e.type == 'me',
     );
   }
 
   @override
   Future<void> livePollRefresh() async {
-    final d = await Social.chat(StoreScope.read(context), widget.classId);
+    final store = StoreScope.read(context);
+    final d = await Social.chat(store, widget.classId);
+    final p = await _loadPolls(store);
     if (mounted) {
       setState(() {
         _data = d;
+        if (p != null) _polls = p;
         _error = null;
       });
     }
   }
 
+  /// I sondaggi sono un extra: se il server è vecchio (o non risponde) la chat va lo stesso.
+  Future<List<ClassPoll>?> _loadPolls(AppStore store) async {
+    try {
+      return await Social.polls(store, widget.classId);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _load() async {
     try {
-      final d = await Social.chat(StoreScope.read(context), widget.classId);
+      final store = StoreScope.read(context);
+      final d = await Social.chat(store, widget.classId);
+      final p = await _loadPolls(store);
       if (mounted) {
         setState(() {
           _data = d;
+          if (p != null) _polls = p;
           _error = null;
         });
       }
@@ -173,6 +189,84 @@ class _ClassChatTabState extends State<ClassChatTab> with LivePoll {
     }
   }
 
+  Future<void> _newPoll() async {
+    final store = StoreScope.read(context);
+    PollTemplates t;
+    try {
+      t = await Social.pollTemplates(store);
+    } catch (e) {
+      if (mounted) _toast(e);
+      return;
+    }
+    if (!mounted) return;
+    if (t.templates.isEmpty) {
+      _toast(tr('Non ci sono ancora sondaggi pronti', 'No ready-made polls yet'));
+      return;
+    }
+    final tpl = await showModalBottomSheet<PollTemplate>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (c) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(c).height * 0.7),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(tr('Che sondaggio fai?', 'Which poll?'), style: Theme.of(c).textTheme.titleMedium),
+            Flexible(
+              child: ListView(shrinkWrap: true, children: [
+                for (final p in t.templates)
+                  ListTile(
+                    leading: const Icon(Icons.poll_outlined),
+                    title: Text(p.text),
+                    subtitle: p.options.isEmpty ? null : Text(p.options.join(' · '), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    onTap: () => Navigator.pop(c, p),
+                  ),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+    if (tpl == null || !mounted) return;
+    List<String>? options;
+    if (tpl.source != 'fixed') {
+      final days = tpl.source == 'days';
+      final values = days ? t.days : t.subjects;
+      final labels = days ? t.dayLabels : t.subjectLabels;
+      options = await showModalBottomSheet<List<String>>(
+        context: context,
+        showDragHandle: true,
+        isScrollControlled: true,
+        builder: (c) => _PollOptionsSheet(values: values, labels: labels.length == values.length ? labels : values, days: days),
+      );
+      if (options == null || !mounted) return;
+    }
+    try {
+      await Social.newPoll(store, widget.classId, tpl.id, options: options);
+      await _load();
+    } catch (e) {
+      if (mounted) _toast(e);
+    }
+  }
+
+  Future<void> _vote(ClassPoll p, int i) async {
+    try {
+      await Social.votePoll(StoreScope.read(context), widget.classId, p.id, i);
+      await _load();
+    } catch (e) {
+      if (mounted) _toast(e);
+    }
+  }
+
+  Future<void> _deletePoll(ClassPoll p) async {
+    try {
+      await Social.deletePoll(StoreScope.read(context), widget.classId, p.id);
+      await _load();
+    } catch (e) {
+      if (mounted) _toast(e);
+    }
+  }
+
   String _hm(DateTime t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
   @override
@@ -201,6 +295,22 @@ class _ClassChatTabState extends State<ClassChatTab> with LivePoll {
               if (mounted) _toast(e);
             }
           },
+        ),
+      if (d.enabled && _polls.isNotEmpty)
+        ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.35),
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+            children: [
+              for (final p in _polls)
+                PollCard(
+                  poll: p,
+                  onVote: Live.instance.paused ? null : (i) => _vote(p, i),
+                  onDelete: p.canDelete ? () => _deletePoll(p) : null,
+                ),
+            ],
+          ),
         ),
       Expanded(
         child: !d.enabled
@@ -253,16 +363,152 @@ class _ClassChatTabState extends State<ClassChatTab> with LivePoll {
           top: false,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _sending || Live.instance.paused ? null : _write,
-                icon: const Icon(Icons.chat_bubble_outline_rounded),
-                label: Text(tr('Scrivi una frase', 'Write a phrase')),
+            child: Row(children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _sending || Live.instance.paused ? null : _write,
+                  icon: const Icon(Icons.chat_bubble_outline_rounded),
+                  label: Text(tr('Scrivi una frase', 'Write a phrase')),
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              IconButton.filledTonal(
+                tooltip: tr('Fai un sondaggio', 'Make a poll'),
+                onPressed: _sending || Live.instance.paused ? null : _newPoll,
+                icon: const Icon(Icons.poll_outlined),
+              ),
+            ]),
           ),
         ),
     ]);
   }
+}
+
+/// Scelta delle opzioni di un sondaggio "materie" o "giorni": da 2 a 5, dagli elenchi.
+class _PollOptionsSheet extends StatefulWidget {
+  const _PollOptionsSheet({required this.values, required this.labels, required this.days});
+  final List<String> values;
+  final List<String> labels;
+  final bool days;
+  @override
+  State<_PollOptionsSheet> createState() => _PollOptionsSheetState();
+}
+
+class _PollOptionsSheetState extends State<_PollOptionsSheet> {
+  final List<String> _picked = [];
+
+  @override
+  Widget build(BuildContext context) {
+    final ok = _picked.length >= 2 && _picked.length <= 5;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(widget.days ? tr('Quali giorni? (da 2 a 5)', 'Which days? (2 to 5)') : tr('Quali materie? (da 2 a 5)', 'Which subjects? (2 to 5)'),
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Wrap(spacing: 6, runSpacing: 6, children: [
+                for (var i = 0; i < widget.values.length; i++)
+                  FilterChip(
+                    label: Text(widget.labels[i]),
+                    selected: _picked.contains(widget.values[i]),
+                    onSelected: (v) => setState(() {
+                      if (v && _picked.length < 5) {
+                        _picked.add(widget.values[i]);
+                      } else {
+                        _picked.remove(widget.values[i]);
+                      }
+                    }),
+                  ),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 12),
+          FilledButton(onPressed: ok ? () => Navigator.pop(context, List<String>.of(_picked)) : null, child: Text(tr('Fai il sondaggio', 'Create the poll'))),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Un sondaggio con le barre dei voti. Si può cambiare voto finché è aperto.
+class PollCard extends StatelessWidget {
+  const PollCard({super.key, required this.poll, this.onVote, this.onDelete});
+  final ClassPoll poll;
+  final void Function(int choice)? onVote;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final total = poll.votes;
+    final best = poll.counts.isEmpty ? 0 : poll.counts.reduce((a, b) => a > b ? a : b);
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(Icons.poll_outlined, size: 18, color: scheme.primary),
+            const SizedBox(width: 6),
+            Expanded(child: Text(poll.question, style: const TextStyle(fontWeight: FontWeight.w700))),
+            if (onDelete != null)
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: tr('Togli il sondaggio', 'Remove the poll'),
+                icon: const Icon(Icons.delete_outline_rounded, size: 20),
+                onPressed: onDelete,
+              ),
+          ]),
+          for (var i = 0; i < poll.options.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(right: 8, top: 4),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: poll.open && onVote != null ? () => onVote!(i) : null,
+                child: Stack(children: [
+                  Positioned.fill(
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: total == 0 ? 0 : (i < poll.counts.length ? poll.counts[i] : 0) / total,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: (poll.myChoice == i ? scheme.primary : scheme.secondary).withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    child: Row(children: [
+                      Icon(poll.myChoice == i ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded, size: 18, color: scheme.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(poll.options[i],
+                            style: TextStyle(fontWeight: total > 0 && i < poll.counts.length && poll.counts[i] == best ? FontWeight.w700 : FontWeight.w400)),
+                      ),
+                      Text('${i < poll.counts.length ? poll.counts[i] : 0}', style: TextStyle(color: scheme.onSurfaceVariant)),
+                    ]),
+                  ),
+                ]),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              poll.open
+                  ? tr('$total voti · chiude alle ${_two(poll.endsAt.hour)}:${_two(poll.endsAt.minute)}', '$total votes · closes at ${_two(poll.endsAt.hour)}:${_two(poll.endsAt.minute)}')
+                  : tr('$total voti · chiuso', '$total votes · closed'),
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  static String _two(int n) => n.toString().padLeft(2, '0');
 }

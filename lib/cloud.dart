@@ -151,6 +151,10 @@ class Cloud {
   static Future<void> pushRegister(String base, String code, String token) =>
       raw('POST', '/social/push', code: code, base: base, body: {'token': token});
 
+  /// 3.9: blocchi di lezione in cui il server non manda notifiche push dei messaggi (riassunto alla fine).
+  static Future<void> pushQuiet(String base, String code, List<List<int>> windows) =>
+      raw('PUT', '/social/push/quiet', code: code, base: base, body: {'windows': windows});
+
   static Future<void> pushUnregister(String base, String code, String token) =>
       raw('DELETE', '/social/push', code: code, base: base, body: {'token': token});
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../seasons.dart';
 import '../shop.dart';
 import '../store.dart';
 import 'achievements.dart';
@@ -40,6 +41,18 @@ class ShopPage extends StatelessWidget {
         ),
         body: Column(
           children: [
+            if (activeSeason(DateTime.now()) case final season?)
+              Card(
+                margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                color: scheme.tertiaryContainer,
+                child: ListTile(
+                  leading: Text(season.emoji, style: const TextStyle(fontSize: 28)),
+                  title: Text(tr('Evento ${season.name}', '${season.name} event'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: Text(tr(
+                      'Oggetti a tempo fino al ${season.endFor(DateTime.now()).day}/${season.endFor(DateTime.now()).month}: dopo non si comprano più (chi li ha li tiene).',
+                      'Limited items until ${season.endFor(DateTime.now()).month}/${season.endFor(DateTime.now()).day}: after that they can\'t be bought (if you have them, you keep them).')),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
               child: Text(
@@ -69,7 +82,10 @@ class _SlotGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
-    final items = shopItems.where((i) => i.slot == slot).toList();
+    final now = DateTime.now();
+    // 3.9: prima gli oggetti dell'evento in corso, poi gli altri.
+    final items = shopItems.where((i) => i.slot == slot && shopVisible(store, i, now)).toList()
+      ..sort((a, b) => (a.season == null ? 1 : 0).compareTo(b.season == null ? 1 : 0));
     final eq = Shop.equipped(store, slot);
     return GridView(
       padding: const EdgeInsets.all(16),
@@ -137,7 +153,7 @@ class _ItemTile extends StatelessWidget {
               ? tr('Usa', 'Use')
               : locked
                   ? '🔒 ${tr('Livello', 'Level')} ${item.minLevel}'
-                  : '🪙 ${item.price}',
+                  : '${item.season == null ? '' : '⏳ '}🪙 ${item.price}',
       selected: equipped,
       onTap: () => _tap(context, store, owned, locked),
     );

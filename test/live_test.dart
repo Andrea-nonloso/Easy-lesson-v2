@@ -58,6 +58,13 @@ void main() {
       live.handle(LiveEvent('friends', {}));
       live.handle(LiveEvent('me', {}));
       expect(live.totalUnread, 2);
+      // 3.9: sfide a quiz = un pallino; studio e sondaggi no
+      live.handle(LiveEvent('quiz', {'id': 'x'}));
+      live.handle(LiveEvent('study', {}));
+      live.handle(LiveEvent('poll', {'classId': 'aaaa'}));
+      expect(live.unreadOf('quiz'), 1);
+      expect(live.totalUnread, 3);
+      live.markRead('quiz');
     });
 
     test('"sta scrivendo" dura qualche secondo e sparisce quando arriva il messaggio', () {

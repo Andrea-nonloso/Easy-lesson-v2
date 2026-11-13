@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 
 import '../agenda.dart';
 import '../models.dart';
+import '../live.dart';
 import '../native.dart';
 import '../school_extra.dart';
 import '../school_life.dart';
+import '../social.dart';
 import '../store.dart';
 import 'agenda_page.dart' show mySubjects;
 import 'desktop.dart';
@@ -663,6 +665,13 @@ class GradesPage extends StatelessWidget {
     final listed = shown.where((g) => subjectFilter.isEmpty || g.subject == subjectFilter).toList()
       ..sort((a, b) => b.date.compareTo(a.date));
     final subjectAvg = subjectFilter.isEmpty ? null : average(listed);
+    // 3.9: obiettivi di media salvati (per materia e generale).
+    final targets = gradeTargets(store.opt<Object?>('grades.targets', null));
+    double targetOf(String s) => targets[s] ?? 6;
+    final overallTarget = store.opt<num?>('grades.target', null)?.toDouble();
+    final raise = overallTarget == null || avgs.isEmpty
+        ? null
+        : raiseOverall({for (var i = 0; i < subjects.length; i++) subjects[i]: avgs[i]}, overallTarget);
 
     return Scaffold(
       appBar: AppBar(
@@ -724,6 +733,21 @@ class GradesPage extends StatelessWidget {
             ),
           ),
         ),
+        if (overall != null)
+          Card(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            child: ListTile(
+              leading: const Text('🎯', style: TextStyle(fontSize: 24)),
+              title: Text(overallTarget == null
+                  ? tr('Che media generale vuoi?', 'What overall average do you want?')
+                  : tr('Obiettivo: ${Grade.format(overallTarget)} di media generale', 'Goal: ${Grade.format(overallTarget)} overall average')),
+              subtitle: Text(overallTarget == null
+                  ? tr('Scegli un obiettivo e ti dico quali materie alzare', 'Pick a goal and I\'ll tell you which subjects to raise')
+                  : overallPlanText(raise, overallTarget)),
+              trailing: const Icon(Icons.edit_rounded),
+              onTap: () => _overallTargetDialog(context, overallTarget ?? 7),
+            ),
+          ),
         _Picker<int>(
           value: view,
           items: [
@@ -759,10 +783,11 @@ class GradesPage extends StatelessWidget {
               child: ListTile(
                 title: Text(subjects[i], style: const TextStyle(fontWeight: FontWeight.w600)),
                 // Sotto il 6: subito quanto serve alla prossima (3.8).
-                isThreeLine: avgs[i] < 6,
+                // 3.9: con l'obiettivo salvato per la materia (se no il 6).
+                isThreeLine: avgs[i] < targetOf(subjects[i]),
                 subtitle: Text([
                   bySubject[subjects[i]]!.take(8).map((g) => Grade.format(g.value)).join('  '),
-                  if (avgs[i] < 6) planText(planToReach(bySubject[subjects[i]]!, 6), 6),
+                  if (avgs[i] < targetOf(subjects[i])) planText(planToReach(bySubject[subjects[i]]!, targetOf(subjects[i])), targetOf(subjects[i])),
                 ].join('\n')),
                 trailing: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -774,6 +799,8 @@ class GradesPage extends StatelessWidget {
                     ),
                     Text(tr('pagella: ${reportCardMark(avgs[i])}', 'report card: ${reportCardMark(avgs[i])}'),
                         style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+                    if (targets[subjects[i]] != null)
+                      Text('🎯 ${Grade.format(targets[subjects[i]]!)}', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
                   ],
                 ),
                 onTap: () => _subjectSheet(context, subjects[i]),
@@ -789,8 +816,8 @@ class GradesPage extends StatelessWidget {
                 title: Text(
                     '${tr('Media', 'Average')} ${subjectAvg.toStringAsFixed(2)} · ${tr('pagella', 'report card')} ${reportCardMark(subjectAvg)}',
                     style: const TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: Text(subjectAvg < 6
-                    ? planText(planToReach(listed, 6), 6)
+                subtitle: Text(subjectAvg < targetOf(subjectFilter)
+                    ? planText(planToReach(listed, targetOf(subjectFilter)), targetOf(subjectFilter))
                     : tr('Quanto mi serve? Tocca per calcolarlo', 'How much do I need? Tap to work it out')),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => _subjectSheet(context, subjectFilter),
@@ -813,6 +840,40 @@ class GradesPage extends StatelessWidget {
   }
 }
 
+/// Testo del piano per la media generale.
+String overallPlanText(List<(String, double, double)>? steps, double target) {
+  final t = Grade.format(target);
+  if (steps == null) return tr('Il $t di media generale è troppo lontano per questo periodo 😬', 'A $t overall average is too far for this term 😬');
+  if (steps.isEmpty) return tr('Ce l\'hai già 😎', 'You\'ve already got it 😎');
+  String f(double v) => v.toStringAsFixed(2);
+  final parts = [for (final (s, a, b) in steps.take(3)) '$s ${f(a)} → ${f(b)}'];
+  final more = steps.length > 3 ? tr(' e altre ${steps.length - 3}', ' and ${steps.length - 3} more') : '';
+  return tr('Per esempio alza: ${parts.join(', ')}$more', 'For example raise: ${parts.join(', ')}$more');
+}
+
+Future<void> _overallTargetDialog(BuildContext context, double start) async {
+  final store = StoreScope.read(context);
+  var v = start;
+  final r = await showDialog<double?>(
+    context: context,
+    builder: (c) => StatefulBuilder(
+      builder: (c, setState) => AlertDialog(
+        title: Text(tr('Obiettivo di media generale', 'Overall average goal')),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(Grade.format(v), style: Theme.of(c).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w800)),
+          Slider(value: v, min: 5, max: 10, divisions: 20, label: Grade.format(v), onChanged: (x) => setState(() => v = x)),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, -1.0), child: Text(tr('Togli', 'Remove'))),
+          FilledButton(onPressed: () => Navigator.pop(c, v), child: Text(tr('Salva', 'Save'))),
+        ],
+      ),
+    ),
+  );
+  if (r == null) return;
+  await store.setOpt('grades.target', r < 0 ? null : r);
+}
+
 Future<void> _subjectSheet(BuildContext context, String subject) => showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -831,8 +892,19 @@ class _SubjectGrades extends StatefulWidget {
 }
 
 class _SubjectGradesState extends State<_SubjectGrades> {
-  double _target = 6;
+  double? _target;
   double _weight = 1;
+
+  /// 3.9: l'obiettivo della materia resta salvato (opzione "grades.targets").
+  Future<void> _saveTarget(AppStore store, double v) async {
+    final all = gradeTargets(store.opt<Object?>('grades.targets', null));
+    if (v == 6) {
+      all.remove(widget.subject);
+    } else {
+      all[widget.subject] = v;
+    }
+    await store.setOpt('grades.targets', all.isEmpty ? null : all);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -843,7 +915,8 @@ class _SubjectGradesState extends State<_SubjectGrades> {
     final view = store.opt('grades.view', 0);
     final list = store.grades.where((g) => g.subject == widget.subject && (view == 0 || gradePeriod(g.date, mode: mode) == view)).toList();
     final avg = average(list);
-    String needText() => planText(planToReach(list, _target, weight: _weight), _target);
+    final target = _target ?? gradeTargets(store.opt<Object?>('grades.targets', null))[widget.subject] ?? 6;
+    String needText() => planText(planToReach(list, target, weight: _weight), target);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -855,14 +928,16 @@ class _SubjectGradesState extends State<_SubjectGrades> {
             Text(
                 '${tr('Media', 'Average')} ${avg.toStringAsFixed(2)} · ${list.length} ${tr('voti', 'grades')}${view == 0 ? '' : ' · ${periodName(view, mode: mode)}'}'),
           SectionLabel(tr('Quanto mi serve?', 'How much do I need?')),
-          Text(tr('Per arrivare a ${Grade.format(_target)} di media', 'To reach a ${Grade.format(_target)} average')),
+          Text(tr('Per arrivare a ${Grade.format(target)} di media (resta salvato come obiettivo)',
+              'To reach a ${Grade.format(target)} average (saved as your goal)')),
           Slider(
-            value: _target,
+            value: target.clamp(5, 10).toDouble(),
             min: 5,
             max: 10,
             divisions: 10,
-            label: Grade.format(_target),
+            label: Grade.format(target),
             onChanged: (v) => setState(() => _target = v),
+            onChangeEnd: (v) => _saveTarget(store, v),
           ),
           SegmentedButton<double>(
             segments: [
@@ -923,19 +998,58 @@ class _StudyTimerPageState extends State<StudyTimerPage> with WidgetsBindingObse
   String _subject = '';
   int _rounds = 0;
 
+  // 3.9: studio insieme. Gli amici vedono che studi (e cosa) solo se accendi l'interruttore.
+  late final AppStore _store;
+  List<StudyBuddy> _buddies = const [];
+  StudyBuddy? _with;
+  bool _shared = false;
+  StreamSubscription<LiveEvent>? _liveSub;
+  bool get _social => _store.accountCode != null && _store.opt<String?>('social.nick', null) != null;
+  bool get _share => _store.opt<bool>('study.share', false);
+
   @override
   void initState() {
     super.initState();
+    _store = StoreScope.read(context);
     _subject = widget.subject ?? '';
     WidgetsBinding.instance.addObserver(this);
     _tick = Timer.periodic(const Duration(seconds: 1), (_) => _onTick());
+    if (_social) {
+      _loadBuddies();
+      _liveSub = Live.instance.events.where((e) => e.type == 'study').listen((_) => _loadBuddies());
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _tick?.cancel();
+    _liveSub?.cancel();
+    if (_shared) Social.stopStudy(_store).catchError((_) {});
     super.dispose();
+  }
+
+  Future<void> _loadBuddies() async {
+    try {
+      final b = await Social.studying(_store);
+      if (mounted) setState(() => _buddies = b);
+    } catch (_) {
+      // niente rete: si vede il timer e basta
+    }
+  }
+
+  /// Dice agli amici che studi adesso (fino a [end]).
+  void _shareStart(DateTime end) {
+    if (!_social || !_share || _onBreak) return;
+    _shared = true;
+    final minutes = (end.difference(DateTime.now()).inSeconds / 60).ceil();
+    Social.startStudy(_store, subject: _subject, minutes: minutes, withCode: _with?.code).catchError((_) {});
+  }
+
+  void _shareStop() {
+    if (!_shared) return;
+    _shared = false;
+    Social.stopStudy(_store).catchError((_) {});
   }
 
   @override
@@ -960,6 +1074,7 @@ class _StudyTimerPageState extends State<StudyTimerPage> with WidgetsBindingObse
   }
 
   void _finish() {
+    _shareStop();
     final store = StoreScope.read(context);
     if (!_onBreak) {
       store.addStudy(_subject, _focus);
@@ -986,6 +1101,7 @@ class _StudyTimerPageState extends State<StudyTimerPage> with WidgetsBindingObse
       _end = end;
       _paused = null;
     });
+    _shareStart(end);
     NativeBridge.scheduleOne(
       _notifyId,
       end,
@@ -997,6 +1113,7 @@ class _StudyTimerPageState extends State<StudyTimerPage> with WidgetsBindingObse
   }
 
   void _pauseTimer() {
+    _shareStop();
     setState(() {
       _paused = _left;
       _end = null;
@@ -1005,6 +1122,7 @@ class _StudyTimerPageState extends State<StudyTimerPage> with WidgetsBindingObse
   }
 
   void _reset() {
+    _shareStop();
     setState(() {
       _end = null;
       _paused = null;
@@ -1107,6 +1225,45 @@ class _StudyTimerPageState extends State<StudyTimerPage> with WidgetsBindingObse
               ),
           ],
         ),
+        if (_social) ...[
+          SectionLabel(tr('Studia con gli amici', 'Study with friends')),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(tr('Fai vedere agli amici che studi', 'Let friends see you\'re studying')),
+            subtitle: Text(tr('Solo i tuoi amici, solo mentre il timer va (e la materia, se è nell\'elenco)',
+                'Only your friends, only while the timer runs (and the subject, if it\'s on the list)')),
+            value: _share,
+            onChanged: (v) async {
+              await _store.setOpt('study.share', v);
+              if (!v) _shareStop();
+              if (v && running && _end != null) _shareStart(_end!);
+              if (mounted) setState(() {});
+            },
+          ),
+          if (_buddies.isEmpty)
+            Text(tr('Nessun amico sta studiando adesso.', 'No friends are studying right now.'), style: TextStyle(color: scheme.onSurfaceVariant))
+          else
+            for (final b in _buddies)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Text(b.avatar, style: const TextStyle(fontSize: 26)),
+                title: Text(b.withMe ? tr('${b.nickname} · studia con te!', '${b.nickname} · studying with you!') : b.nickname),
+                subtitle: Text([
+                  if (b.subject.isNotEmpty) b.subject,
+                  tr('ancora ${b.until.difference(DateTime.now()).inMinutes.clamp(0, 999)} min', '${b.until.difference(DateTime.now()).inMinutes.clamp(0, 999)} min left'),
+                ].join(' · ')),
+                trailing: _share
+                    ? FilterChip(
+                        label: Text(tr('Studio con te', 'Study with you')),
+                        selected: _with?.code == b.code,
+                        onSelected: (v) {
+                          setState(() => _with = v ? b : null);
+                          if (running && _end != null) _shareStart(_end!);
+                        },
+                      )
+                    : null,
+              ),
+        ],
         if (studied.isNotEmpty) ...[
           SectionLabel(tr('Quanto hai studiato', 'How much you studied')),
           for (final e in studied.take(10))

@@ -526,8 +526,9 @@ int totalXp(AppStore s) {
   for (final a in achievements) {
     if (done.contains(a.id)) xp += a.tier.xp;
   }
-  // xpBonus e xpPenalty: XP date o tolte dalla moderazione.
-  return (xp + s.stat('days') * xpPerDay + s.stat('missionXp') + s.stat('xpBonus') - s.stat('xpPenalty')).clamp(0, 1 << 30);
+  // xpBonus e xpPenalty: XP date o tolte dalla moderazione. activityXp (3.9): flashcard, quiz, abitudini…
+  return (xp + s.stat('days') * xpPerDay + s.stat('missionXp') + s.stat('activityXp') + s.stat('xpBonus') - s.stat('xpPenalty'))
+      .clamp(0, 1 << 30);
 }
 
 LevelInfo levelOf(AppStore s) => LevelInfo(totalXp(s));
@@ -627,6 +628,11 @@ class LevelBadge extends StatelessWidget {
       Color(0xFF1E88E5), Color(0xFF8E24AA), Color(0xFFE53935),
     ],
     'frame.galaxy': [Color(0xFF1A237E), Color(0xFF7C4DFF), Color(0xFFFF4081), Color(0xFF00B0FF), Color(0xFF1A237E)],
+    // 3.9: eventi a tempo
+    'frame.zucca': [Color(0xFFFF6F00), Color(0xFF212121), Color(0xFFFF9100), Color(0xFF6A1B9A), Color(0xFFFF6F00)],
+    'frame.natale': [Color(0xFFD32F2F), Color(0xFFFFFFFF), Color(0xFFD32F2F), Color(0xFFFFFFFF), Color(0xFF2E7D32), Color(0xFFD32F2F)],
+    'frame.cuori': [Color(0xFFFF4081), Color(0xFFFF80AB), Color(0xFFD50000), Color(0xFFFF80AB), Color(0xFFFF4081)],
+    'frame.mare': [Color(0xFF0277BD), Color(0xFF4FC3F7), Color(0xFFFFE082), Color(0xFF4FC3F7), Color(0xFF0277BD)],
   };
 
   static const rankColors = [

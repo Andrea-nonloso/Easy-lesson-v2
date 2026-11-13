@@ -5,6 +5,7 @@ import '../models.dart';
 import '../live.dart';
 import '../native.dart';
 import '../store.dart';
+import '../tts.dart';
 import 'widgets.dart';
 import '../i18n.dart';
 
@@ -475,6 +476,7 @@ class HomeOptionsPage extends StatelessWidget {
         // 3.8 "minimal": di base solo la card della lezione (con ricreazione e campanella) e le lezioni del giorno.
         sw('home.next', Icons.view_agenda_outlined, tr('Lezioni del giorno', 'Today\'s lessons'), null),
         sw('home.countdown', Icons.timer_outlined, tr('Conti alla rovescia delle feste', 'Holiday countdowns'), tr('Weekend, vacanze e i tuoi', 'Weekends, holidays and yours'), def: false),
+        sw('home.exam', Icons.school_outlined, tr('Maturità', 'Final exam'), tr('Giorni che mancano e quanto hai ripassato', 'Days left and how much you\'ve reviewed'), def: true),
         sw('home.agenda', Icons.event_note_outlined, tr('Compiti e verifiche in arrivo', 'Upcoming homework and tests'), null, def: false),
         sw('home.bag', Icons.backpack_outlined, tr('Zaino per domani', 'Backpack for tomorrow'), null, def: false),
         SectionLabel(tr('Lingua', 'Language')),
@@ -515,6 +517,44 @@ class HomeOptionsPage extends StatelessWidget {
         sw('a11y.font', Icons.font_download_outlined, tr('Font ad alta leggibilità', 'High-readability font'),
             tr('Lexend, con più spazio tra lettere e righe: aiuta con la dislessia (la prima volta serve internet)', 'Lexend, with more space between letters and lines: helps with dyslexia (needs internet the first time)'),
             def: false),
+        ListTile(
+          leading: const Icon(Icons.format_line_spacing_rounded),
+          title: Text(tr('Spaziatura del testo', 'Text spacing')),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: SegmentedButton<int>(
+              showSelectedIcon: false,
+              segments: [
+                ButtonSegment(value: 0, label: Text(tr('Normale', 'Normal'))),
+                ButtonSegment(value: 1, label: Text(tr('Ampia', 'Wide'))),
+                ButtonSegment(value: 2, label: Text(tr('Più ampia', 'Wider'))),
+                ButtonSegment(value: 3, label: Text(tr('Massima', 'Max'))),
+              ],
+              selected: {store.opt('a11y.spacing', 0)},
+              onSelectionChanged: (v) => store.setOpt('a11y.spacing', v.first == 0 ? null : v.first),
+            ),
+          ),
+        ),
+        if (Tts.supported) ...[
+          sw('a11y.tts', Icons.record_voice_over_outlined, tr('Lettura ad alta voce', 'Read aloud'),
+              tr('Pulsante 🔊 su flashcard, giornata e agenda: legge il testo con la voce del telefono',
+                  'A 🔊 button on flashcards, your day and planner: reads text with the phone\'s voice'),
+              def: false),
+          if (store.opt('a11y.tts', false))
+            ListTile(
+              contentPadding: const EdgeInsets.only(left: 56, right: 16),
+              title: Text(tr('Velocità della voce', 'Voice speed')),
+              subtitle: Slider(
+                value: Tts.rate(store),
+                min: 0.5,
+                max: 1.5,
+                divisions: 10,
+                label: '${Tts.rate(store).toStringAsFixed(1)}×',
+                onChanged: (v) => store.setOpt('a11y.ttsRate', (v * 10).round() == 10 ? null : v),
+                onChangeEnd: (_) => Tts.speak(store, tr('Ciao! Così leggo ad alta voce.', 'Hi! This is how I read aloud.')),
+              ),
+            ),
+        ],
         SectionLabel(tr('Orario', 'Timetable')),
         sw('ui.emoji', Icons.emoji_emotions_outlined, tr('Emoji dei laboratori', 'Lab emoji'), tr('🧪 Chimica, 💻 Informatica…', '🧪 Chemistry, 💻 Computer science…')),
         sw('ui.haptic', Icons.vibration_rounded, tr('Vibrazione', 'Vibration'), tr('Un piccolo tocco quando cambi pagina', 'A small tap when you change page'), def: false),
@@ -675,6 +715,18 @@ class NotificationsPage extends StatelessWidget {
             Live.instance.syncPush();
           },
         ),
+        if (store.opt('n.chat', true))
+          SwitchListTile(
+            secondary: const Icon(Icons.do_not_disturb_on_outlined),
+            title: Text(tr('Messaggi in pausa durante le lezioni', 'Hold messages during lessons')),
+            subtitle: Text(tr('Le notifiche delle chat aspettano la ricreazione o la fine delle lezioni: poi un solo riassunto',
+                'Chat notifications wait for the break or the end of lessons, then one summary')),
+            value: store.opt('n.hold', false),
+            onChanged: (v) async {
+              await store.setOpt('n.hold', v ? true : null);
+              Live.instance.syncQuiet();
+            },
+          ),
         sw('n.last', Icons.hourglass_bottom_rounded, tr('Ultima ora', 'Last period'), tr('"Ultima ora! 💪" quando inizia', '"Last period! 💪" when it starts')),
         sw('n.break', Icons.coffee_rounded, tr('Ricreazione', 'Break'), tr('Quando suona, con la lezione dopo', 'When the bell rings, with the next lesson')),
         sw('n.end', Icons.celebration_outlined, tr('Fine della scuola', 'End of school'), tr('"Scuola finita! 🎉" e a che ora entri domani', '"School\'s over! 🎉" and what time you start tomorrow')),

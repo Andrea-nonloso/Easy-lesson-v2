@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart' show timeDilation;
 import 'package:flutter/services.dart';
 
 import '../announcements.dart';
+import '../class_tests.dart';
 import '../cloud.dart';
 import '../i18n.dart';
 import '../live.dart';
@@ -100,6 +101,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       Announcements.refresh(store);
       final lv = levelOf(store);
       Social.sync(store, xp: lv.xp, level: lv.level);
+      ClassTests.maybeSync(store);
       // Ogni tanto: "ti ricordi il tuo codice?" (solo con l'account, vedi profile_page.dart).
       Timer(const Duration(seconds: 8), () {
         if (mounted) checkCodeMemory(context);
@@ -139,6 +141,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       Announcements.refresh(_store!);
       final lv = levelOf(_store!);
       Social.sync(_store!, xp: lv.xp, level: lv.level);
+      ClassTests.maybeSync(_store!);
       NativeBridge.scheduleSync(_store!);
       _checkScheduleChanges();
       ModNotices.check(context);

@@ -8,6 +8,8 @@ import '../social.dart';
 import '../store.dart';
 import 'achievements.dart' show levelOf;
 import 'class_page.dart';
+import 'quiz_page.dart';
+import 'school_life_pages.dart' show StudyTimerPage;
 import '../i18n.dart';
 
 /// Amici (con codice amico, niente ricerca per nome) e classifica XP della settimana.
@@ -117,6 +119,32 @@ class _FriendsPageState extends State<FriendsPage> {
                       title: tr('Il tuo codice amico', 'Your friend code'), code: me.friendCode, link: friendLink(me.friendCode), hint: tr('Inquadra con Easy Lesson', 'Scan with Easy Lesson')),
                 ),
               ),
+            if (d.friends.isNotEmpty) ...[
+              ListenableBuilder(
+                listenable: Live.instance,
+                builder: (context, _) {
+                  final n = Live.instance.unreadOf('quiz');
+                  return Card(
+                    child: ListTile(
+                      leading: const Text('⚔️', style: TextStyle(fontSize: 26)),
+                      title: Text(tr('Sfide a quiz', 'Quiz challenges')),
+                      subtitle: Text(tr('5 domande contro un amico', '5 questions against a friend')),
+                      trailing: n > 0 ? Badge(label: Text('$n')) : const Icon(Icons.chevron_right_rounded),
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const QuizPage())),
+                    ),
+                  );
+                },
+              ),
+              Card(
+                child: ListTile(
+                  leading: const Text('📚', style: TextStyle(fontSize: 26)),
+                  title: Text(tr('Studia con gli amici', 'Study with friends')),
+                  subtitle: Text(tr('Timer per studiare: vedi chi sta studiando adesso', 'Study timer: see who\'s studying right now')),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const StudyTimerPage())),
+                ),
+              ),
+            ],
             if (d.incoming.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(tr('Richieste di amicizia', 'Friend requests'), style: Theme.of(context).textTheme.titleSmall),

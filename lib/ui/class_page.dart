@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../cloud.dart';
 import '../live.dart';
 import '../shop.dart';
+import '../class_tests.dart';
 import '../social.dart';
 import '../store.dart';
 import 'achievements.dart' show levelOf;
@@ -613,6 +614,26 @@ Future<void> openSocialLink(BuildContext context, String link) async {
     await openClassHub(context);
     return;
   }
+  if (kind != 'class' && kind != 'friend') return;
+  // Il link può arrivare da chiunque (una pagina web, un QR appeso in giro): prima di entrare in una classe o di
+  // chiedere un'amicizia si chiede sempre conferma.
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      icon: Icon(kind == 'class' ? Icons.groups_rounded : Icons.person_add_alt_1_rounded),
+      title: Text(kind == 'class' ? tr('Entrare in questa classe?', 'Join this class?') : tr('Chiedere l\'amicizia?', 'Send a friend request?')),
+      content: Text(kind == 'class'
+          ? tr('Hai aperto un link con il codice di una classe ($code). Chi è nella classe vede il tuo soprannome. Entra solo se conosci davvero chi ti ha dato il codice.',
+              'You opened a link with a class code ($code). People in the class see your nickname. Join only if you really know who gave you the code.')
+          : tr('Hai aperto un link con un codice amico ($code). Gli amici vedono il tuo livello e quando studi. Chiedi l\'amicizia solo a chi conosci davvero.',
+              'You opened a link with a friend code ($code). Friends see your level and when you study. Send a request only to people you really know.')),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+        FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(kind == 'class' ? tr('Entra', 'Join') : tr('Chiedi l\'amicizia', 'Send request'))),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
   try {
     if (kind == 'class') {
       final id = await Social.joinClass(store, code);
@@ -679,6 +700,13 @@ class _ClassPageState extends State<ClassPage> {
       await Social.sync(store, xp: lv.xp, level: lv.level, force: true);
       final info = await Social.classInfo(store, widget.classId);
       final items = await Social.items(store, widget.classId);
+      // 3.9: le verifiche confermate dalla classe entrano in agenda.
+      final added = await ClassTests.importFrom(store, items);
+      if (added > 0 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(tr(added == 1 ? '1 verifica della classe aggiunta in agenda' : '$added verifiche della classe aggiunte in agenda',
+                added == 1 ? '1 class test added to your planner' : '$added class tests added to your planner'))));
+      }
       if (info.challenges.any((c) => c.completed)) await store.setOpt('egg.classWin', true);
       if (!mounted) return;
       setState(() {
@@ -836,7 +864,20 @@ class _ClassPageState extends State<ClassPage> {
         Text(tr('Ancora niente. Aggiungi la prossima verifica o i compiti: li vede tutta la classe.', 'Nothing yet. Add the next test or homework: the whole class sees it.'), textAlign: TextAlign.center),
       ]);
     }
-    final rows = <Widget>[];
+    final store = StoreScope.of(context);
+    final rows = <Widget>[
+      SwitchListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+        title: Text(tr('Verifiche confermate nella mia agenda', 'Confirmed tests in my planner')),
+        subtitle: Text(tr('Quando almeno $classTestConfirms compagni confermano una verifica, entra da sola nella tua agenda',
+            'When at least $classTestConfirms classmates confirm a test, it goes into your planner')),
+        value: ClassTests.enabled(store),
+        onChanged: (v) async {
+          await store.setOpt('class.autoTests', v ? null : false);
+          if (v) await ClassTests.importFrom(store, items);
+        },
+      ),
+    ];
     String? lastDay;
     for (final it in items) {
       if (it.day != lastDay) {

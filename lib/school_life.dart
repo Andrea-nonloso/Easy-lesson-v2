@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'agenda.dart' show dateOnly;
 import 'models.dart';
 import 'i18n.dart';
@@ -284,6 +286,33 @@ String planText(({int count, double grade})? p, double target) {
   final tutte = p.count == 2 ? tr('tutte e due', 'both') : tr('tutte e ${p.count}', 'all ${p.count}');
   return tr('Con una prova sola non basta neanche un 10. Con ${p.count} prove: almeno $v in $tutte', 'One test isn\'t enough, not even a 10. With ${p.count} tests: at least $v in $tutte');
 }
+
+/// "Che voto mi serve?" per la media generale (3.9): quali materie alzare, partendo dalle più basse, per far
+/// arrivare la media delle medie a [target]. Ogni passo è (materia, da, a). Lista vuota = ci sei già;
+/// null = non basta neanche portare tutto a 10.
+List<(String, double, double)>? raiseOverall(Map<String, double> avgs, double target) {
+  if (avgs.isEmpty) return null;
+  var gap = target * avgs.length - avgs.values.fold(0.0, (a, b) => a + b);
+  if (gap <= 1e-9) return const [];
+  final steps = <(String, double, double)>[];
+  final order = avgs.entries.toList()..sort((a, b) => a.value.compareTo(b.value));
+  for (final e in order) {
+    if (gap <= 1e-9) break;
+    final room = 10 - e.value;
+    if (room <= 0) continue;
+    final up = math.min(room, gap);
+    steps.add((e.key, e.value, e.value + up));
+    gap -= up;
+  }
+  return gap > 1e-9 ? null : steps;
+}
+
+/// Obiettivi di media salvati per materia (opzione "grades.targets"); quelli rovinati si saltano.
+Map<String, double> gradeTargets(Object? raw) => {
+      if (raw is Map)
+        for (final e in raw.entries)
+          if (e.key is String && e.value is num && (e.value as num) >= 1 && (e.value as num) <= 10) e.key as String: (e.value as num).toDouble(),
+    };
 
 // ---------------------------------------------------------------------------
 // Foto delle lezioni

@@ -35,6 +35,14 @@ class NativeBridge {
     }
   }
 
+  /// 3.9: lettura ad alta voce (Speech.kt). [lang] tipo "it-IT".
+  static Future<void> speak(String text, String lang, double rate) => _call<bool>('speak', {'text': text, 'lang': lang, 'rate': rate});
+  static Future<void> stopSpeaking() => _call<bool>('stopSpeaking');
+
+  /// 3.9: apre il menu "Condividi" di Android con un file (.png o .pdf). false = non riuscito (o non Android).
+  static Future<bool> shareImage(Uint8List bytes, String name, {String? text}) async =>
+      await _call<bool>('shareImage', {'bytes': bytes, 'name': name, 'text': text}) ?? false;
+
   /// Salva un piccolo testo nel Block Store di Google (codici dell'account). true = salvato.
   static Future<bool> vaultSave(String data) async => await _call<bool>('vaultSave', data) ?? false;
 
@@ -206,6 +214,37 @@ class NativeBridge {
     final range = store.attendedOn(d, days[wd].lessons.length);
     if (range == null) return const [];
     return _groups(days[wd], store.slots).where((g) => g.to >= range.$1 && g.from <= range.$2).toList();
+  }
+
+  /// 3.9: blocchi di lezione senza ricreazione in mezzo, oggi e domani: [[inizio, fine], ...] in millisecondi.
+  /// Durante questi blocchi le notifiche dei messaggi aspettano (opzione "n.hold"); alla fine arriva un riassunto.
+  static List<List<int>> holdWindows(AppStore store, DateTime now) {
+    final slots = store.slots;
+    final breaks = breaksOf(slots);
+    final out = <List<int>>[];
+    for (var k = 0; k < 2; k++) {
+      final d = DateTime(now.year, now.month, now.day + k);
+      if (!store.calendar.isSchoolDay(d)) continue;
+      int? from, to;
+      void close() {
+        if (from == null || to == null) return;
+        final s = slots[from].start!, e = slots[to].end!;
+        final b = DateTime(d.year, d.month, d.day, e ~/ 60, e % 60);
+        if (b.isAfter(now)) out.add([DateTime(d.year, d.month, d.day, s ~/ 60, s % 60).millisecondsSinceEpoch, b.millisecondsSinceEpoch]);
+      }
+
+      for (final g in groupsOn(store, d)) {
+        if (from != null && to != null && g.from == to + 1 && breakAfter(breaks, to) == null) {
+          to = g.to;
+        } else {
+          close();
+          from = g.from;
+          to = g.to;
+        }
+      }
+      close();
+    }
+    return out;
   }
 
   /// Dati per il widget (formato in LessonWidget.kt).

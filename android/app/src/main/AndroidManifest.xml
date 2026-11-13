@@ -243,9 +243,19 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- 3.9: immagini da condividere (ShareImage.kt), solo lettura e solo con il permesso dell'intent -->
+        <provider
+            android:name=".ShareProvider"
+            android:authorities="${applicationId}.share"
+            android:exported="false"
+            android:grantUriPermissions="true" />
     </application>
 
     <queries>
+        <!-- 3.9: lettura ad alta voce (Speech.kt) -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />

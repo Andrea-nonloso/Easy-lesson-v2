@@ -29,6 +29,8 @@ class LiveEvent {
         'adult' => 'adult',
         'notice' => 'notice',
         'dm' when data['threadId'] is String => 'dm:${data['threadId']}',
+        // 3.9: sfide a quiz (nuova sfida, l'amico ha giocato o rifiutato): un pallino solo per tutte.
+        'quiz' => 'quiz',
         'typing' => data['chat'] is String ? data['chat'] as String : null,
         _ => null,
       };
@@ -52,7 +54,7 @@ class Live extends ChangeNotifier {
   Live._();
   static final Live instance = Live._();
 
-  static const _types = ['hello', 'chat', 'adult', 'dm', 'typing', 'notice', 'friends', 'me', 'mod', 'progress'];
+  static const _types = ['hello', 'chat', 'adult', 'dm', 'typing', 'notice', 'friends', 'me', 'mod', 'progress', 'study', 'quiz', 'poll'];
 
   /// Collegato e in ascolto.
   bool connected = false;
@@ -131,6 +133,7 @@ class Live extends ChangeNotifier {
         if (key == _pushKey) return;
         await Cloud.pushRegister(b, code, t);
         _pushKey = key;
+        _quietKey = null;
       } else {
         if (_pushKey == 'off') return;
         final was = _pushKey;
@@ -140,6 +143,64 @@ class Live extends ChangeNotifier {
       }
     } catch (e) {
       AppLog.w('live', 'Notifiche push: $e');
+    }
+    await _syncQuiet();
+  }
+
+  // 3.9: silenzioso durante le lezioni (opzione "n.hold").
+  String? _quietKey;
+  final Map<String, int> _held = {};
+  Timer? _heldTimer;
+
+  bool get _holdOn => _store?.opt<bool>('n.hold', false) ?? false;
+
+  /// Blocco di lezione in corso adesso (null = siamo fuori).
+  List<int>? _windowNow() {
+    final s = _store;
+    if (s == null || !_holdOn) return null;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final w in NativeBridge.holdWindows(s, DateTime.now())) {
+      if (w[0] <= now && now < w[1]) return w;
+    }
+    return null;
+  }
+
+  /// Manda al server i blocchi di lezione di oggi e domani (vuoto = niente pausa). Solo se cambiano.
+  Future<void> _syncQuiet() async {
+    final s = _store;
+    final code = s?.accountCode;
+    final b = base;
+    if (s == null || code == null || b == null || !NativeBridge.supported) return;
+    final windows = _holdOn && notificationsOn ? NativeBridge.holdWindows(s, DateTime.now()) : const <List<int>>[];
+    final key = '$code|${jsonEncode(windows)}';
+    if (key == _quietKey) return;
+    try {
+      await Cloud.pushQuiet(b, code, windows);
+      _quietKey = key;
+    } catch (e) {
+      AppLog.w('live', 'Pausa notifiche: $e');
+    }
+  }
+
+  /// Si chiama da Impostazioni quando cambia "Silenzioso durante le lezioni".
+  Future<void> syncQuiet() => _syncQuiet();
+
+  /// Fine del blocco: un solo riassunto dei messaggi arrivati durante la lezione.
+  void _flushHeld() {
+    _heldTimer?.cancel();
+    _heldTimer = null;
+    if (_held.isEmpty) return;
+    final total = _held.values.fold(0, (a, b) => a + b);
+    final chats = _held.length;
+    _held.clear();
+    final title = tr('Mentre eri a lezione', 'While you were in class');
+    final body = chats == 1
+        ? tr(total == 1 ? '1 messaggio nuovo' : '$total messaggi nuovi', total == 1 ? '1 new message' : '$total new messages')
+        : tr('$total messaggi in $chats chat', '$total messages in $chats chats');
+    if (NativeBridge.supported) {
+      NativeBridge.notifyChat(4, title, body).catchError((_) {});
+    } else {
+      DesktopBridge.notify(title, body);
     }
   }
 
@@ -311,6 +372,7 @@ class Live extends ChangeNotifier {
       case 'adult':
       case 'notice':
       case 'dm':
+      case 'quiz':
         final chat = ev.chat;
         if (chat != null) {
           // Arrivato un messaggio: chi scriveva ha finito.
@@ -334,11 +396,19 @@ class Live extends ChangeNotifier {
     final name = names[chat];
     final (title, body) = switch (chat) {
       'adult' => (tr('Chat dei grandi', 'Adults\' chat'), tr('Nuovo messaggio', 'New message')),
+      'quiz' => (tr('Sfida a quiz', 'Quiz challenge'), tr('Novità nelle tue sfide a quiz', 'News in your quiz challenges')),
       'notice' => ('Moderazione', tr('Hai un nuovo messaggio dalla moderazione', 'You have a new message from moderation')),
       _ when chat.startsWith('dm:') => (tr('Messaggio privato', 'Private message'), tr('Nuovo messaggio privato', 'New private message')),
       _ => (name ?? tr('Chat della classe', 'Class chat'), name == null ? tr('Nuovo messaggio in classe', 'New message in class') : tr('Nuovo messaggio in $name', 'New message in $name')),
     };
-    final id = chat == 'adult' ? 1 : chat == 'notice' ? 2 : chat.startsWith('dm:') ? 3 : 10 + (chat.hashCode.abs() % 900);
+    // 3.9: a lezione (blocco senza ricreazione) si aspetta; gli avvisi della moderazione passano sempre.
+    final w = chat == 'notice' ? null : _windowNow();
+    if (w != null) {
+      _held[chat] = (_held[chat] ?? 0) + 1;
+      _heldTimer ??= Timer(Duration(milliseconds: (w[1] - DateTime.now().millisecondsSinceEpoch).clamp(1000, 6 * 3600 * 1000)), _flushHeld);
+      return;
+    }
+    final id = chat == 'adult' ? 1 : chat == 'notice' ? 2 : chat.startsWith('dm:') ? 3 : chat == 'quiz' ? 5 : 10 + (chat.hashCode.abs() % 900);
     if (NativeBridge.supported) {
       NativeBridge.notifyChat(id, title, body).catchError((_) {});
     } else {

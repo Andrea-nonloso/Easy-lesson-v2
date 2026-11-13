@@ -273,6 +273,137 @@ class ClassItem {
 String isoDate(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+// ---------------------------------------------------------------------------------------------- 3.9: insieme
+
+List<String> _strs(Object? v) => [for (final x in (v is List ? v : const [])) '$x'];
+List<Map<String, dynamic>> _maps(Object? v) => [for (final x in (v is List ? v : const [])) if (x is Map) Map<String, dynamic>.from(x)];
+
+/// Amico che sta studiando adesso (col timer).
+class StudyBuddy {
+  StudyBuddy(this.j);
+  final Map<String, dynamic> j;
+  String get code => _s(j['code']);
+  String get nickname => _s(j['nickname'], 'Utente');
+  String get avatar => _s(j['avatar'], '🙂');
+  String get subject => _s(j['subject']);
+  DateTime get startedAt => DateTime.fromMillisecondsSinceEpoch(_i(j['startedAt']));
+  DateTime get until => DateTime.fromMillisecondsSinceEpoch(_i(j['until']));
+
+  /// Ha detto "studio con te".
+  bool get withMe => j['withMe'] == true;
+}
+
+/// Una sfida a quiz 1 contro 1. status: open | done | declined | expired.
+class QuizMatch {
+  QuizMatch(this.j);
+  final Map<String, dynamic> j;
+  String get id => _s(j['id']);
+  String get status => _s(j['status'], 'open');
+  bool get challenger => j['challenger'] == true;
+  Friend get opponent => Friend(j['opponent'] is Map ? Map<String, dynamic>.from(j['opponent'] as Map) : {});
+  String get subject => _s(j['subject']);
+  DateTime get createdAt => DateTime.fromMillisecondsSinceEpoch(_i(j['createdAt']));
+  bool get played => j['played'] == true;
+  bool get theyPlayed => j['theyPlayed'] == true;
+  int? get myScore => j['myScore'] is num ? (j['myScore'] as num).toInt() : null;
+  int? get theirScore => j['theirScore'] is num ? (j['theirScore'] as num).toInt() : null;
+  int? get myMs => j['myMs'] is num ? (j['myMs'] as num).toInt() : null;
+  int? get theirMs => j['theirMs'] is num ? (j['theirMs'] as num).toInt() : null;
+  int get total => _i(j['total'], 5);
+  bool get open => status == 'open';
+
+  /// Tocca a me giocare.
+  bool get myTurn => open && !played;
+
+  /// 1 = ho vinto, -1 = ho perso, 0 = pari (a pari punti vince chi è stato più veloce), null = non finita.
+  int? get outcome {
+    if (status != 'done') return null;
+    final a = myScore ?? 0, b = theirScore ?? 0;
+    if (a != b) return a > b ? 1 : -1;
+    final ma = myMs, mb = theirMs;
+    if (ma == null || mb == null || ma == mb) return 0;
+    return ma < mb ? 1 : -1;
+  }
+}
+
+class QuizList {
+  QuizList(Map<String, dynamic> j)
+      : matches = [for (final m in _maps(j['matches'])) QuizMatch(m)],
+        subjects = _strs(j['subjects']),
+        subjectLabels = _strs(j['subjectLabels']);
+  final List<QuizMatch> matches;
+  final List<String> subjects;
+  final List<String> subjectLabels;
+}
+
+class QuizQuestion {
+  QuizQuestion(this.j);
+  final Map<String, dynamic> j;
+  String get subject => _s(j['subject']);
+  String get question => _s(j['question']);
+  List<String> get options => _strs(j['options']);
+
+  /// La risposta giusta (0-3): solo dopo aver giocato.
+  int? get correct => j['correct'] is num ? (j['correct'] as num).toInt() : null;
+}
+
+class QuizGame {
+  QuizGame(Map<String, dynamic> j)
+      : id = _s(j['id']),
+        status = _s(j['status'], 'open'),
+        played = j['played'] == true,
+        started = j['started'] == true,
+        questions = [for (final q in _maps(j['questions'])) QuizQuestion(q)],
+        mine = j['mine'] is List ? [for (final x in j['mine'] as List) x is num ? x.toInt() : -1] : null,
+        theirs = j['theirs'] is List ? [for (final x in j['theirs'] as List) x is num ? x.toInt() : -1] : null;
+  final String id;
+  final String status;
+  final bool played;
+
+  /// true = le domande sono già state chieste (il tempo sta correndo sul server).
+  final bool started;
+  final List<QuizQuestion> questions;
+  final List<int>? mine;
+  final List<int>? theirs;
+}
+
+/// Modello di sondaggio (li scrive la moderazione). source: fixed | subjects | days.
+class PollTemplate {
+  PollTemplate(this.j);
+  final Map<String, dynamic> j;
+  String get id => _s(j['id']);
+  String get text => _s(j['text']);
+  String get source => _s(j['source'], 'fixed');
+  List<String> get options => _strs(j['options']);
+}
+
+class PollTemplates {
+  PollTemplates(Map<String, dynamic> j)
+      : templates = [for (final t in _maps(j['templates'])) PollTemplate(t)],
+        subjects = _strs(j['subjects']),
+        days = _strs(j['days']),
+        subjectLabels = _strs(j['subjectLabels']),
+        dayLabels = _strs(j['dayLabels']);
+  final List<PollTemplate> templates;
+  final List<String> subjects, days, subjectLabels, dayLabels;
+}
+
+/// Sondaggio nella chat della classe (dura 24 ore).
+class ClassPoll {
+  ClassPoll(this.j);
+  final Map<String, dynamic> j;
+  String get id => _s(j['id']);
+  String get question => _s(j['question']);
+  List<String> get options => _strs(j['options']);
+  List<int> get counts => [for (final x in (j['counts'] is List ? j['counts'] as List : const [])) x is num ? x.toInt() : 0];
+  int get votes => counts.fold(0, (a, b) => a + b);
+  int? get myChoice => j['myChoice'] is num ? (j['myChoice'] as num).toInt() : null;
+  DateTime get endsAt => DateTime.fromMillisecondsSinceEpoch(_i(j['endsAt']));
+  bool get open => j['open'] == true;
+  bool get byMe => j['byMe'] == true;
+  bool get canDelete => j['canDelete'] == true;
+}
+
 /// Link nel QR per entrare in una classe / aggiungere un amico.
 String classLink(String joinCode) => 'easylesson://class?c=${Uri.encodeQueryComponent(joinCode)}';
 String friendLink(String friendCode) => 'easylesson://friend?c=${Uri.encodeQueryComponent(friendCode)}';
@@ -488,6 +619,38 @@ class Social {
 
   static Future<void> report(AppStore s, {required String kind, required String target, String reason = ''}) =>
       _j(s, 'POST', '/report', body: {'kind': kind, 'target': target, 'reason': reason});
+
+  // ------------------------------------------------------------------ 3.9: insieme
+  static String get _lang => appEnglish ? '?lang=en' : '';
+
+  static Future<List<StudyBuddy>> studying(AppStore s) async =>
+      [for (final m in _maps((await _j(s, 'GET', '/social/study$_lang'))['studying'])) StudyBuddy(m)];
+  static Future<void> startStudy(AppStore s, {required String subject, required int minutes, String? withCode}) =>
+      _j(s, 'POST', '/social/study', body: {'subject': subject, 'minutes': minutes, if (withCode != null) 'with': withCode});
+  static Future<void> stopStudy(AppStore s) => _j(s, 'DELETE', '/social/study');
+
+  static Future<QuizList> quizzes(AppStore s) async => QuizList(await _j(s, 'GET', '/social/quiz$_lang'));
+  static Future<String> newQuiz(AppStore s, String friendCode, {String subject = ''}) async =>
+      _s((await _j(s, 'POST', '/social/quiz$_lang', body: {'code': friendCode, 'subject': subject}))['id']);
+  static Future<QuizGame> quiz(AppStore s, String id) async => QuizGame(await _j(s, 'GET', '/social/quiz/$id$_lang'));
+
+  /// Inizia la sfida: il server manda le domande e da qui conta il tempo.
+  static Future<QuizGame> startQuiz(AppStore s, String id) async => QuizGame(await _j(s, 'POST', '/social/quiz/$id/start$_lang'));
+  static Future<(int, List<int>, bool)> answerQuiz(AppStore s, String id, List<int> answers, int ms) async {
+    final j = await _j(s, 'POST', '/social/quiz/$id/answers', body: {'answers': answers, 'ms': ms});
+    return (_i(j['score']), [for (final x in (j['correct'] is List ? j['correct'] as List : const [])) x is num ? x.toInt() : -1], j['done'] == true);
+  }
+
+  static Future<void> declineQuiz(AppStore s, String id) => _j(s, 'POST', '/social/quiz/$id/decline');
+
+  static Future<PollTemplates> pollTemplates(AppStore s) async => PollTemplates(await _j(s, 'GET', '/social/poll-templates$_lang'));
+  static Future<List<ClassPoll>> polls(AppStore s, String classId) async =>
+      [for (final m in _maps((await _j(s, 'GET', '/classes/$classId/polls$_lang'))['polls'])) ClassPoll(m)];
+  static Future<void> newPoll(AppStore s, String classId, String template, {List<String>? options}) =>
+      _j(s, 'POST', '/classes/$classId/polls', body: {'template': template, if (options != null) 'options': options});
+  static Future<void> votePoll(AppStore s, String classId, String pollId, int choice) =>
+      _j(s, 'POST', '/classes/$classId/polls/$pollId/vote', body: {'choice': choice});
+  static Future<void> deletePoll(AppStore s, String classId, String pollId) => _j(s, 'DELETE', '/classes/$classId/polls/$pollId');
 
   /// I numeri che contano per le sfide di classe.
   static Map<String, int> challengeValues(AppStore s) => {for (final m in challengeMetrics.keys) m: missionMetric(s, m)};

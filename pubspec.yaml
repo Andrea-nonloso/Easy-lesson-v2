@@ -2,7 +2,7 @@ name: easy_lesson
 description: Easy Lesson 2 - l'orario delle lezioni dell'IIS Rosselli, su telefono, tablet e web. Funziona anche offline.
 publish_to: 'none'
 
-version: 3.8.0+35
+version: 3.9.0+36
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -31,6 +31,8 @@ dependencies:
   cryptography: ^2.7.0
   # 2.7.0: scanner dei QR nell'app (solo Android)
   mobile_scanner: ^7.0.0
+  # 3.9: scanner in PDF (ritaglio, rotazione, filtro "documento"); era già dentro con pdf
+  image: ^4.2.0
 
 dev_dependencies:
   flutter_test:

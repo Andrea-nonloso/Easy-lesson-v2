@@ -103,7 +103,11 @@ String backupSectionOf(String key) => switch (key) {
       'el.studyLog' ||
       'el.teachers' ||
       'el.materials' ||
-      'el.photos' =>
+      'el.photos' ||
+      'el.flashcards' ||
+      'el.habits' ||
+      'el.mood' ||
+      'el.exam' =>
         'scuola',
       'el.xlsx' => 'excel',
       _ => 'opzioni',
@@ -928,6 +932,7 @@ class AppStore extends ChangeNotifier {
     required String kind,
     required String subject,
     required String text,
+    bool count = true,
   }) async {
     agenda.add(AgendaItem(
       id: '${DateTime.now().microsecondsSinceEpoch}',
@@ -937,7 +942,8 @@ class AppStore extends ChangeNotifier {
       text: text.trim(),
     ));
     AppLog.i('agenda', 'Aggiunto $kind · $subject');
-    _extras['stat.agendaAdded'] = stat('agendaAdded') + 1;
+    // Le voci messe in automatico (es. verifiche dalla classe, 3.9) non contano per missioni e obiettivi.
+    if (count) _extras['stat.agendaAdded'] = stat('agendaAdded') + 1;
     await _saveAgenda();
     await _prefs.setString(_kExtras, jsonEncode(_extras));
   }
@@ -1230,6 +1236,7 @@ class AppStore extends ChangeNotifier {
 
   /// Rilegge tutto dalla memoria del dispositivo.
   void reload() {
+    _docs.clear();
     _schedules.clear();
     _timetable = null;
     excelGrid = null;
@@ -1597,6 +1604,34 @@ class AppStore extends ChangeNotifier {
   Future<void> _saveList(String key, Iterable<Map<String, dynamic>> items) async {
     notifyListeners();
     await _prefs.setString(key, jsonEncode(items.toList()));
+  }
+
+  // 3.9: documenti JSON delle funzioni nuove (flashcard, abitudini, umore, maturità), uno per chiave
+  // "el.<nome>". Restano sul dispositivo e nel backup cifrato (sezione "scuola", vedi backupSectionOf).
+  final Map<String, Object?> _docs = {};
+
+  /// Il documento [name] (già decodificato), o null se non c'è / non è leggibile.
+  Object? doc(String name) {
+    if (_docs.containsKey(name)) return _docs[name];
+    Object? v;
+    try {
+      final raw = _prefs.getString('el.$name');
+      v = raw == null ? null : jsonDecode(raw);
+    } catch (e) {
+      AppLog.w('memoria', 'el.$name non leggibile: $e');
+    }
+    return _docs[name] = v;
+  }
+
+  /// Salva il documento [name] (null = cancella) e avvisa l'interfaccia.
+  Future<void> setDoc(String name, Object? value) async {
+    _docs[name] = value;
+    notifyListeners();
+    if (value == null) {
+      await _prefs.remove('el.$name');
+    } else {
+      await _prefs.setString('el.$name', jsonEncode(value));
+    }
   }
 
   Future<void> setBetaUpdates(bool v) async {

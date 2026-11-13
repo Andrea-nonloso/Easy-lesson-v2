@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'cloud.dart';
 import 'log.dart';
 import 'missions.dart';
+import 'seasons.dart';
 import 'progress.dart' show isoDay;
 import 'store.dart';
 import 'i18n.dart';
@@ -87,12 +88,13 @@ class Missions {
     if (s.opt('$p.key', '') == key) return;
     final school = _schoolToday(s, now);
     final ev = activeEvent(s, now);
+    final season = activeSeason(now);
     final picked = pickMissions(
       weekly ? weeklyMissions : dailyMissions,
       key,
       3,
-      allowed: (m) => (!m.schoolDay || school) && (!m.notOnWeb || !kIsWeb),
-      forced: weekly || ev == null ? const [] : ev.daily,
+      allowed: (m) => (!m.schoolDay || school) && (!m.notOnWeb || !kIsWeb) && (m.season == null || m.season == season?.id),
+      forced: weekly ? const [] : [if (season != null) 's_${season.id}', ...?ev?.daily],
     );
     final base = <String, int>{};
     for (final m in picked) {

@@ -18,6 +18,7 @@ class MissionDef {
     this.xp, {
     this.schoolDay = false,
     this.notOnWeb = false,
+    this.season,
   });
 
   final String id;
@@ -34,6 +35,9 @@ class MissionDef {
 
   /// Non sul web (foto).
   final bool notOnWeb;
+
+  /// 3.9: missione a tema, esce (sempre per prima) solo durante questo evento (id di seasons.dart).
+  final String? season;
 }
 
 List<MissionDef> get dailyMissions => <MissionDef>[
@@ -43,6 +47,14 @@ List<MissionDef> get dailyMissions => <MissionDef>[
   MissionDef('d_done', '✅', tr('Segna un compito come fatto', 'Mark a homework as done'), 'agendaDone', 1, 15),
   MissionDef('d_agenda', '📝', tr('Aggiungi qualcosa in agenda', 'Add something to the planner'), 'agendaAdded', 1, 10),
   MissionDef('d_study25', '🍅', tr('Studia 25 minuti con il timer', 'Study 25 minutes with the timer'), 'studied', 25, 20),
+  MissionDef('d_flash10', '🃏', tr('Ripassa 10 flashcard', 'Review 10 flashcards'), 'flashReviewed', 10, 15),
+  MissionDef('d_habits3', '✅', tr('Spunta 3 abitudini', 'Tick 3 habits'), 'habitsDone', 3, 15),
+  MissionDef('d_mood', '🙂', tr('Segna come ti senti oggi', 'Log how you feel today'), 'moodDays', 1, 10),
+  // 3.9: missioni degli eventi stagionali
+  MissionDef('s_halloween', '🎃', tr('Dolcetto o ripasso: 10 flashcard', 'Trick or review: 10 flashcards'), 'flashReviewed', 10, 30, season: 'halloween'),
+  MissionDef('s_natale', '🎄', tr('Regalati 25 minuti di studio', 'Gift yourself 25 minutes of study'), 'studied', 25, 30, season: 'natale'),
+  MissionDef('s_sanvalentino', '💘', tr('Prenditi cura di te: 3 abitudini', 'Take care of yourself: 3 habits'), 'habitsDone', 3, 30, season: 'sanvalentino'),
+  MissionDef('s_finescuola', '🏖️', tr('Ultimo sprint: 2 compiti fatti', 'Final sprint: 2 homework done'), 'agendaDone', 2, 30, season: 'finescuola'),
   MissionDef('d_study50', '📖', tr('Studia 50 minuti con il timer', 'Study 50 minutes with the timer'), 'studied', 50, 30),
   MissionDef('d_break', '🥪', tr('Apri l\'app durante la ricreazione', 'Open the app during the break'), 'breakOpens', 1, 15, schoolDay: true),
   MissionDef('d_bell', '🔔', tr('Controlla l\'orario prima della prima campanella', 'Check the timetable before the first bell'), 'beforeBell', 1, 15, schoolDay: true),
@@ -64,6 +76,8 @@ List<MissionDef> get weeklyMissions => <MissionDef>[
   MissionDef('w_grades3', '🗃️', tr('Segna 3 voti', 'Add 3 grades'), 'gradesAdded', 3, 60),
   MissionDef('w_views30', '🔭', tr('Apri 30 orari', 'Open 30 timetables'), 'views', 30, 50),
   MissionDef('w_prof15', '🕵️', tr('Apri 15 volte orari di prof', 'Open teachers\' timetables 15 times'), 'profViews', 15, 50),
+  MissionDef('w_flash60', '🧠', tr('Ripassa 60 flashcard', 'Review 60 flashcards'), 'flashReviewed', 60, 70),
+  MissionDef('w_habits15', '🔥', tr('Spunta 15 abitudini', 'Tick 15 habits'), 'habitsDone', 15, 70),
   MissionDef('w_dailies10', '🎯', tr('Completa 10 missioni giornaliere', 'Complete 10 daily missions'), 'missionsDone', 10, 100),
   MissionDef('w_break3', '🥤', tr('Apri l\'app in 3 ricreazioni', 'Open the app during 3 breaks'), 'breakOpens', 3, 60),
 ];

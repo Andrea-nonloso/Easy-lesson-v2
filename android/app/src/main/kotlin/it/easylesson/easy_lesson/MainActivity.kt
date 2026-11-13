@@ -104,6 +104,29 @@ class MainActivity : FlutterActivity() {
                         SchoolSilence.schedule(this, call.arguments as? String ?: "[]")
                         result.success(true)
                     }
+                    "speak" -> {
+                        val args = call.arguments as? Map<*, *>
+                        Speech.speak(
+                            this, args?.get("text") as? String ?: "", args?.get("lang") as? String ?: "it-IT",
+                            (args?.get("rate") as? Double ?: 1.0).toFloat()
+                        )
+                        result.success(true)
+                    }
+                    "stopSpeaking" -> {
+                        Speech.stop()
+                        result.success(true)
+                    }
+                    "shareImage" -> {
+                        val args = call.arguments as? Map<*, *>
+                        val bytes = args?.get("bytes") as? ByteArray
+                        val name = args?.get("name") as? String
+                        if (bytes == null || name == null) {
+                            result.success(false)
+                        } else {
+                            ShareImage.share(this, bytes, name, args["text"] as? String)
+                            result.success(true)
+                        }
+                    }
                     "getAppIcon" -> result.success(AppIcons.current(this))
                     "setAppIcon" -> {
                         AppIcons.set(this, call.arguments as? String ?: "default")
@@ -139,6 +162,11 @@ class MainActivity : FlutterActivity() {
     }
 
     @Deprecated("Serve per il selettore di cartelle (StickerImport)")
+    override fun onDestroy() {
+        Speech.shutdown()
+        super.onDestroy()
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (StickerImport.onResult(this, requestCode, resultCode, data)) return
         @Suppress("DEPRECATION")

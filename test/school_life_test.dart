@@ -85,4 +85,18 @@ void main() {
     expect(isWeekB(DateTime(2026, 11, 16), anchorB), isTrue);
     expect(isWeekB(DateTime(2026, 10, 28), anchorB), isFalse);
   });
+
+  test('raiseOverall: alza prima le materie più basse', () {
+    final r = raiseOverall({'MAT': 5, 'ITA': 7, 'ING': 8}, 7);
+    expect(r, [('MAT', 5.0, 6.0)]);
+    expect(raiseOverall({'MAT': 9, 'ITA': 9.5}, 9), isEmpty);
+    expect(raiseOverall({'MAT': 9, 'ITA': 9}, 10), [('MAT', 9.0, 10.0), ('ITA', 9.0, 10.0)]);
+    expect(raiseOverall({'MAT': 3}, 10.5), isNull);
+    expect(raiseOverall({}, 7), isNull);
+  });
+
+  test('gradeTargets salta i valori rovinati', () {
+    expect(gradeTargets({'MAT': 7, 'ITA': 'x', 'ING': 12, 'FIS': 6.5}), {'MAT': 7.0, 'FIS': 6.5});
+    expect(gradeTargets(null), isEmpty);
+  });
 }
