@@ -24,6 +24,7 @@ import 'notices.dart';
 import 'now_page.dart';
 import 'profile_page.dart' show ProfilePage, checkCodeMemory, openAccountLink;
 import 'saved_page.dart';
+import '../dev_hook.dart';
 import 'schedule_screen.dart';
 import 'school_life_pages.dart';
 import 'search_page.dart';
@@ -66,11 +67,23 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         (icon: Icons.today_outlined, selected: Icons.today_rounded, label: tr('Orario', 'Timetable')),
         (icon: Icons.people_outline_rounded, selected: Icons.people_rounded, label: tr('Amici', 'Friends')),
         (icon: Icons.account_circle_outlined, selected: Icons.account_circle_rounded, label: tr('Profilo', 'Profile')),
+        // Solo nelle build private (vedi dev_hook.dart).
+        if (DevHook.extraTab != null)
+          (
+            icon: DevHook.extraIcon ?? Icons.admin_panel_settings_outlined,
+            selected: DevHook.extraIconSelected ?? Icons.admin_panel_settings_rounded,
+            label: DevHook.extraLabel,
+          ),
       ];
 
   // Indici delle pagine: 0-3 le voci della barra, 4 Cerca, 5 Salvati (solo nella barra laterale).
   static const _search = 4;
   static const _saved = 5;
+
+  /// La scheda in più delle build private: ultima voce della barra, pagina 6.
+  static const _extra = 6;
+  static int _pageOf(int nav) => nav == 4 ? _extra : nav;
+  static int? _navOf(int page) => page <= 3 ? page : (page == _extra ? 4 : null);
   bool _wide = false;
 
   /// Cerca: nella barra laterale è una pagina accanto; sul telefono si apre sopra.
@@ -228,6 +241,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
   void _go(int i) {
     if (i != _index && StoreScope.read(context).opt('ui.haptic', false)) HapticFeedback.selectionClick();
+    DevHook.extraVisible.value = i == _extra;
     setState(() => _index = i);
   }
 
@@ -243,6 +257,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         // Solo nella barra laterale (sul telefono si aprono sopra): costruite solo se servono.
         if (_wide) const SearchPage() else const SizedBox.shrink(),
         if (_wide) SavedPage(onSearch: _openSearch) else const SizedBox.shrink(),
+        if (DevHook.extraTab != null) Builder(builder: DevHook.extraTab!),
       ],
     );
 
@@ -251,7 +266,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       if (wide != _wide) {
         _wide = wide;
         // Da largo a stretto con Cerca/Salvati aperti: si torna alla home.
-        if (!wide && _index > 3) WidgetsBinding.instance.addPostFrameCallback((_) => _go(0));
+        if (!wide && _index > 3 && _index != _extra) WidgetsBinding.instance.addPostFrameCallback((_) => _go(0));
       }
       if (wide) {
         final scheme = Theme.of(context).colorScheme;
@@ -290,8 +305,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
               SafeArea(
                 right: false,
                 child: NavigationRail(
-                  selectedIndex: _index <= 3 ? _index : null,
-                  onDestinationSelected: _go,
+                  selectedIndex: _navOf(_index),
+                  onDestinationSelected: (i) => _go(_pageOf(i)),
                   labelType: NavigationRailLabelType.all,
                   groupAlignment: -0.9,
                   leading: const Padding(
@@ -332,8 +347,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       return Scaffold(
         body: body,
         bottomNavigationBar: NavigationBar(
-          selectedIndex: _index.clamp(0, 3),
-          onDestinationSelected: _go,
+          selectedIndex: _navOf(_index) ?? 0,
+          onDestinationSelected: (i) => _go(_pageOf(i)),
           destinations: [
             for (final (i, d) in _destinations.indexed)
               NavigationDestination(
