@@ -88,7 +88,7 @@ class _AdultChatPageState extends State<AdultChatPage> with LivePoll {
             ListTile(leading: const Icon(Icons.mail_outline_rounded), title: Text(tr('Scrivi in privato', 'Message privately')), onTap: () => Navigator.pop(c, 'dm')),
           if (m.byMe)
             ListTile(leading: const Icon(Icons.delete_outline_rounded), title: Text(tr('Togli il messaggio', 'Remove the message')), onTap: () => Navigator.pop(c, 'del'))
-          else
+          else if (!m.mod)
             ListTile(leading: const Icon(Icons.flag_outlined), title: Text(tr('Segnala', 'Report')), onTap: () => Navigator.pop(c, 'rep')),
         ]),
       ),
@@ -136,7 +136,7 @@ class _AdultChatPageState extends State<AdultChatPage> with LivePoll {
                       itemBuilder: (context, i) {
                         final m = list[list.length - 1 - i];
                         return Align(
-                          alignment: m.byMe ? Alignment.centerRight : Alignment.centerLeft,
+                          alignment: m.mod ? Alignment.center : m.byMe ? Alignment.centerRight : Alignment.centerLeft,
                           child: GestureDetector(
                             onLongPress: () => _menu(m),
                             child: Container(
@@ -144,7 +144,7 @@ class _AdultChatPageState extends State<AdultChatPage> with LivePoll {
                               margin: const EdgeInsets.symmetric(vertical: 3),
                               padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
                               decoration: BoxDecoration(
-                                color: m.byMe ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+                                color: m.mod ? scheme.tertiaryContainer : m.byMe ? scheme.primaryContainer : scheme.surfaceContainerHigh,
                                 borderRadius: BorderRadius.circular(18),
                               ),
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

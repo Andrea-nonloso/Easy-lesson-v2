@@ -175,6 +175,9 @@ class ChatMessage {
   bool get canDelete => j['canDelete'] == true;
   DateTime get at => DateTime.fromMillisecondsSinceEpoch(_i(j['at']));
 
+  /// Scritto dalla moderazione ("🛡️ Moderazione", server 3.10).
+  bool get mod => j['mod'] == true;
+
   /// Grandi (3.8): immagine ("media/<sha>.<ext>") e tipo (text, photo, sticker).
   String? get media => j['media'] is String ? j['media'] as String : null;
   String get kind => _s(j['kind'], 'text');
@@ -227,6 +230,9 @@ class DmMessage {
   String? get media => j['media'] is String ? j['media'] as String : null;
   String get kind => _s(j['kind'], 'text');
   bool get byMe => j['byMe'] == true;
+
+  /// Scritto dalla moderazione (server 3.10): il testo comincia già con "🛡️ Moderazione: ".
+  bool get mod => j['mod'] == true;
 
   /// Mio messaggio già letto dall'altro.
   bool get read => j['read'] == true;

@@ -173,7 +173,7 @@ class _ClassChatTabState extends State<ClassChatTab> with LivePoll {
           ListTile(title: Text(m.text), subtitle: Text(m.author)),
           if (m.canDelete)
             ListTile(leading: const Icon(Icons.delete_outline_rounded), title: Text(tr('Togli il messaggio', 'Remove the message')), onTap: () => Navigator.pop(c, 'del')),
-          if (!m.byMe)
+          if (!m.byMe && !m.mod)
             ListTile(leading: const Icon(Icons.flag_outlined), title: Text(tr('Segnala', 'Report')), onTap: () => Navigator.pop(c, 'rep')),
         ]),
       ),
@@ -332,7 +332,7 @@ class _ClassChatTabState extends State<ClassChatTab> with LivePoll {
                       itemBuilder: (context, i) {
                         final m = d.messages[d.messages.length - 1 - i];
                         return Align(
-                          alignment: m.byMe ? Alignment.centerRight : Alignment.centerLeft,
+                          alignment: m.mod ? Alignment.center : m.byMe ? Alignment.centerRight : Alignment.centerLeft,
                           child: GestureDetector(
                             onLongPress: () => _menu(m),
                             onTap: () => _menu(m),
@@ -341,7 +341,7 @@ class _ClassChatTabState extends State<ClassChatTab> with LivePoll {
                               margin: const EdgeInsets.symmetric(vertical: 3),
                               padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
                               decoration: BoxDecoration(
-                                color: m.byMe ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+                                color: m.mod ? scheme.tertiaryContainer : m.byMe ? scheme.primaryContainer : scheme.surfaceContainerHigh,
                                 borderRadius: BorderRadius.circular(18),
                               ),
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
