@@ -178,6 +178,9 @@ class ChatMessage {
   /// Scritto dalla moderazione ("🛡️ Moderazione", server 3.10).
   bool get mod => j['mod'] == true;
 
+  /// Foto profilo accettata di chi l'ha scritto (solo chat dei grandi, server 3.11), o null: si usa l'emoji.
+  String? get photo => j['photo'] is String ? j['photo'] as String : null;
+
   /// Grandi (3.8): immagine ("media/<sha>.<ext>") e tipo (text, photo, sticker).
   String? get media => j['media'] is String ? j['media'] as String : null;
   String get kind => _s(j['kind'], 'text');
@@ -194,6 +197,18 @@ class AdultPerson {
   String get nickname => _s(j['nickname'], 'Utente');
   String get avatar => _s(j['avatar'], '🙂');
   String get label => '$avatar $nickname';
+
+  /// Foto profilo accettata (server 3.11), o null.
+  String? get photo => j['photo'] is String ? j['photo'] as String : null;
+}
+
+/// La mia foto profilo (3.11): quella che si vede, quella che aspetta la moderazione, se l'ultima è stata rifiutata.
+class MyPhoto {
+  MyPhoto(this.j);
+  final Map<String, dynamic> j;
+  String? get photo => j['photo'] is String ? j['photo'] as String : null;
+  String? get pending => j['pending'] is String ? j['pending'] as String : null;
+  bool get rejected => j['rejectedAt'] is num;
 }
 
 /// Conversazione privata tra grandi (3.8).
@@ -622,6 +637,19 @@ class Social {
     return b;
   }
   static Future<void> deleteAdult(AppStore s, String id) => _j(s, 'DELETE', '/social/adult/chat/$id');
+
+  // ------------------------------------------------------------------ 3.11: foto profilo (solo grandi)
+  static Future<MyPhoto> myPhoto(AppStore s) async => MyPhoto(await _j(s, 'GET', '/social/adult/photo'));
+  static Future<void> deleteMyPhoto(AppStore s) => _j(s, 'DELETE', '/social/adult/photo');
+
+  /// Carica la foto profilo (max 10 MB): aspetta l'ok della moderazione prima di vedersi.
+  static Future<void> uploadMyPhoto(AppStore s, Uint8List bytes) async {
+    final code = s.accountCode;
+    if (code == null) throw CloudException('Serve l\'account Easy Lesson');
+    final out = await Cloud.bytes('POST', '/social/adult/photo', code: code, body: bytes);
+    final j = jsonDecode(utf8.decode(out));
+    if (j is Map && j['pending'] is String) _media[j['pending'] as String] = bytes;
+  }
 
   static Future<void> report(AppStore s, {required String kind, required String target, String reason = ''}) =>
       _j(s, 'POST', '/report', body: {'kind': kind, 'target': target, 'reason': reason});

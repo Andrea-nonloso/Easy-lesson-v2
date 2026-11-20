@@ -62,6 +62,12 @@ class AdultImage extends StatelessWidget {
 /// La foto si rimpicciolisce sul telefono; il server toglie comunque i dati nascosti (posizione, modello…).
 Future<String?> pickAndUploadPhoto(BuildContext context) async {
   final store = StoreScope.read(context);
+  final bytes = await pickPhotoBytes(context);
+  return bytes == null ? null : Social.uploadMedia(store, bytes);
+}
+
+/// Galleria o fotocamera (su Android si sceglie), rimpicciolita a [max] px. null = annullato.
+Future<Uint8List?> pickPhotoBytes(BuildContext context, {double max = 1600}) async {
   final mobile = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
   ImageSource? source = ImageSource.gallery;
   if (mobile) {
@@ -77,10 +83,28 @@ Future<String?> pickAndUploadPhoto(BuildContext context) async {
     );
   }
   if (source == null) return null;
-  final picked = await ImagePicker().pickImage(source: source, maxWidth: 1600, maxHeight: 1600, imageQuality: 80);
+  final picked = await ImagePicker().pickImage(source: source, maxWidth: max, maxHeight: max, imageQuality: 80);
   if (picked == null) return null;
-  final bytes = await picked.readAsBytes();
-  return Social.uploadMedia(store, bytes);
+  return picked.readAsBytes();
+}
+
+/// Tondo con la foto profilo (se c'è e si carica) o l'emoji.
+class ProfileAvatar extends StatelessWidget {
+  const ProfileAvatar({super.key, required this.photo, required this.emoji, this.radius = 20});
+  final String? photo;
+  final String emoji;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = CircleAvatar(radius: radius, child: Text(emoji, style: TextStyle(fontSize: radius)));
+    final key = photo;
+    if (key == null) return fallback;
+    return FutureBuilder<Uint8List>(
+      future: Social.mediaBytes(StoreScope.read(context), key),
+      builder: (context, snap) => snap.hasData ? CircleAvatar(radius: radius, backgroundImage: MemoryImage(snap.data!)) : fallback,
+    );
+  }
 }
 
 /// Pannello degli sticker: tocca per mandare, tieni premuto per toglierlo; Importa (file, .wastickers) e,

@@ -110,7 +110,7 @@ class _DmListPageState extends State<DmListPage> with LivePoll {
     final requests = list?.where((t) => t.isRequestForMe).toList() ?? const <DmThread>[];
     final others = list?.where((t) => !t.isRequestForMe).toList() ?? const <DmThread>[];
     Widget tile(DmThread t) => ListTile(
-          leading: CircleAvatar(child: Text(t.other.avatar, style: const TextStyle(fontSize: 20))),
+          leading: ProfileAvatar(photo: t.other.photo, emoji: t.other.avatar),
           title: Text(t.other.nickname, style: TextStyle(fontWeight: t.unread > 0 ? FontWeight.w700 : FontWeight.w500)),
           subtitle: Text(
             t.status == 'blocked'

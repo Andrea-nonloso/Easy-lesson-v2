@@ -1,7 +1,7 @@
 # Easy Lesson 3.9 📚
 
 La 3.9 aggiunge 15 cose nuove per studiare, stare bene e fare cose con gli amici. Nessuna ha bisogno dei dati della
-scuola. Server 3.10.0 (migrazioni 0015, 0016 e 0017) e moderazione 2.6.0.
+scuola. Server 3.11.0 (migrazioni 0015, 0016, 0017 e 0018) e moderazione 2.7.0.
 
 ## 📖 Studiare
 - **Flashcard** con ripasso a intervalli: mazzi per materia, cinque scatole. Le carte che sai tornano più di rado,
@@ -57,6 +57,11 @@ scuola. Server 3.10.0 (migrazioni 0015, 0016 e 0017) e moderazione 2.6.0.
 - Moderazione: per entrare con la chiave di sicurezza servono anche nome e password; più limiti ai tentativi di
   accesso; una chiave già registrata non si può sovrascrivere.
 - Foto della chat dei grandi: tolti anche i dati in coda ai JPEG e i commenti nelle GIF.
+
+## 🔞 Grandi
+- **Foto profilo**: nella chat dei grandi, il pulsante in alto apre "La mia foto". La foto si vede solo nella chat dei
+  grandi e nei privati, dopo che la moderazione l'ha controllata. Se la togli o la cambi, la moderazione la può ancora
+  vedere per 12 ore.
 
 ## 🛡️ Dietro le quinte
 - Le domande dei quiz e i sondaggi pronti si gestiscono dall'app della moderazione (permesso nuovo "quiz").

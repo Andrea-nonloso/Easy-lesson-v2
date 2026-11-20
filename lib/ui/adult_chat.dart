@@ -6,6 +6,7 @@ import '../store.dart';
 import 'adult_dm.dart';
 import 'adult_media.dart';
 import 'live_poll.dart';
+import 'my_photo_page.dart';
 import '../i18n.dart';
 
 /// Chat dei grandi (3.7.1): testo libero, solo tra maggiorenni verificati di persona dalla moderazione.
@@ -112,7 +113,13 @@ class _AdultChatPageState extends State<AdultChatPage> with LivePoll {
     final scheme = Theme.of(context).colorScheme;
     final list = _messages;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('🔞 Chat dei grandi', '🔞 Adults\' chat'))),
+      appBar: AppBar(title: Text(tr('🔞 Chat dei grandi', '🔞 Adults\' chat')), actions: [
+        IconButton(
+          tooltip: tr('La mia foto', 'My photo'),
+          icon: const Icon(Icons.account_circle_outlined),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const MyPhotoPage())).then((_) => _load()),
+        ),
+      ]),
       body: Column(children: [
         Expanded(
           child: list == null
@@ -148,7 +155,18 @@ class _AdultChatPageState extends State<AdultChatPage> with LivePoll {
                                 borderRadius: BorderRadius.circular(18),
                               ),
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                if (!m.byMe) Text(m.author, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: scheme.primary)),
+                                if (!m.byMe && m.photo != null)
+                                  Row(mainAxisSize: MainAxisSize.min, children: [
+                                    ProfileAvatar(photo: m.photo, emoji: '🙂', radius: 11),
+                                    const SizedBox(width: 6),
+                                    // L'emoji c'è già nella foto: si mostra solo il soprannome.
+                                    Flexible(
+                                      child: Text(m.author.contains(' ') ? m.author.substring(m.author.indexOf(' ') + 1) : m.author,
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: scheme.primary)),
+                                    ),
+                                  ])
+                                else if (!m.byMe)
+                                  Text(m.author, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: scheme.primary)),
                                 if (m.media != null)
                                   Padding(padding: const EdgeInsets.only(top: 4, bottom: 2), child: AdultImage(media: m.media!, kind: m.kind)),
                                 if (m.text.isNotEmpty) SelectableText(m.text, style: const TextStyle(fontSize: 15.5)),
