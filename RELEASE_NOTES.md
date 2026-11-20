@@ -1,7 +1,7 @@
 # Easy Lesson 3.9 📚
 
 La 3.9 aggiunge 15 cose nuove per studiare, stare bene e fare cose con gli amici. Nessuna ha bisogno dei dati della
-scuola. Server 3.9.0 (migrazioni 0015 e 0016) e moderazione 2.5.0.
+scuola. Server 3.10.0 (migrazioni 0015, 0016 e 0017) e moderazione 2.6.0.
 
 ## 📖 Studiare
 - **Flashcard** con ripasso a intervalli: mazzi per materia, cinque scatole. Le carte che sai tornano più di rado,
@@ -61,3 +61,5 @@ scuola. Server 3.9.0 (migrazioni 0015 e 0016) e moderazione 2.5.0.
 ## 🛡️ Dietro le quinte
 - Le domande dei quiz e i sondaggi pronti si gestiscono dall'app della moderazione (permesso nuovo "quiz").
 - Le tabelle nuove si copiano anche sul secondo server.
+- I messaggi della moderazione nelle chat (classe, grandi e privati) stanno al centro, hanno un colore diverso e non
+  si possono segnalare.
