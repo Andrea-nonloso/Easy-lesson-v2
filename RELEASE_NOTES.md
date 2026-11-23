@@ -63,6 +63,12 @@ scuola. Server 3.11.0 (migrazioni 0015, 0016, 0017 e 0018) e moderazione 2.7.0.
   grandi e nei privati, dopo che la moderazione l'ha controllata. Se la togli o la cambi, la moderazione la può ancora
   vedere per 12 ore.
 
+## 🎨 Grafica
+- La card della lezione nell'orario ora è uguale a quella della home: colore pieno, senza sfumatura e senza alone.
+  Anche il logo e l'anteprima dei temi sono a colore pieno.
+- Le scritte in maiuscolo ("PROSSIMA LEZIONE", "ADESSO", "OGGI" e i titoli delle sezioni) ora sono scritte normalmente
+  e un po' più grandi.
+
 ## 🛡️ Dietro le quinte
 - Le domande dei quiz e i sondaggi pronti si gestiscono dall'app della moderazione (permesso nuovo "quiz").
 - Le tabelle nuove si copiano anche sul secondo server.

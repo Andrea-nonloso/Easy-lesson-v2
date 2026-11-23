@@ -647,7 +647,7 @@ class NowCard extends StatelessWidget {
     if (idx != null && idx < n) {
       final l = lessons[idx];
       final s = slots[idx];
-      overline = tr('ADESSO · fino alle ${s.endText}', 'NOW · until ${s.endText}');
+      overline = tr('Adesso · fino alle ${s.endText}', 'Now · until ${s.endText}');
       title = l.isEmpty ? tr('Ora libera', 'Free period') : l.title;
       if (l.lab.isNotEmpty) place = l.lab;
       progress = ((m - s.start!) / (s.end! - s.start!)).clamp(0.0, 1.0).toDouble();
@@ -656,7 +656,7 @@ class NowCard extends StatelessWidget {
     } else if (breaksOf(slots).any((b) =>
         m >= b.start && m < b.end && b.afterIndex + 1 < n && lessons.skip(b.afterIndex + 1).any((l) => !l.isEmpty))) {
       final b = breaksOf(slots).firstWhere((b) => m >= b.start && m < b.end);
-      overline = tr('RICREAZIONE · fino alle ${TimeSlot.fmt(b.end)}', 'BREAK · until ${TimeSlot.fmt(b.end)}');
+      overline = tr('Ricreazione · fino alle ${TimeSlot.fmt(b.end)}', 'Break · until ${TimeSlot.fmt(b.end)}');
       title = tr('Ricreazione', 'Break');
       progress = ((m - b.start) / (b.end - b.start)).clamp(0.0, 1.0).toDouble();
       final next = lessons.skip(b.afterIndex + 1).firstWhere((l) => !l.isEmpty);
@@ -671,13 +671,13 @@ class NowCard extends StatelessWidget {
       }
       final lastEnd = slots[n - 1].end;
       if (nextIdx != null) {
-        overline = tr('PROSSIMA LEZIONE · ore ${slots[nextIdx].startText}', 'NEXT LESSON · at ${slots[nextIdx].startText}');
+        overline = tr('Prossima lezione · ore ${slots[nextIdx].startText}', 'Next lesson · at ${slots[nextIdx].startText}');
         title = lessons[nextIdx].title;
         if (lessons[nextIdx].lab.isNotEmpty) place = lessons[nextIdx].lab;
         final mins = slots[nextIdx].start! - m;
         subtitle = mins < 60 ? tr('Tra $mins minuti', 'In $mins minutes') : tr('Tra ${mins ~/ 60} h ${mins % 60} min', 'In ${mins ~/ 60} h ${mins % 60} min');
       } else if (lastEnd != null && m >= lastEnd) {
-        overline = tr('OGGI', 'TODAY');
+        overline = tr('Oggi', 'Today');
         title = tr('Lezioni finite!', 'Lessons are over!');
         subtitle = tr('Goditi il resto della giornata.', 'Enjoy the rest of the day.');
       } else {
@@ -689,20 +689,10 @@ class NowCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+      // Stessa card della home: colore pieno, senza sfumatura né alone.
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
-        gradient: LinearGradient(
-          colors: [scheme.primary, Color.lerp(scheme.primary, scheme.tertiary, 0.55)!],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: scheme.primary.withAlpha(90),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(24),
+        color: scheme.primary,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -711,9 +701,8 @@ class NowCard extends StatelessWidget {
             overline,
             style: TextStyle(
               color: scheme.onPrimary.withAlpha(210),
-              fontSize: 12,
+              fontSize: 13.5,
               fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
             ),
           ),
           const SizedBox(height: 4),

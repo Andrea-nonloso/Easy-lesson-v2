@@ -49,11 +49,7 @@ class AppLogo extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [scheme.primary, Color.lerp(scheme.primary, scheme.tertiary, 0.6)!],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: scheme.primary,
         borderRadius: BorderRadius.circular(size * 0.3),
       ),
       child: Icon(easyIcon, color: scheme.onPrimary, size: size * 0.62),
@@ -172,9 +168,8 @@ class SectionLabel extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
       child: Text(
-        text.toUpperCase(),
-        style: theme.textTheme.labelMedium?.copyWith(
-          letterSpacing: 1.1,
+        text,
+        style: theme.textTheme.titleSmall?.copyWith(
           fontWeight: FontWeight.w700,
           color: theme.colorScheme.onSurfaceVariant,
         ),

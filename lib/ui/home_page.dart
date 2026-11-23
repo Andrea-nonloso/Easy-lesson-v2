@@ -715,14 +715,14 @@ class _TodayCard extends StatelessWidget {
     VoidCallback onTap = onOpenMine;
 
     if (ref == null) {
-      overline = tr('INIZIA DA QUI', 'START HERE');
+      overline = tr('Inizia da qui', 'Start here');
       title = tr('Imposta il tuo orario', 'Set your timetable');
       subtitle = tr('Scegli la tua classe o il tuo nome: lo troverai sempre in apertura.', 'Choose your class or your name: you\'ll always find it when you open the app.');
       onTap = onSearch;
     } else {
       final cached = store.cached(ref);
       if (cached == null) {
-        overline = ref.displayName.toUpperCase();
+        overline = ref.displayName;
         title = tr('Scarica l\'orario', 'Download the timetable');
         subtitle = tr('Tocca qui per scaricarlo e averlo sempre con te.', 'Tap here to download it and always have it with you.');
       } else {
@@ -732,13 +732,13 @@ class _TodayCard extends StatelessWidget {
         if (closure != null && ti >= 0) {
           // Vacanza o festa in un giorno di scuola.
           final back = store.nextSchoolDay(now, daysPerWeek: days.length);
-          overline = tr('OGGI NIENTE SCUOLA', 'NO SCHOOL TODAY');
+          overline = tr('Oggi niente scuola', 'No school today');
           title = '${closure.emoji} ${closure.name}';
           subtitle = back == null
               ? tr('Goditi la giornata.', 'Enjoy the day.')
               : 'Si torna ${friendlyDate(back, now).toLowerCase()} (${dayNames[back.weekday - 1].toLowerCase()} ${back.day}/${back.month}).';
         } else if (ti < 0 || days[ti].isEmpty) {
-          overline = tr('OGGI', 'TODAY');
+          overline = tr('Oggi', 'Today');
           title = tr('Nessuna lezione oggi', 'No lessons today');
           subtitle = tr('Goditi la giornata.', 'Enjoy the day.');
         } else {
@@ -750,7 +750,7 @@ class _TodayCard extends StatelessWidget {
           if (idx != null && idx < n) {
             final l = day.lessons[idx];
             final s = slots[idx];
-            overline = tr('ADESSO · fino alle ${s.endText}', 'NOW · until ${s.endText}');
+            overline = tr('Adesso · fino alle ${s.endText}', 'Now · until ${s.endText}');
             title = l.isEmpty ? tr('Ora libera', 'Free period') : l.title;
             if (l.lab.isNotEmpty) place = l.lab;
             progress = ((m - s.start!) / (s.end! - s.start!)).clamp(0.0, 1.0).toDouble();
@@ -777,17 +777,17 @@ class _TodayCard extends StatelessWidget {
             }
             final lastEnd = n > 0 ? slots[n - 1].end : null;
             if (nextIdx != null) {
-              overline = tr('PROSSIMA · ore ${slots[nextIdx].startText}', 'NEXT · at ${slots[nextIdx].startText}');
+              overline = tr('Prossima · ore ${slots[nextIdx].startText}', 'Next · at ${slots[nextIdx].startText}');
               title = day.lessons[nextIdx].title;
               if (day.lessons[nextIdx].lab.isNotEmpty) place = day.lessons[nextIdx].lab;
               final mins = slots[nextIdx].start! - m;
               subtitle = mins < 60 ? tr('Tra $mins min', 'In $mins min') : tr('Tra ${mins ~/ 60} h ${mins % 60} min', 'In ${mins ~/ 60} h ${mins % 60} min');
             } else if (lastEnd != null && m >= lastEnd) {
-              overline = tr('OGGI', 'TODAY');
+              overline = tr('Oggi', 'Today');
               title = tr('Lezioni finite!', 'Lessons are over!');
               subtitle = tr('Goditi il resto della giornata.', 'Enjoy the rest of the day.');
             } else {
-              overline = tr('OGGI', 'TODAY');
+              overline = tr('Oggi', 'Today');
               title = ref.displayName;
               subtitle = tr('Tocca per vedere l\'orario di oggi.', 'Tap to see today\'s timetable.');
             }
@@ -813,9 +813,8 @@ class _TodayCard extends StatelessWidget {
                 overline,
                 style: TextStyle(
                   color: onCard.withAlpha(215),
-                  fontSize: 12,
+                  fontSize: 13.5,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
                 ),
               ),
               const SizedBox(height: 4),

@@ -169,9 +169,7 @@ class _ThemeCard extends StatelessWidget {
                   Container(
                     height: 30,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [scheme.primary, Color.lerp(scheme.primary, scheme.tertiary, 0.55)!],
-                      ),
+                      color: scheme.primary,
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
