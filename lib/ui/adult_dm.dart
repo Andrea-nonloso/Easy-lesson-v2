@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'dart:convert';
+
+import 'package:cryptography/cryptography.dart' show Sha256;
+import 'package:flutter/services.dart';
+
 import '../cloud.dart';
+import '../crypto_box.dart' show authToken;
+import '../e2e.dart';
 import '../live.dart';
 import '../social.dart';
 import '../store.dart';
@@ -10,6 +17,31 @@ import '../i18n.dart';
 
 // 3.8: messaggi privati tra grandi (18+ verificati). Il server controlla tutto a ogni richiesta; qui si mostra.
 // La moderazione può leggere i privati: lo si dice prima ("Ho capito") e resta scritto in cima a ogni conversazione.
+
+String get _encNote => tr('🔒 Conversazione cifrata: solo voi due potete leggere questi messaggi, nemmeno la moderazione. '
+    'Tocca qui per il codice di sicurezza.', '🔒 Encrypted conversation: only the two of you can read these messages, not even moderation. '
+    'Tap here for the safety code.');
+
+/// 3.11: se la moderazione mi ha autorizzato ai cifrati, il server deve avere la chiave pubblica di questo telefono
+/// (così gli altri mi possono scrivere cifrato anche prima che io apra la conversazione). Silenziosa se fallisce.
+Future<void> syncE2eKey(AppStore store) async {
+  try {
+    final st = await Social.e2eStatus(store);
+    if (st.$1 != true) return;
+    final account = await _e2eAccount(store);
+    if (account == null) return;
+    final k = await E2e.myKeys(account);
+    if (k != null && st.$2 != k.$2) await Social.e2eSetKey(store, k.$2);
+  } catch (_) {}
+}
+
+/// Impronta dell'account per la chiave salvata (mai il codice stesso).
+Future<String?> _e2eAccount(AppStore store) async {
+  final code = store.accountCode;
+  if (code == null) return null;
+  final h = await Sha256().hash(utf8.encode('easylesson-e2e-account:${await authToken(code)}'));
+  return base64Url.encode(h.bytes.sublist(0, 12)).replaceAll('=', '');
+}
 
 String get _modNote => tr('La moderazione di Easy Lesson può leggere i messaggi privati. I messaggi durano 7 giorni.', 'Easy Lesson moderation can read private messages. Messages last 7 days.');
 
@@ -87,6 +119,7 @@ class _DmListPageState extends State<DmListPage> with LivePoll {
   void initState() {
     super.initState();
     _load();
+    syncE2eKey(StoreScope.read(context));
     startLivePoll(const Duration(seconds: 10), relevant: (e) => e.type == 'dm' || e.type == 'me');
   }
 
@@ -178,6 +211,20 @@ class _DmThreadPageState extends State<DmThreadPage> with LivePoll {
   List<DmMessage> _messages = const [];
   bool _gone = false;
 
+  // 3.11: cifrati. _keys = (privata, pubblica) di questo telefono; _plain = testi decifrati (solo in memoria).
+  (String, String)? _keys;
+  bool _secure = false;
+  bool _secureChosen = false;
+  final Map<String, String?> _plain = {};
+  String? _safety;
+  bool _peerChanged = false;
+
+  /// Si può scrivere cifrato: io autorizzato con la chiave caricata, e l'altro con la sua.
+  bool get _canSecure {
+    final t = _thread;
+    return t != null && t.e2eMe && _keys != null && t.e2eMyKey == _keys!.$2 && t.e2ePeerKey != null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -201,16 +248,89 @@ class _DmThreadPageState extends State<DmThreadPage> with LivePoll {
     final id = _id;
     if (id == null || _gone) return;
     try {
-      final (t, m) = await Social.dmThread(StoreScope.read(context), id);
+      final store = StoreScope.read(context);
+      final (t, m) = await Social.dmThread(store, id);
+      await _prepareE2e(store, t, m);
       if (mounted) {
         setState(() {
           _thread = t;
           _messages = m;
+          // La prima volta, se si può, la conversazione parte cifrata.
+          if (!_secureChosen) _secure = _canSecure;
+          if (!_canSecure) _secure = false;
         });
       }
     } on CloudException catch (e) {
       if (e.status == 404) _closed();
     }
+  }
+
+  /// Chiave di questo telefono (caricata sul server se serve), codice di sicurezza, testi decifrati.
+  Future<void> _prepareE2e(AppStore store, DmThread t, List<DmMessage> msgs) async {
+    if (!t.e2eMe) return;
+    final account = await _e2eAccount(store);
+    if (account == null) return;
+    _keys ??= await E2e.myKeys(account);
+    final k = _keys;
+    if (k == null) return;
+    if (t.e2eMyKey != k.$2) {
+      // Nuovo telefono (o prima volta): il server deve avere la mia chiave pubblica.
+      try {
+        await Social.e2eSetKey(store, k.$2);
+        t.j['e2e'] = {...?(t.j['e2e'] as Map?)?.cast<String, dynamic>(), 'myKey': k.$2};
+      } catch (_) {
+        return;
+      }
+    }
+    final peer = t.e2ePeerKey;
+    if (peer == null) return;
+    // La chiave dell'altro è cambiata da quando l'ho vista l'ultima volta? (nuovo telefono, o qualcuno in mezzo)
+    final seenKey = 'e2e.peer.${t.id}';
+    final seen = store.opt<String?>(seenKey, null);
+    if (seen != null && seen != peer) _peerChanged = true;
+    if (seen != peer) await store.setOpt(seenKey, peer);
+    _safety = await E2e.safetyCode(k.$2, peer);
+    for (final m in msgs) {
+      if (!m.enc || _plain.containsKey(m.id)) continue;
+      _plain[m.id] = await E2e.decrypt(threadId: t.id, myPriv: k.$1, myPub: k.$2, peerPub: peer, text: m.text);
+    }
+  }
+
+  Future<void> _showSafety() async {
+    final code = _safety;
+    if (code == null) return;
+    final name = _thread?.other.label ?? widget.name;
+    await showDialog<void>(
+      context: context,
+      builder: (c) => AlertDialog(
+        icon: const Icon(Icons.lock_rounded),
+        title: Text(tr('Codice di sicurezza', 'Safety code')),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          SelectableText(code, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: 2)),
+          const SizedBox(height: 12),
+          Text(tr('Confrontalo con $name, di persona o a voce. Se sul suo telefono c\'è lo stesso codice, nessuno può leggere i vostri messaggi. '
+              'Se è diverso, non scrivere niente di importante e avvisa la moderazione.',
+              'Compare it with $name, in person or by voice. If their phone shows the same code, nobody can read your messages. '
+              'If it is different, do not write anything important and tell moderation.')),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: code));
+              Navigator.pop(c);
+            },
+            child: Text(tr('Copia', 'Copy')),
+          ),
+          FilledButton(
+            onPressed: () {
+              setState(() => _peerChanged = false);
+              Navigator.pop(c);
+            },
+            child: Text(tr('Ok', 'Ok')),
+          ),
+        ],
+      ),
+    );
   }
 
   void _closed() {
@@ -226,6 +346,33 @@ class _DmThreadPageState extends State<DmThreadPage> with LivePoll {
 
   Future<void> _send({String text = '', String? media, String kind = 'text'}) async {
     final store = StoreScope.read(context);
+    if (_secure && _id != null) {
+      if (media != null) {
+        throw CloudException(tr('Foto e sticker non si possono mandare cifrati: togli il lucchetto per mandarli.',
+            'Photos and stickers cannot be sent encrypted: turn off the lock to send them.'));
+      }
+      // Il server accetta al massimo ~4 KB cifrati: con tante emoji composte 1000 caratteri possono essere di più.
+      if (utf8.encode(text).length > E2e.maxBytes) {
+        throw CloudException(tr('Messaggio troppo lungo per essere cifrato: dividilo in due.', 'Message too long to encrypt: split it in two.'));
+      }
+      final t = _thread!;
+      final k = _keys!;
+      final peer = t.e2ePeerKey!;
+      final box = await E2e.encrypt(threadId: t.id, myPriv: k.$1, myPub: k.$2, peerPub: peer, text: text);
+      try {
+        await Social.dmSendEncrypted(store, _id!, text: box, peerKey: peer);
+      } on CloudException catch (e) {
+        // La chiave dell'altro è cambiata mentre scrivevo: ricarico e lo dico, senza mandare.
+        if (e.status == 409) {
+          await _load();
+          throw CloudException(tr('La chiave di ${t.other.label} è cambiata: controlla il codice di sicurezza e riprova.',
+              '${t.other.label}\'s key changed: check the safety code and try again.'));
+        }
+        rethrow;
+      }
+      await _load();
+      return;
+    }
     if (_id == null) {
       _id = await Social.dmStart(store, widget.handle, text: text, media: media, kind: kind);
       _startLive();
@@ -263,10 +410,26 @@ class _DmThreadPageState extends State<DmThreadPage> with LivePoll {
         ]),
       ),
     );
-    if (a == null || _id == null) return;
+    if (a == null || _id == null || !mounted) return;
+    if (a == 'rep' && m.enc) {
+      // Cifrato: il server non lo sa leggere, quindi la segnalazione porta con sé il testo (solo dopo l'ok).
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: Text(tr('Segnalare questo messaggio?', 'Report this message?')),
+          content: Text(tr('È un messaggio cifrato: per farlo vedere alla moderazione, insieme alla segnalazione le mandiamo il testo che vedi qui.',
+              'This is an encrypted message: to show it to moderation, the text you see here is sent along with the report.')),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annulla', 'Cancel'))),
+            FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Segnala', 'Report'))),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
     try {
       if (a == 'del') await Social.dmDelete(store, _id!, m.id);
-      if (a == 'rep') await Social.report(store, kind: 'adult-dm', target: m.id);
+      if (a == 'rep') await Social.report(store, kind: 'adult-dm', target: m.id, evidence: m.enc ? (_plain[m.id] ?? '') : null);
       if (mounted) _toast(a == 'del' ? tr('Tolto', 'Removed') : tr('Segnalato alla moderazione, grazie', 'Reported to moderation, thanks'));
       await _load();
     } catch (e) {
@@ -285,6 +448,17 @@ class _DmThreadPageState extends State<DmThreadPage> with LivePoll {
       appBar: AppBar(
         title: Text(t?.other.label ?? widget.name),
         actions: [
+          if (_canSecure)
+            IconButton(
+              tooltip: _secure ? tr('Scrivi senza cifrare', 'Write without encryption') : tr('Scrivi cifrato', 'Write encrypted'),
+              isSelected: _secure,
+              icon: const Icon(Icons.lock_open_rounded),
+              selectedIcon: const Icon(Icons.lock_rounded),
+              onPressed: () => setState(() {
+                _secure = !_secure;
+                _secureChosen = true;
+              }),
+            ),
           if (_id != null)
             PopupMenuButton<String>(
               onSelected: _action,
@@ -296,12 +470,30 @@ class _DmThreadPageState extends State<DmThreadPage> with LivePoll {
         ],
       ),
       body: Column(children: [
-        Container(
-          width: double.infinity,
-          color: scheme.surfaceContainerHigh,
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Text(_modNote, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-        ),
+        if (_secure)
+          Material(
+            color: _peerChanged ? scheme.errorContainer : scheme.secondaryContainer,
+            child: InkWell(
+              onTap: _showSafety,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Text(
+                  _peerChanged
+                      ? tr('⚠️ La chiave di ${t?.other.label ?? widget.name} è cambiata (nuovo telefono?). Tocca qui e riconfrontate il codice di sicurezza.',
+                          '⚠️ ${t?.other.label ?? widget.name}\'s key changed (new phone?). Tap here and compare the safety code again.')
+                      : _encNote,
+                  style: TextStyle(fontSize: 12, color: _peerChanged ? scheme.onErrorContainer : scheme.onSecondaryContainer),
+                ),
+              ),
+            ),
+          )
+        else
+          Container(
+            width: double.infinity,
+            color: scheme.surfaceContainerHigh,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: Text(_modNote, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+          ),
         Expanded(
           child: ListView.builder(
             reverse: true,
@@ -323,9 +515,15 @@ class _DmThreadPageState extends State<DmThreadPage> with LivePoll {
                     ),
                     child: Column(crossAxisAlignment: m.byMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
                       if (m.media != null) AdultImage(media: m.media!, kind: m.kind),
-                      if (m.text.isNotEmpty) SelectableText(m.text, style: const TextStyle(fontSize: 15.5)),
+                      if (m.enc)
+                        _plain[m.id] != null
+                            ? SelectableText(_plain[m.id]!, style: const TextStyle(fontSize: 15.5))
+                            : Text(tr('🔒 Non si può leggere su questo telefono (chiave cambiata)', '🔒 Cannot be read on this phone (key changed)'),
+                                style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: scheme.onSurfaceVariant))
+                      else if (m.text.isNotEmpty)
+                        SelectableText(m.text, style: const TextStyle(fontSize: 15.5)),
                       Text(
-                        '${_when(m.at)}${m.byMe && m.read ? ' · letto' : ''}',
+                        '${m.enc ? '🔒 ' : ''}${_when(m.at)}${m.byMe && m.read ? ' · letto' : ''}',
                         style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
                       ),
                     ]),
@@ -363,7 +561,7 @@ class _DmThreadPageState extends State<DmThreadPage> with LivePoll {
                 style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
               ),
             ),
-          AdultComposer(chat: _id == null ? 'adult' : 'dm:$_id', onSend: _send),
+          AdultComposer(chat: _id == null ? 'adult' : 'dm:$_id', onSend: _send, media: !_secure),
         ],
       ]),
     );

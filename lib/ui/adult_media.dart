@@ -239,6 +239,7 @@ class AdultComposer extends StatefulWidget {
     required this.onSend,
     this.maxLength = 1000,
     this.enabled = true,
+    this.media = true,
   });
 
   /// Chat per "sta scrivendo" ("adult" o "dm:<id>").
@@ -248,6 +249,9 @@ class AdultComposer extends StatefulWidget {
   final Future<void> Function({String text, String? media, String kind}) onSend;
   final int maxLength;
   final bool enabled;
+
+  /// false = solo testo (3.11: nei messaggi cifrati foto e sticker non ci sono).
+  final bool media;
 
   @override
   State<AdultComposer> createState() => _AdultComposerState();
@@ -312,8 +316,10 @@ class _AdultComposerState extends State<AdultComposer> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(4, 4, 8, 8),
             child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              IconButton(tooltip: tr('Foto', 'Photo'), onPressed: on ? _photo : null, icon: const Icon(Icons.photo_camera_outlined)),
-              IconButton(tooltip: tr('Sticker e GIF', 'Stickers and GIFs'), onPressed: on ? _sticker : null, icon: const Icon(Icons.emoji_emotions_outlined)),
+              if (widget.media) ...[
+                IconButton(tooltip: tr('Foto', 'Photo'), onPressed: on ? _photo : null, icon: const Icon(Icons.photo_camera_outlined)),
+                IconButton(tooltip: tr('Sticker e GIF', 'Stickers and GIFs'), onPressed: on ? _sticker : null, icon: const Icon(Icons.emoji_emotions_outlined)),
+              ],
               Expanded(
                 child: TextField(
                   controller: _text,

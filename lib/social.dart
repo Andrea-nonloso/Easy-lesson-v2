@@ -231,8 +231,21 @@ class DmThread {
     final l = _last;
     if (l == null) return '';
     final pre = l['byMe'] == true ? 'Tu: ' : '';
+    if (l['enc'] == true) return '$pre🔒 ${tr('Messaggio cifrato', 'Encrypted message')}';
     return switch ('${l['kind']}') { 'photo' => '$pre📷 Foto', 'sticker' => '${pre}Sticker', _ => '$pre${l['text'] ?? ''}' };
   }
+
+  // 3.11: messaggi cifrati (solo nella risposta di una conversazione).
+  Map<String, dynamic> get _e2e => j['e2e'] is Map ? Map<String, dynamic>.from(j['e2e'] as Map) : const {};
+
+  /// Io sono autorizzato ai cifrati.
+  bool get e2eMe => _e2e['me'] == true;
+
+  /// La mia chiave pubblica come la conosce il server.
+  String? get e2eMyKey => _e2e['myKey'] is String ? _e2e['myKey'] as String : null;
+
+  /// Chiave pubblica dell'altro (c'è solo se anche lui è autorizzato e l'ha attivata).
+  String? get e2ePeerKey => _e2e['peerKey'] is String ? _e2e['peerKey'] as String : null;
 
   DateTime? get lastAt => _last == null ? null : DateTime.fromMillisecondsSinceEpoch(_i(_last!['at']));
 }
@@ -252,6 +265,9 @@ class DmMessage {
   /// Mio messaggio già letto dall'altro.
   bool get read => j['read'] == true;
   DateTime get at => DateTime.fromMillisecondsSinceEpoch(_i(j['at']));
+
+  /// 3.11: cifrato ([text] è "v1.<nonce>.<cifrato>").
+  bool get enc => j['enc'] == true;
 }
 
 class ChatData {
@@ -588,13 +604,29 @@ class Social {
   static Future<(DmThread, List<DmMessage>)> dmThread(AppStore s, String id) async {
     final j = await _j(s, 'GET', '/social/adult/dm/$id');
     return (
-      DmThread(j['thread'] is Map ? Map<String, dynamic>.from(j['thread'] as Map) : {}),
+      DmThread({
+        if (j['thread'] is Map) ...Map<String, dynamic>.from(j['thread'] as Map),
+        if (j['e2e'] is Map) 'e2e': Map<String, dynamic>.from(j['e2e'] as Map),
+      }),
       [for (final m in (j['messages'] is List ? j['messages'] as List : const [])) if (m is Map) DmMessage(Map<String, dynamic>.from(m))],
     );
   }
 
   static Future<void> dmSend(AppStore s, String id, {String text = '', String? media, String kind = 'text'}) =>
       _j(s, 'POST', '/social/adult/dm/$id', body: {'text': text, if (media != null) 'media': media, 'kind': kind});
+
+  /// 3.11: messaggio cifrato. [peerKey] = la chiave dell'altro usata per cifrare (se è cambiata il server dice 409).
+  static Future<void> dmSendEncrypted(AppStore s, String id, {required String text, required String peerKey}) =>
+      _j(s, 'POST', '/social/adult/dm/$id', body: {'enc': true, 'text': text, 'peerKey': peerKey});
+
+  /// 3.11: (sono autorizzato ai cifrati?, la mia chiave pubblica sul server)
+  static Future<(bool, String?)> e2eStatus(AppStore s) async {
+    final j = await _j(s, 'GET', '/social/adult/e2e');
+    return (j['allowed'] == true, j['key'] is String ? j['key'] as String : null);
+  }
+
+  /// 3.11: carica la mia chiave pubblica per i cifrati (solo se la moderazione mi ha autorizzato).
+  static Future<void> e2eSetKey(AppStore s, String key) => _j(s, 'PUT', '/social/adult/e2e/key', body: {'key': key});
 
   /// accept, decline, block, unblock
   static Future<void> dmAction(AppStore s, String id, String action) => _j(s, 'POST', '/social/adult/dm/$id/$action');
@@ -651,8 +683,9 @@ class Social {
     if (j is Map && j['pending'] is String) _media[j['pending'] as String] = bytes;
   }
 
-  static Future<void> report(AppStore s, {required String kind, required String target, String reason = ''}) =>
-      _j(s, 'POST', '/report', body: {'kind': kind, 'target': target, 'reason': reason});
+  /// [evidence] = testo di un messaggio cifrato (3.11): il server non lo può leggere, lo manda chi segnala.
+  static Future<void> report(AppStore s, {required String kind, required String target, String reason = '', String? evidence}) =>
+      _j(s, 'POST', '/report', body: {'kind': kind, 'target': target, 'reason': reason, if (evidence != null) 'evidence': evidence});
 
   // ------------------------------------------------------------------ 3.9: insieme
   static String get _lang => appEnglish ? '?lang=en' : '';
